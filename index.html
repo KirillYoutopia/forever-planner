@@ -670,7 +670,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <span class="vs">vs</span>
       <select id="dr-b" aria-label="Второй игрок"></select>
       <input id="dr-start" type="number" min="2" max="1000000" value="1000" class="short" aria-label="С какого числа" title="С какого числа">
-      <input id="dr-stake" type="number" min="0" max="1000000" placeholder="Ставка, з." class="short" aria-label="Ставка в золоте">
+      <input id="dr-gold" type="number" min="0" max="1000000" placeholder="з." class="short" aria-label="Ставка: золото">
+      <input id="dr-silver" type="number" min="0" max="99" placeholder="с." class="short" aria-label="Ставка: серебро">
       <button class="btn" type="submit">Новая дуэль</button>
     </form>
     <div class="form-msg" id="dr-msg" role="status"></div>
@@ -1326,7 +1327,9 @@ const fameSent = new Set();   // auto achievements already written from this tab
 const seenRolls = new Map();  // duel id -> number of rolls already on screen (for the pop animation)
 const drBusy = new Set();
 const nameOf = id => players.find(p => p.id === id)?.name || "—";
-const fmtGold = n => `${(+n || 0).toLocaleString("ru-RU")} з.`;
+// Duel stakes are kept in silver (stakeS); duels made before silver existed have stake in gold.
+const stakeOf = g => g.stakeS != null ? Math.max(0, +g.stakeS || 0) : Math.max(0, +g.stake || 0) * 100;
+const fmtMoney = s => { const g = Math.floor(s / 100), c = s % 100; return [g ? `${g.toLocaleString("ru-RU")} з.` : "", c ? `${c} с.` : ""].filter(Boolean).join(" ") || "0 с."; };
 function needMe() {
   if (me && players.some(p => p.id === me)) return true;
   toast("Сначала выбери себя вверху: «Ты —».");
@@ -1354,9 +1357,9 @@ function renderDr() {
     const st = drState(g), fresh = (seenRolls.get(g.id) ?? st.n) < st.n;
     seenRolls.set(g.id, st.n);
     const last = st.n ? st.rs[st.n - 1] : null, big = last ? last.r : g.start;
-    const head = `<div class="dr-head"><b>${esc(nameOf(g.a))}</b><span class="vs">vs</span><b>${esc(nameOf(g.b))}</b><span class="cap">${+g.stake ? "ставка " + fmtGold(g.stake) : "без ставки"}</span>${delBtn("drdel", g.id, "Убрать дуэль")}</div>`;
+    const head = `<div class="dr-head"><b>${esc(nameOf(g.a))}</b><span class="vs">vs</span><b>${esc(nameOf(g.b))}</b><span class="cap">${stakeOf(g) ? "ставка " + fmtMoney(stakeOf(g)) : "без ставки"}</span>${delBtn("drdel", g.id, "Убрать дуэль")}</div>`;
     const status = st.over
-      ? `<div class="dr-end">💀 <b>${esc(nameOf(g.loser))}</b> выбросил(а) 1${+g.stake ? ` и отдаёт ${fmtGold(g.stake)}` : ""}<br>Победа: <b>${esc(nameOf(g.winner))}</b></div>`
+      ? `<div class="dr-end">💀 <b>${esc(nameOf(g.loser))}</b> выбросил(а) 1${stakeOf(g) ? ` и отдаёт ${fmtMoney(stakeOf(g))}` : ""}<br>Победа: <b>${esc(nameOf(g.winner))}</b></div>`
       : `<div class="dr-turn">Ход: <b>${esc(nameOf(st.turn))}</b> · 1–${st.max}</div>
         <button type="button" class="btn dr-roll" data-act="droll" data-id="${esc(g.id)}" ${ro || me !== st.turn || drBusy.has(g.id) ? "disabled" : ""}>/roll 1–${st.max}</button>
         ${!me ? `<div class="cap">Выбери себя вверху, чтобы бросать</div>` : me !== st.turn ? `<div class="cap">Сейчас бросает ${esc(nameOf(st.turn))}</div>` : ""}`;
@@ -1367,7 +1370,7 @@ function renderDr() {
     + (done.length ? `<h3 class="sub">Последние дуэли</h3><div class="dr-grid">${done.slice(0, 4).map(card).join("")}</div>` : "");
   // who owes whom: net per pair over finished duels still on the board (hide a duel once it's paid)
   const owe = {};
-  for (const g of done) if (+g.stake > 0) { const k = g.loser + "|" + g.winner; owe[k] = (owe[k] || 0) + +g.stake; }
+  for (const g of done) if (stakeOf(g) > 0) { const k = g.loser + "|" + g.winner; owe[k] = (owe[k] || 0) + stakeOf(g); }
   const pairs = [], seen = new Set();
   for (const k of Object.keys(owe)) {
     const [l, w] = k.split("|"), rk = w + "|" + l;
@@ -1377,7 +1380,7 @@ function renderDr() {
     if (d) pairs.push(d > 0 ? [l, w, d] : [w, l, -d]);
   }
   $("#dr-ledger").innerHTML = pairs.length
-    ? pairs.map(([l, w, d]) => `<div class="owe"><b>${esc(nameOf(l))}</b> должен <b>${esc(nameOf(w))}</b><span>${fmtGold(d)}</span></div>`).join("")
+    ? pairs.map(([l, w, d]) => `<div class="owe"><b>${esc(nameOf(l))}</b> должен <b>${esc(nameOf(w))}</b><span>${fmtMoney(d)}</span></div>`).join("")
       + `<p class="cap">Отдал долг — убери дуэль крестиком, и она выпадет из расчёта.</p>`
     : `<p class="empty">Пока все в расчёте.</p>`;
 }
@@ -1438,7 +1441,7 @@ function fameCands() {
   const won = new Set();
   for (const g of rolls.filter(g => g.loser).sort((x, y) => (x.endedAt || 0) - (y.endedAt || 0))) {
     if (!won.has(g.winner)) { won.add(g.winner); add(`drwin1_${g.winner}`, g.winner, "Первая победа в Roll to Death", "inv_misc_dice_01", g.endedAt); }
-    if (+g.stake >= 100) add(`drpot_${g.id}`, g.winner, `Сорвал(а) куш ${fmtGold(g.stake)} у ${nameOf(g.loser)}`, "inv_misc_coin_02", g.endedAt);
+    if (stakeOf(g) >= 10000) add(`drpot_${g.id}`, g.winner, `Сорвал(а) куш ${fmtMoney(stakeOf(g))} у ${nameOf(g.loser)}`, "inv_misc_coin_02", g.endedAt);
     if ((g.rolls || []).length === 1) add(`drone_${g.id}`, g.loser, "Выбросил(а) 1 с первого броска", "inv_misc_bone_skull_01", g.endedAt);
   }
   return out;
@@ -1632,13 +1635,14 @@ onSubmit("#rip-form", () => {
 onSubmit("#dr-form", async () => {
   const msg = t => { $("#dr-msg").textContent = t; };
   const a = $("#dr-a").value, b = $("#dr-b").value, start = Math.round(+$("#dr-start").value);
-  const stake = Math.max(0, Math.round(+$("#dr-stake").value || 0));
+  const gold = Math.max(0, Math.round(+$("#dr-gold").value || 0)), silver = Math.max(0, Math.round(+$("#dr-silver").value || 0));
   if (!a || !b || a === b) return msg("Выбери двух разных игроков.");
   if (!(start >= 2 && start <= 1e6)) return msg("Начальное число — от 2 до 1 000 000.");
-  if (stake > 1e6) return msg("Ставка — до 1 000 000 золота.");
+  if (silver > 99) return msg("Серебра — от 0 до 99: 100 серебра = 1 золото.");
+  if (gold > 1e6) return msg("Ставка — до 1 000 000 золота.");
   msg("");
   const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36)).replace(/[^a-z0-9]/g, "").slice(0, 16);
-  try { await dbRef.call("deathroll_new", { p_id: id, p_a: a, p_b: b, p_start: start, p_stake: stake }, "rolls", id); $("#dr-stake").value = ""; }
+  try { await dbRef.call("deathroll_new", { p_id: id, p_a: a, p_b: b, p_start: start, p_stake_s: gold * 100 + silver }, "rolls", id); $("#dr-gold").value = $("#dr-silver").value = ""; }
   catch (e) { msg(dbError(e, "Не получилось начать дуэль.")); }
 });
 onSubmit("#bet-form", () => {

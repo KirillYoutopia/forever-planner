@@ -121,9 +121,11 @@ on conflict (coll, id) do update
 -- 2026-10-23: Таверна (Roll to Death), Ставки, Зал славы.
 --   bets/{id}  {q, opts: [text], picks: {playerId: optionIndex | -1}, result: optionIndex | -1, resolvedAt, at}
 --   fame/{id}  {who: playerId | "" (whole group), title, icon, at, auto}. Auto ids are deterministic (e.g. lvl20_p_kirill).
---   rolls/{id} {a, b, start, stake, rolls: [{by, max, r, at}], winner, loser, endedAt, at}. Written only by the functions
---   below, so the dice are rolled on the server and turns are enforced.
-create or replace function public.deathroll_new(p_id text, p_a text, p_b text, p_start int, p_stake int)
+--   rolls/{id} {a, b, start, stakeS, rolls: [{by, max, r, at}], winner, loser, endedAt, at}. Written only by the functions
+--   below, so the dice are rolled on the server and turns are enforced. stakeS is in silver (1 gold = 100 silver);
+--   duels created before 2026-10-23 evening have "stake" in gold instead, and the page reads both.
+drop function if exists public.deathroll_new(text, text, text, int, int);  -- parameter renamed p_stake -> p_stake_s
+create or replace function public.deathroll_new(p_id text, p_a text, p_b text, p_start int, p_stake_s int)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare g jsonb;
 begin
@@ -133,8 +135,8 @@ begin
       and not coalesce((data->>'deleted')::boolean, false)) <> 2 then
     raise exception 'unknown player';
   end if;
-  if p_start < 2 or p_start > 1000000 or p_stake < 0 or p_stake > 1000000 then raise exception 'bad numbers'; end if;
-  g := jsonb_build_object('a', p_a, 'b', p_b, 'start', p_start, 'stake', p_stake, 'rolls', '[]'::jsonb,
+  if p_start < 2 or p_start > 1000000 or p_stake_s < 0 or p_stake_s > 100000000 then raise exception 'bad numbers'; end if;
+  g := jsonb_build_object('a', p_a, 'b', p_b, 'start', p_start, 'stakeS', p_stake_s, 'rolls', '[]'::jsonb,
                           'at', floor(extract(epoch from clock_timestamp()) * 1000));
   insert into docs (coll, id, data) values ('rolls', p_id, g);
   return g;
