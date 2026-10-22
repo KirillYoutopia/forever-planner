@@ -12,7 +12,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - `supabase.sql`: schema and seed data. It's safe to re-run.
   - One table, `docs(coll, id, data jsonb)`, primary key `(coll, id)`.
   - RPC `patch_doc(p_coll, p_id, p_patch)` deep-merges a patch on the server, so two people editing different fields don't overwrite each other.
-  - `patch_doc` is the only write path for the page (security definer, merge-only, validates collection names, vote values and that voters are group players). Anon can only `select` the table directly, never insert/update/delete.
+  - `patch_doc` is the only write path for the page (security definer, merge-only, validates collection names, vote values and that voters are group players). A new collection must be added to its allow-list. Anon can only `select` the table directly, never insert/update/delete.
   - `docs_history` keeps the previous version of every changed row (not readable by anon), for undoing vandalism.
   - Realtime is enabled on the table.
 - `roadmap.png`: the roadmap image used in the header.
@@ -29,6 +29,13 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `deleted`: `true` hides a (non-core) player. The database allows no deletes, so removal is a soft delete.
 - `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter types their name; it must match a player name (case-insensitive) or the vote is silently refused with no hints. The name is remembered in localStorage as `wf-name`.
 - `meta/settings`: `{ size: 5 | 10 }`
+- "Скоро" tab (`#soon`):
+  - Player fields: `level` (1–60), `xp` (0–100, % to next level), `dungeons: { [dungeonId]: true }` (ids in `DUNGEONS` / `RAIDS`).
+  - `tasks/{id}`: `{ text, due, done, at }`, the launch checklist.
+  - `goals/{id}`: `{ title, done: { [playerId]: true }, at }`. The "60 by Dec 9" goal is computed from levels, not stored.
+  - `wants/{id}`: `{ by: playerId, item, src, at }`, the loot wishlist. A clash is the same item name from 2+ players.
+  - `deaths/{id}`: `{ by: playerId, lvl, killer, words, at }`, the Hardcore graveyard.
+  - All four collections use `deleted: true` for removal, like players.
 
 ## Code conventions
 - `render()` re-renders every section from state. `editing()` holds off re-rendering while an input or select has focus, so keep that guard working.

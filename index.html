@@ -52,6 +52,14 @@
   --mana: #2f6fd0;
   --rage: #c8352d;
   --energy: #e3c234;
+
+  /* soon tab: XP bar, raid border, gravestones (same in both themes) */
+  --xp: #9b59d0;
+  --epic: #a335ee;
+  --stone: #4a5059;
+  --stone-2: #2a2e34;
+  --stone-line: #5d646e;
+  --stone-fg: #e4e7eb;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -355,6 +363,69 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .sub { margin: 18px 0 10px; }
 
+/* soon: next game, checklist, levels, dungeons, loot wishes, goals, graveyard */
+.add .short { min-width: 70px; max-width: 110px; flex: 0 1 90px; }
+.add.mini input:not(.short) { min-width: 120px; }
+.add select { min-width: 120px; }
+.nx-big { font: 400 30px/1.1 var(--font-display); color: var(--accent); }
+.nx-big small { display: block; font: 600 13px var(--font-body); color: var(--muted); margin-top: 6px; }
+.nx-list { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.nx { display: grid; grid-template-columns: minmax(120px, 170px) 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.nx b { font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 4px; flex-wrap: wrap; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--track); border: 1px solid var(--line); }
+.dots i.y { background: var(--first-bg); border-color: var(--first-bg); }
+.tk { display: grid; grid-template-columns: 26px 1fr auto 26px; gap: 6px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.box { width: 20px; height: 20px; border-radius: 4px; border: 2px solid var(--line); background: transparent; padding: 0; color: var(--first-fg); font-size: 12px; font-weight: 700; line-height: 1; }
+.box[aria-pressed="true"] { background: var(--first-bg); border-color: var(--first-bg); }
+.tk.done .tt { color: var(--muted); text-decoration: line-through; }
+.tk .due { font-size: 12px; color: var(--accent); white-space: nowrap; }
+.lv { display: grid; grid-template-columns: minmax(80px, 130px) 44px 1fr 66px; gap: 10px; align-items: center; padding: 6px 0; }
+.lv .n { font: 400 24px/1 var(--font-display); text-align: center; font-variant-numeric: tabular-nums; }
+.lv .pm { display: flex; gap: 4px; justify-content: flex-end; }
+.lv .pm button { width: 30px; height: 28px; border-radius: 5px; border: 1px solid var(--line); background: var(--cell); font-weight: 700; }
+.xp { position: relative; height: 14px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--track); overflow: hidden; }
+.xp span { position: absolute; inset: 0 auto 0 0; background: var(--xp); }
+.lv-warn { margin-top: 10px; padding: 8px 12px; border-radius: 6px; background: var(--panel-2); font-size: 13px; }
+.dg { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.dgc { padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--cell); font-size: 13px; min-width: 0; }
+.dgc b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgc .lr { font-size: 11px; color: var(--muted); }
+.dgc.now { border-color: var(--first-bg); box-shadow: inset 0 0 0 1px var(--first-bg); }
+.dgc.now .lr::after { content: " · можно идти"; color: var(--fg); font-weight: 700; }
+.dgc.done { opacity: .55; }
+.dgc.done b::after { content: " ✓"; }
+.dgc.raid { border-color: var(--epic); }
+.who { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+.who button { min-width: 26px; height: 22px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); font-size: 10px; font-weight: 700; padding: 0 6px; }
+.who button[aria-pressed="true"] { background: var(--first-bg); border-color: var(--first-bg); color: var(--first-fg); }
+.wl { min-width: 560px; }
+.wl th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 10px 8px 0; }
+.wl td { padding: 7px 10px 7px 0; border-top: 1px solid var(--line); vertical-align: middle; font-size: 13px; }
+.wl .it { font-weight: 600; }
+.clash { color: var(--ban-fg); background: var(--ban-bg); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.gl { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.gl .t { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 6px; align-items: center; }
+.gbar { height: 8px; background: var(--track); border-radius: 0 4px 4px 0; overflow: hidden; margin-top: 6px; }
+.gbar span { display: block; height: 100%; background: var(--accent); min-width: 2px; }
+.rip { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.stone { position: relative; text-align: center; padding: 20px 12px 12px; border-radius: 70px 70px 8px 8px; background: linear-gradient(180deg, var(--stone), var(--stone-2)); border: 1px solid var(--stone-line); color: var(--stone-fg); }
+.stone .ripx { font: 400 12px var(--font-display); letter-spacing: .25em; opacity: .75; }
+.stone b { display: block; font: 400 20px var(--font-display); margin: 4px 0 2px; }
+.stone .c { font-size: 12px; opacity: .85; }
+.stone .q { font-size: 12px; font-style: italic; opacity: .7; margin-top: 8px; }
+.stone .del { position: absolute; top: 6px; right: 8px; border: 0; background: none; color: var(--stone-fg); opacity: .5; }
+.alive { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.pframe { position: relative; }
+.pframe .lvl { position: absolute; left: 44px; top: 44px; min-width: 22px; height: 22px; border-radius: 11px; padding: 0 4px; background: var(--frame-bg); border: 2px solid var(--gold); color: var(--frame-fg); font: 700 11px/18px var(--font-body); text-align: center; }
+@media (min-width: 1800px) { .pframe .lvl { left: 58px; top: 58px; min-width: 26px; height: 26px; font-size: 12px; line-height: 22px; } }
+@media (max-width: 560px) {
+  .lv { grid-template-columns: minmax(70px, 1fr) 36px 66px; }
+  .lv .xp { grid-column: 1 / -1; order: 1; }
+  .nx { grid-template-columns: 1fr auto; }
+  .nx .dots { grid-column: 1 / -1; grid-row: 2; }
+}
+
 #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--fg); color: var(--bg); padding: 4px 9px; border-radius: 5px; font-size: 12px; font-weight: 600; max-width: 260px; }
 
 @media (max-width: 560px) {
@@ -376,6 +447,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="seg" role="group" aria-label="Раздел">
       <button type="button" data-act="nav" data-nav="plan" aria-pressed="true">Планировщик</button>
       <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
+      <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
     </div>
   </header>
 
@@ -448,6 +520,64 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <span class="lg"><i class="ban">✕</i>не могу</span>
       <span>Утро 6–12 · День 12–18 · Вечер 18–24 (время одного часового пояса на всех)</span>
     </div>
+  </section>
+
+  <div class="row" data-view="soon" hidden>
+    <section class="panel" aria-labelledby="h-next">
+      <div class="panel-head"><h2 id="h-next">Ближайшая игра</h2><span class="cap">По календарю сессий</span></div>
+      <div id="next"></div>
+    </section>
+    <section class="panel" aria-labelledby="h-tasks">
+      <div class="panel-head"><h2 id="h-tasks">Чеклист к запуску</h2></div>
+      <div id="tasks"></div>
+      <form class="add mini" id="task-form" autocomplete="off">
+        <input id="task-text" type="text" maxlength="60" placeholder="Новое дело" aria-label="Новое дело">
+        <input id="task-due" type="text" maxlength="16" placeholder="Когда" aria-label="Когда" class="short">
+        <button class="btn" type="submit">+</button>
+      </form>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-levels" data-view="soon" hidden>
+    <div class="panel-head"><h2 id="h-levels">Уровни</h2><span class="cap">− / + меняют уровень, клик по полоске отмечает опыт</span></div>
+    <div id="levels"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-dung" data-view="soon" hidden>
+    <div class="panel-head"><h2 id="h-dung">Подземелья</h2><span class="cap" id="dung-cap"></span></div>
+    <div id="dung"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-wants" data-view="soon" hidden>
+    <div class="panel-head"><h2 id="h-wants">Хотелки по луту</h2><span class="cap">Если двое хотят одно и то же, это видно сразу</span></div>
+    <div class="scroll" id="wants"></div>
+    <form class="add" id="want-form" autocomplete="off">
+      <select id="want-who" aria-label="Кто хочет"></select>
+      <input id="want-item" type="text" maxlength="60" placeholder="Вещь, напр. Staff of Westfall" aria-label="Вещь">
+      <input id="want-src" type="text" maxlength="40" placeholder="Откуда: подземелье, квест, крафт" aria-label="Откуда">
+      <button class="btn" type="submit">Добавить</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="h-goals" data-view="soon" hidden>
+    <div class="panel-head"><h2 id="h-goals">Общие цели</h2><span class="cap">Клик по имени отмечает, что цель выполнена</span></div>
+    <div id="goals"></div>
+    <form class="add" id="goal-form" autocomplete="off">
+      <input id="goal-text" type="text" maxlength="60" placeholder="Новая цель" aria-label="Новая цель">
+      <button class="btn" type="submit">Добавить</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="h-rip" data-view="soon" hidden>
+    <div class="panel-head"><h2 id="h-rip">Кладбище Hardcore</h2><span class="cap">Кто, на каком уровне и от чего</span></div>
+    <div id="rip"></div>
+    <form class="add" id="rip-form" autocomplete="off">
+      <select id="rip-who" aria-label="Кто погиб"></select>
+      <input id="rip-lvl" type="number" min="1" max="60" placeholder="Ур." aria-label="Уровень" class="short">
+      <input id="rip-killer" type="text" maxlength="40" placeholder="Кто убил, где" aria-label="Кто убил">
+      <input id="rip-words" type="text" maxlength="60" placeholder="Последние слова" aria-label="Последние слова">
+      <button class="btn" type="submit">Похоронить</button>
+    </form>
   </section>
 
   <section class="panel" aria-labelledby="h-split" data-view="plan">
@@ -568,7 +698,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline;
 }
 function renderNote() {
@@ -643,7 +773,7 @@ function renderSquad() {
     if (!c) return `<div class="pframe e"><div class="por">${portrait(p)}</div><div class="meta"><div class="nm"><span>${esc(p.name)}</span></div><div class="bar"></div><div class="sub">ещё не выбрал(а) ★</div></div></div>`;
     const r = RACE[p.main.race], role = p.main.role === "pie" && effRole(p) ? "pie" : effRole(p);
     const sub = [r && (r.name || r.id), c.id].filter(Boolean).join(" ") + (role ? " · " + roleLabel(role) : "");
-    return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${portrait(p)}</div><div class="meta">
+    return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${portrait(p)}</div>${lvlOf(p) ? `<span class="lvl">${lvlOf(p)}</span>` : ""}<div class="meta">
       <div class="nm"><span>${esc(p.name)}</span><img src="${ICON("classicon_" + c.id.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
       <div class="bar"></div><div class="bar res"></div><div class="sub">${esc(sub)}</div></div></div>`;
   }).join("");
@@ -910,6 +1040,143 @@ function renderSheet() {
 function setAvail(date, v, pid = sheet.pid) { save(pid, { avail: { [date]: v } }); }
 function closeSheet() { sheet = null; sheetNote = ""; renderSheet(); }
 
+/* ---------- soon tab ---------- */
+// Classic dungeons, level range for the run. f: entrance is in that faction's territory.
+const DUNGEONS = [
+  { id: "rfc", name: "Ragefire Chasm", min: 13, max: 18, f: "H" }, { id: "wc", name: "Wailing Caverns", min: 17, max: 24 },
+  { id: "dm", name: "The Deadmines", min: 17, max: 26, f: "A" }, { id: "sfk", name: "Shadowfang Keep", min: 22, max: 30 },
+  { id: "bfd", name: "Blackfathom Deeps", min: 24, max: 32 }, { id: "stocks", name: "The Stockade", min: 24, max: 32, f: "A" },
+  { id: "gnomer", name: "Gnomeregan", min: 29, max: 38 }, { id: "rfk", name: "Razorfen Kraul", min: 29, max: 38 },
+  { id: "smgy", name: "SM: Graveyard", min: 28, max: 38 }, { id: "smlib", name: "SM: Library", min: 29, max: 39 },
+  { id: "smarm", name: "SM: Armory", min: 32, max: 42 }, { id: "smcath", name: "SM: Cathedral", min: 35, max: 45 },
+  { id: "rfd", name: "Razorfen Downs", min: 37, max: 46 }, { id: "ulda", name: "Uldaman", min: 41, max: 51 },
+  { id: "zf", name: "Zul'Farrak", min: 44, max: 54 }, { id: "mara", name: "Maraudon", min: 46, max: 55 },
+  { id: "st", name: "Sunken Temple", min: 50, max: 60 }, { id: "brd", name: "Blackrock Depths", min: 52, max: 60 },
+  { id: "dmaul", name: "Dire Maul", min: 55, max: 60 }, { id: "lbrs", name: "Lower Blackrock Spire", min: 55, max: 60 },
+  { id: "ubrs", name: "Upper Blackrock Spire", min: 58, max: 60 }, { id: "strat", name: "Stratholme", min: 58, max: 60 },
+  { id: "scholo", name: "Scholomance", min: 58, max: 60 },
+];
+const RAIDS = [ // WoW Forever, открываются 9 декабря
+  { id: "barrow", name: "Barrow Deeps", size: 10 }, { id: "hyjal", name: "Hyjal Summit", size: 20 }, { id: "ony", name: "Onyxia's Lair", size: 40 },
+];
+let wants = [], deaths = [], tasks = [], goals = [];
+const live = docs => docs.map(d => ({ id: d.id, ...d.data() })).filter(x => !x.deleted);
+const lvlOf = p => Math.min(60, Math.max(0, Math.round(+p.level || 0)));
+const short = n => esc(String(n).slice(0, 2));
+const delBtn = (act, id, label) => `<button type="button" class="x" data-act="${act}" data-id="${esc(id)}" aria-label="${esc(label)}" ${readOnly || offline ? "disabled" : ""}>✕</button>`;
+function fillWho(sel) {
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">Кто</option>` + players.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+  if (players.some(p => p.id === cur)) sel.value = cur;
+}
+function renderSoon() {
+  renderNext(); renderTasks(); renderLevels(); renderDung(); renderWants(); renderGoals(); renderRip();
+  if (!editing()) { fillWho($("#want-who")); fillWho($("#rip-who")); }
+}
+function renderNext() {
+  if (!loaded || !players.length) { $("#next").innerHTML = `<p class="empty">${loaded ? "Добавь игроков." : "Загружаю…"}</p>`; return; }
+  const total = players.length, need = Math.max(2, total - 1);
+  const slots = [];
+  for (const day of calDays()) for (const b of BLOCKS) {
+    const who = players.filter(p => blockAvail(p.avail?.[day.key], b));
+    if (who.length >= need) slots.push({ day, b, who });
+  }
+  if (!slots.length) {
+    $("#next").innerHTML = `<p class="empty">Пока нет времени, когда свободны ${need === total ? "все" : `хотя бы ${need} из ${total}`}. Отметь время в календаре.</p><button type="button" class="btn ghost" data-act="nav" data-nav="calendar">Открыть календарь</button>`;
+    return;
+  }
+  const best = slots.find(s => s.who.length === total) || slots[0];
+  const line = s => `<div class="nx"><span>${dayLabel(s.day.key)}, ${s.b.label.toLowerCase()}</span><span class="dots">${players.map(p => `<i class="${s.who.includes(p) ? "y" : ""}" data-tip="${esc(p.name + (s.who.includes(p) ? ": свободен" : ": занят"))}"></i>`).join("")}</span><b>${s.who.length} / ${total}</b></div>`;
+  const miss = players.filter(p => !best.who.includes(p)).map(p => p.name);
+  $("#next").innerHTML = `<div class="nx-big">${dayLabel(best.day.key)}<small>${best.b.label.toLowerCase()} ${best.b.from}–${best.b.to} · ${miss.length ? "нет: " + esc(miss.join(", ")) : `все ${total} свободны`}</small></div>
+    <div class="nx-list">${slots.slice(0, 5).map(line).join("")}</div>`;
+}
+function renderTasks() {
+  const ro = readOnly || offline;
+  const list = [...tasks].sort((a, b) => (a.at || 0) - (b.at || 0));
+  $("#tasks").innerHTML = list.length ? list.map(t => `<div class="tk ${t.done ? "done" : ""}">
+      <button type="button" class="box" data-act="task" data-id="${esc(t.id)}" aria-pressed="${!!t.done}" aria-label="${esc(t.text)}" ${ro ? "disabled" : ""}>${t.done ? "✓" : ""}</button>
+      <span class="tt">${esc(t.text)}</span><span class="due">${esc(t.due || "")}</span>${delBtn("taskdel", t.id, "Удалить: " + t.text)}</div>`).join("")
+    : `<p class="empty">${loaded ? "Пока пусто. Добавь первое дело." : "Загружаю…"}</p>`;
+  $("#task-form").querySelectorAll("input, button").forEach(el => { el.disabled = ro; });
+}
+function renderLevels() {
+  const ro = readOnly || offline;
+  if (!players.length) { $("#levels").innerHTML = `<p class="empty">${loaded ? "Добавь игроков." : "Загружаю…"}</p>`; return; }
+  const rows = players.map(p => {
+    const lv = lvlOf(p), xp = Math.min(100, Math.max(0, +p.xp || 0)), c = CLS[p.main?.cls];
+    return `<div class="lv"><b>${c ? cdot(c) : ""}${esc(p.name)}</b><span class="n">${lv || "—"}</span>
+      <button type="button" class="xp" data-act="xp" data-id="${esc(p.id)}" data-tip="${esc(`${p.name}: ${xp}% опыта до ${Math.min(60, (lv || 1) + 1)}`)}" aria-label="${esc(`Опыт ${p.name}: ${xp}%`)}" ${ro || !lv || lv >= 60 ? "disabled" : ""}><span style="width:${lv >= 60 ? 100 : xp}%"></span></button>
+      <span class="pm"><button type="button" data-act="lvl" data-d="-1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень −1" ${ro || lv <= 1 ? "disabled" : ""}>−</button><button type="button" data-act="lvl" data-d="1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень +1" ${ro || lv >= 60 ? "disabled" : ""}>+</button></span></div>`;
+  }).join("");
+  const set = players.filter(p => lvlOf(p) > 0);
+  let warn = "";
+  if (set.length >= 2) {
+    const hi = set.reduce((a, b) => lvlOf(b) > lvlOf(a) ? b : a), lo = set.reduce((a, b) => lvlOf(b) < lvlOf(a) ? b : a), d = lvlOf(hi) - lvlOf(lo);
+    if (d >= 5) warn = `<div class="lv-warn">⚠ ${esc(hi.name)} на ${d} ${plural(d, "уровень", "уровня", "уровней")} выше, чем ${esc(lo.name)}. В подземелья вместе будет тяжело.</div>`;
+  }
+  $("#levels").innerHTML = rows + warn;
+}
+function groupLevel() {
+  const set = players.map(lvlOf).filter(Boolean);
+  return set.length ? Math.round(set.reduce((a, b) => a + b, 0) / set.length) : 0;
+}
+function renderDung() {
+  const ro = readOnly || offline, avg = groupLevel();
+  $("#dung-cap").textContent = avg ? `Средний уровень группы: ${avg}` : "Отметь уровни выше, и подсветятся подземелья по силам";
+  const who = d => `<div class="who">${players.map(p => `<button type="button" data-act="dg" data-id="${esc(p.id)}" data-dg="${d.id}" aria-pressed="${!!p.dungeons?.[d.id]}" data-tip="${esc(p.name + (p.dungeons?.[d.id] ? ": был(а)" : ": ещё не был(а)"))}" aria-label="${esc(`${p.name}, ${d.name}`)}" ${ro ? "disabled" : ""}>${short(p.name)}</button>`).join("")}</div>`;
+  const card = d => {
+    const all = players.length && players.every(p => p.dungeons?.[d.id]);
+    const now = avg && avg >= d.min && avg <= d.max;
+    return `<div class="dgc ${all ? "done" : now ? "now" : ""}"><b>${esc(d.name)}</b><span class="lr">${d.min}–${d.max}${d.f ? " · " + FACTIONS[d.f].label : ""}</span>${who(d)}</div>`;
+  };
+  $("#dung").innerHTML = `<div class="dg">${DUNGEONS.map(card).join("")}</div>
+    <h3 style="margin-top:18px">Рейды · с 9 декабря</h3>
+    <div class="dg">${RAIDS.map(r => `<div class="dgc raid ${players.length && players.every(p => p.dungeons?.[r.id]) ? "done" : ""}"><b>${esc(r.name)}</b><span class="lr">${r.size} игроков · 60</span>${who(r)}</div>`).join("")}</div>`;
+}
+function renderWants() {
+  const byId = Object.fromEntries(players.map(p => [p.id, p]));
+  const list = wants.filter(w => byId[w.by]).sort((a, b) => String(a.src || "").localeCompare(String(b.src || "")) || String(a.item).localeCompare(String(b.item)));
+  const fans = {};
+  for (const w of list) { const k = normName(w.item); (fans[k] ||= new Set()).add(w.by); }
+  $("#wants").innerHTML = list.length ? `<table class="wl"><thead><tr><th>Вещь</th><th>Откуда</th><th>Кто</th><th></th><th></th></tr></thead><tbody>${list.map(w => {
+    const n = fans[normName(w.item)].size;
+    return `<tr><td class="it">${esc(w.item)}</td><td class="mute">${esc(w.src || "—")}</td><td><span class="chip">${esc(byId[w.by].name)}</span></td><td>${n > 1 ? `<span class="clash">⚠ хотят ${n}</span>` : ""}</td><td>${delBtn("wantdel", w.id, "Удалить: " + w.item)}</td></tr>`;
+  }).join("")}</tbody></table>` : `<p class="empty">${loaded ? "Пока никто ничего не хочет. Впиши вещь ниже." : "Загружаю…"}</p>`;
+}
+function renderGoals() {
+  const ro = readOnly || offline, total = players.length;
+  const at60 = players.filter(p => lvlOf(p) >= 60);
+  const auto = `<div class="gl"><div class="t"><span>60 уровень у всех к открытию рейдов, 9 декабря</span><b>${at60.length} из ${total}</b></div>
+    <div class="cap">Считается само по уровням выше</div><div class="gbar"><span style="width:${total ? at60.length / total * 100 : 0}%"></span></div></div>`;
+  const list = [...goals].sort((a, b) => (a.at || 0) - (b.at || 0));
+  $("#goals").innerHTML = auto + list.map(g => {
+    const n = players.filter(p => g.done?.[p.id]).length;
+    return `<div class="gl"><div class="t"><span>${esc(g.title)}</span><span style="display:flex;gap:8px;align-items:center"><b>${n} из ${total}</b>${delBtn("goaldel", g.id, "Удалить цель: " + g.title)}</span></div>
+      <div class="who">${players.map(p => `<button type="button" data-act="goal" data-id="${esc(g.id)}" data-p="${esc(p.id)}" aria-pressed="${!!g.done?.[p.id]}" ${ro ? "disabled" : ""}>${esc(p.name)}</button>`).join("")}</div>
+      <div class="gbar"><span style="width:${total ? n / total * 100 : 0}%"></span></div></div>`;
+  }).join("");
+}
+function renderRip() {
+  const byId = Object.fromEntries(players.map(p => [p.id, p]));
+  const list = deaths.filter(d => byId[d.by]).sort((a, b) => (b.at || 0) - (a.at || 0));
+  const alive = players.filter(p => !list.some(d => d.by === p.id));
+  $("#rip").innerHTML = (list.length ? `<div class="rip">${list.map(d => {
+    const p = byId[d.by];
+    return `<div class="stone">${delBtn("ripdel", d.id, "Убрать надгробие " + p.name)}<div class="ripx">R · I · P</div><b>${esc(p.name)}</b>
+      <div class="c">${d.lvl ? `ур. ${esc(d.lvl)}` : ""}${p.main?.cls ? ` · ${esc(p.main.cls)}` : ""}${d.killer ? `<br>${esc(d.killer)}` : ""}</div>${d.words ? `<div class="q">«${esc(d.words)}»</div>` : ""}</div>`;
+  }).join("")}</div>` : `<p class="empty">${loaded ? "Пока никто не умер. Hardcore стартует зимой." : "Загружаю…"}</p>`)
+    + (list.length && alive.length ? `<div class="alive">Без смертей: ${alive.map(p => `<span class="chip">${esc(p.name)}</span>`).join("")}</div>` : "");
+}
+function addDoc(coll, data) {
+  if (!dbRef || readOnly) return Promise.resolve();
+  return dbRef.collection(coll).add({ ...data, at: Date.now() }).catch(onWriteError);
+}
+function setDoc(coll, id, patch) {
+  if (!dbRef || readOnly) return;
+  dbRef.doc(coll + "/" + id).update(patch).catch(onWriteError);
+}
+
 /* ---------- data ---------- */
 const chain = new Map();
 function save(id, patch) {
@@ -945,7 +1212,7 @@ document.addEventListener("click", e => {
   }
   else if (act === "close") closeSheet();
   else if (act === "nav") {
-    view = b.dataset.nav === "calendar" ? "calendar" : "plan";
+    view = VIEWS.includes(b.dataset.nav) ? b.dataset.nav : "plan";
     try { history.replaceState(null, "", "#" + view); } catch {}
     applyView();
   }
@@ -975,6 +1242,18 @@ document.addEventListener("click", e => {
   else if (act === "vote" && dbRef) castVote(b.dataset.v);
   else if (act === "unvote" && myId) { pollNote = ""; voteChain = voteChain.then(() => dbRef.doc("votes/" + myId).set({ vote: "", at: Date.now() })).catch(onWriteError); }
   else if (act === "size") { const n = +b.dataset.n; settings = { size: n }; render(); dbRef?.doc("meta/settings").set({ size: n }).catch(onWriteError); }
+  else if (act === "lvl" && p) { const lv = Math.min(60, Math.max(1, (lvlOf(p) || 1) + +b.dataset.d)); save(id, { level: lv, xp: 0 }); }
+  else if (act === "xp" && p) {
+    const r = b.getBoundingClientRect();
+    save(id, { xp: Math.min(100, Math.max(0, Math.round((e.clientX - r.left) / r.width * 20) * 5)) });
+  }
+  else if (act === "dg" && p) save(id, { dungeons: { [b.dataset.dg]: !p.dungeons?.[b.dataset.dg] } });
+  else if (act === "task") { const t = tasks.find(x => x.id === id); if (t) setDoc("tasks", id, { done: !t.done }); }
+  else if (act === "goal") { const g = goals.find(x => x.id === id); if (g) setDoc("goals", id, { done: { [b.dataset.p]: !g.done?.[b.dataset.p] } }); }
+  else if (act === "taskdel") setDoc("tasks", id, { deleted: true });
+  else if (act === "goaldel") setDoc("goals", id, { deleted: true });
+  else if (act === "wantdel") setDoc("wants", id, { deleted: true });
+  else if (act === "ripdel") setDoc("deaths", id, { deleted: true });
   else if (act === "del") {
     if (CORE.has(id)) return;
     if (confirmDel === id) { confirmDel = null; col.doc(id).update({ deleted: true }).catch(onWriteError); } // soft delete: the database allows no deletes
@@ -999,6 +1278,31 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); }
 });
 document.addEventListener("focusout", () => setTimeout(() => { if (dirty && !editing()) render(); }, 0));
+
+const onSubmit = (id, fn) => $(id).addEventListener("submit", e => { e.preventDefault(); if (dbRef && !readOnly) fn(); });
+const val = id => $(id).value.trim();
+onSubmit("#task-form", () => {
+  if (!val("#task-text")) return $("#task-text").focus();
+  addDoc("tasks", { text: val("#task-text"), due: val("#task-due"), done: false });
+  $("#task-text").value = $("#task-due").value = "";
+});
+onSubmit("#goal-form", () => {
+  if (!val("#goal-text")) return $("#goal-text").focus();
+  addDoc("goals", { title: val("#goal-text"), done: {} });
+  $("#goal-text").value = "";
+});
+onSubmit("#want-form", () => {
+  if (!$("#want-who").value) return $("#want-who").focus();
+  if (!val("#want-item")) return $("#want-item").focus();
+  addDoc("wants", { by: $("#want-who").value, item: val("#want-item"), src: val("#want-src") });
+  $("#want-item").value = $("#want-src").value = "";
+});
+onSubmit("#rip-form", () => {
+  if (!$("#rip-who").value) return $("#rip-who").focus();
+  const lvl = Math.min(60, Math.max(0, Math.round(+$("#rip-lvl").value || 0)));
+  addDoc("deaths", { by: $("#rip-who").value, lvl: lvl || "", killer: val("#rip-killer"), words: val("#rip-words") });
+  ["#rip-lvl", "#rip-killer", "#rip-words"].forEach(i => { $(i).value = ""; });
+});
 
 $("#add-form").addEventListener("submit", e => {
   e.preventDefault();
@@ -1025,7 +1329,8 @@ function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = el.dataset.view !== view; });
   document.querySelectorAll("[data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === view)));
 }
-function readHash() { view = location.hash === "#calendar" ? "calendar" : "plan"; }
+const VIEWS = ["plan", "calendar", "soon"];
+function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "plan"; }
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
 function tick() {
@@ -1074,6 +1379,8 @@ async function boot() {
     loaded = true; errNote = "";
     render();
   }, () => { offline = true; loaded = true; render(); });
+  for (const [c, set] of [["wants", v => { wants = v; }], ["deaths", v => { deaths = v; }], ["tasks", v => { tasks = v; }], ["goals", v => { goals = v; }]])
+    db.collection(c).onSnapshot(snap => { set(live(snap.docs)); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
     settings = { size: s.exists && s.data().size === 10 ? 10 : 5 };
     render();

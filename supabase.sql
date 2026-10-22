@@ -25,7 +25,9 @@ $$;
 create or replace function public.patch_doc(p_coll text, p_id text, p_patch jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_coll not in ('players', 'votes', 'meta') then raise exception 'unknown collection %', p_coll; end if;
+  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths') then
+    raise exception 'unknown collection %', p_coll;
+  end if;
   if p_coll = 'meta' and p_id <> 'settings' then raise exception 'unknown meta doc %', p_id; end if;
   if jsonb_typeof(p_patch) <> 'object' or octet_length(p_patch::text) > 20000 then raise exception 'bad patch'; end if;
   if p_coll = 'votes' then
@@ -93,3 +95,18 @@ join public.docs p on p.coll = 'players' and lower(p.data->>'name') = lower(v.da
 where v.coll = 'votes' and v.id not like 'p\_%'
 on conflict (coll, id) do nothing;
 delete from public.docs where coll = 'votes' and id not in (select id from public.docs where coll = 'players');
+
+-- 2026-10-23: "Скоро" tab. New collections (soft delete via data.deleted = true, like players):
+--   tasks/{id} {text, due, done, at}   goals/{id} {title, done: {playerId: true}, at}
+--   wants/{id} {by: playerId, item, src, at}   deaths/{id} {by: playerId, lvl, killer, words, at}
+-- New optional player fields: level (1-60), xp (0-100, % to next level), dungeons {dungeonId: true}.
+-- Starter checklist and goals; existing rows are left alone.
+insert into public.docs (coll, id, data) values
+  ('tasks', 't_server',  $j${"text": "Выбрать сервер и фракцию", "due": "до 27 окт", "done": false, "at": 1}$j$::jsonb),
+  ('tasks', 't_names',   $j${"text": "Зарезервировать имена", "due": "27 окт", "done": false, "at": 2}$j$::jsonb),
+  ('tasks', 't_chars',   $j${"text": "Создать персонажей", "due": "27 окт", "done": false, "at": 3}$j$::jsonb),
+  ('tasks', 't_addons',  $j${"text": "Поставить аддоны: Questie, Details", "due": "до 4 ноя", "done": false, "at": 4}$j$::jsonb),
+  ('tasks', 't_launch',  $j${"text": "Старт: все онлайн в 00:00 CET", "due": "5 ноя", "done": false, "at": 5}$j$::jsonb),
+  ('goals', 'g_mount',   $j${"title": "Маунт на 40-м уровне", "done": {}, "at": 1}$j$::jsonb),
+  ('goals', 'g_artisan', $j${"title": "Артизан (300) в основной профессии", "done": {}, "at": 2}$j$::jsonb)
+on conflict (coll, id) do nothing;
