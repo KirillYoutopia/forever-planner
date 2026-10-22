@@ -40,6 +40,18 @@
   --horde: #e66767;
   --pve: #9085e9;
   --pvp: #d55181;
+
+  /* party frames: game-UI look, dark in both themes */
+  --frame-bg: #0d0b08f0;
+  --frame-bg-2: #0d0b08c0;
+  --frame-line: #5a4a2a;
+  --frame-fg: #f1ece0;
+  --frame-muted: #b7b0a2;
+  --frame-shade: #00000040;
+  --gold: #c9a24a;
+  --mana: #2f6fd0;
+  --rage: #c8352d;
+  --energy: #e3c234;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -109,18 +121,24 @@ body {
 }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
-/* squad: main characters (★) standing at the screen edges; only where there's room beside .wrap */
-/* --gut = free space beside .wrap; squads sit centered in it and stay mid-screen while scrolling */
-.squad { --gut: calc((100vw - 1120px) / 2); --card: clamp(84px, calc(var(--gut) * .38), 160px);
-  position: fixed; top: 50%; display: flex; gap: calc(var(--card) * .14); pointer-events: none; z-index: 1; }
-.squad.l { left: calc(var(--gut) / 2); transform: translate(-50%, -50%); }
-.squad.r { right: calc(var(--gut) / 2); transform: translate(50%, -50%); }
-.hero { width: var(--card); text-align: center; line-height: 1.25; }
-.hero-pic { position: relative; width: 100%; aspect-ratio: 1; }
-.hero-pic img { width: 100%; height: 100%; display: block; border-radius: 12%; border: 3px solid var(--c); background: var(--panel-2); }
-.hero-pic .hero-cls { position: absolute; right: -10%; bottom: -10%; width: 40%; height: 40%; border-radius: 50%; border: 2px solid var(--c); }
-.hero b { display: block; font-size: calc(var(--card) * .11 + 3px); margin-top: 14%; }
-.hero span { display: block; font-size: calc(var(--card) * .08 + 3px); color: var(--muted); }
+/* squad: in-game style party frames, pinned mid-screen in the free space left of .wrap (wide screens only) */
+.squad { --gut: calc((100vw - 1120px) / 2); --fw: clamp(170px, calc(var(--gut) - 40px), 240px);
+  position: fixed; top: 50%; left: calc(var(--gut) / 2); transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 1; }
+.pframe { width: var(--fw); display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; color: var(--frame-fg);
+  background: linear-gradient(90deg, var(--frame-bg), var(--frame-bg-2)); border: 1px solid var(--frame-line); border-radius: 40px 8px 8px 40px; }
+.pframe .por { width: 58px; height: 58px; flex: none; border-radius: 50%; border: 3px solid var(--gold); overflow: hidden; background: var(--panel-2); }
+.pframe .por img { width: 100%; height: 100%; display: block; }
+.pframe .meta { flex: 1; min-width: 0; }
+.pframe .nm { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
+.pframe .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pframe .nm img { width: 16px; height: 16px; border-radius: 3px; flex: none; }
+.pframe .bar { height: 9px; margin-top: 4px; border-radius: 2px; background: var(--c); box-shadow: inset 0 -3px 0 var(--frame-shade); }
+.pframe .bar.res { height: 6px; background: var(--res); }
+.pframe .sub { font-size: 11px; color: var(--frame-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pframe.e { opacity: .55; }
+.pframe.e .por { border-color: var(--frame-line); }
+.pframe.e .bar { background: var(--frame-line); }
 @media (max-width: 1519px) { .squad { display: none; } }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -338,8 +356,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
 </head>
 <body>
-<div class="squad l" id="squad-l" aria-hidden="true"></div>
-<div class="squad r" id="squad-r" aria-hidden="true"></div>
+<div class="squad" id="squad" aria-hidden="true"></div>
 <div class="wrap">
   <header class="top">
     <div>
@@ -604,20 +621,22 @@ function renderGrid() {
 // Official game icons from the Wowhead CDN (as forevermains.com does). Skyborne has no portrait yet, so it gets the Feather Fall icon.
 const ICON = n => `https://wow.zamimg.com/images/wow/icons/large/${n}.jpg`;
 const PORTRAIT = { Human: "human_male", Dwarf: "dwarf_male", Gnome: "gnome_male", "Night Elf": "nightelf_female", Orc: "orc_male", Undead: "undead_male", Tauren: "tauren_male", Troll: "troll_male" };
+const RESOURCE = { Warrior: "var(--rage)", Rogue: "var(--energy)" }; // everyone else: mana
 function portrait(p) {
-  const r = RACE[p.main.race], race = r ? r.name || r.id : "";
-  const face = race === "Skyborne" ? "spell_magic_featherfall" : PORTRAIT[race] ? "achievement_character_" + PORTRAIT[race] : "classicon_" + p.main.cls.toLowerCase();
-  return `<div class="hero-pic"><img src="${ICON(face)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><img class="hero-cls" src="${ICON("classicon_" + p.main.cls.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>`;
+  const r = RACE[p.main?.race], race = r ? r.name || r.id : "";
+  const face = race === "Skyborne" ? "spell_magic_featherfall" : PORTRAIT[race] ? "achievement_character_" + PORTRAIT[race] : p.main?.cls ? "classicon_" + p.main.cls.toLowerCase() : "";
+  return face ? `<img src="${ICON(face)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : "";
 }
 function renderSquad() {
-  const heroes = players.filter(p => CLS[p.main?.cls]);
-  const half = Math.ceil(heroes.length / 2);
-  const card = p => {
-    const r = RACE[p.main.race];
-    return `<div class="hero" style="--c:${CLS[p.main.cls].color}">${portrait(p)}<b>${esc(p.name)}</b><span>${esc([r && (r.name || r.id), p.main.cls].filter(Boolean).join(" "))}</span></div>`;
-  };
-  $("#squad-l").innerHTML = heroes.slice(0, half).map(card).join("");
-  $("#squad-r").innerHTML = heroes.slice(half).map(card).join("");
+  $("#squad").innerHTML = players.map(p => {
+    const c = CLS[p.main?.cls];
+    if (!c) return `<div class="pframe e"><div class="por">${portrait(p)}</div><div class="meta"><div class="nm"><span>${esc(p.name)}</span></div><div class="bar"></div><div class="sub">ещё не выбрал(а) ★</div></div></div>`;
+    const r = RACE[p.main.race], role = p.main.role === "pie" && effRole(p) ? "pie" : effRole(p);
+    const sub = [r && (r.name || r.id), c.id].filter(Boolean).join(" ") + (role ? " · " + roleLabel(role) : "");
+    return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${portrait(p)}</div><div class="meta">
+      <div class="nm"><span>${esc(p.name)}</span><img src="${ICON("classicon_" + c.id.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
+      <div class="bar"></div><div class="bar res"></div><div class="sub">${esc(sub)}</div></div></div>`;
+  }).join("");
 }
 function renderChars() {
   const ro = readOnly || offline;
