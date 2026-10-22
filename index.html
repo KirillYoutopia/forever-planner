@@ -121,9 +121,9 @@ body {
 }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
-/* squad: in-game style party frames, pinned mid-screen in the free space left of .wrap (wide screens only) */
-.squad { --gut: calc((100vw - 1120px) / 2); --fw: clamp(170px, calc(var(--gut) - 40px), 240px);
-  position: fixed; top: 50%; left: calc(var(--gut) / 2); transform: translate(-50%, -50%);
+/* squad: in-game style party frames, pinned mid-screen just left of .wrap (wide screens only) */
+.squad { --gut: calc((100vw - 1120px) / 2); --fw: clamp(170px, calc(var(--gut) - 40px), 300px);
+  position: fixed; top: 50%; left: max(12px, calc(var(--gut) - var(--fw) - 48px)); transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 1; }
 .pframe { width: var(--fw); display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; color: var(--frame-fg);
   background: linear-gradient(90deg, var(--frame-bg), var(--frame-bg-2)); border: 1px solid var(--frame-line); border-radius: 40px 8px 8px 40px; }
@@ -139,6 +139,16 @@ body {
 .pframe.e { opacity: .55; }
 .pframe.e .por { border-color: var(--frame-line); }
 .pframe.e .bar { background: var(--frame-line); }
+@media (min-width: 1800px) {
+  .squad { gap: 14px; }
+  .pframe { gap: 14px; padding: 6px 14px 6px 6px; }
+  .pframe .por { width: 76px; height: 76px; }
+  .pframe .nm { font-size: 16px; }
+  .pframe .nm img { width: 22px; height: 22px; }
+  .pframe .bar { height: 12px; margin-top: 6px; }
+  .pframe .bar.res { height: 8px; }
+  .pframe .sub { font-size: 12.5px; margin-top: 4px; }
+}
 @media (max-width: 1519px) { .squad { display: none; } }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
