@@ -29,11 +29,11 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `deleted`: `true` hides a (non-core) player. The database allows no deletes, so removal is a soft delete.
 - `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter types their name; it must match a player name (case-insensitive) or the vote is silently refused with no hints. The name is remembered in localStorage as `wf-name`.
 - `meta/settings`: `{ size: 5 | 10 }`
-- "Скоро" tab (`#soon`):
+- "Скоро" tab (`#soon`). "Ближайшая игра" lives in the calendar tab. `DUNGEONS` follows Wowhead's WoW Forever dungeon guide (beta data):
   - Player fields: `level` (1–60), `xp` (0–100, % to next level), `dungeons: { [dungeonId]: true }` (ids in `DUNGEONS` / `RAIDS`).
   - `tasks/{id}`: `{ text, due, done, at }`, the launch checklist.
   - `goals/{id}`: `{ title, done: { [playerId]: true }, at }`. The "60 by Dec 9" goal is computed from levels, not stored.
-  - `wants/{id}`: `{ by: playerId, item, src, at }`, the loot wishlist. A clash is the same item name from 2+ players.
+  - `wants/{id}`: `{ by: playerId, item, src, wid?, q?, icon?, at }`, the loot wishlist. `wid`/`q`/`icon` come from Wowhead's tooltip JSON (`nether.wowhead.com/tooltip/item/{id}?dataEnv=16`, CORS-open, no script) when a Wowhead link or ID is pasted. A clash is the same item name from 2+ players.
   - `deaths/{id}`: `{ by: playerId, lvl, killer, words, at }`, the Hardcore graveyard.
   - All four collections use `deleted: true` for removal, like players.
 

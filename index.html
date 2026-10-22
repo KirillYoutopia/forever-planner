@@ -56,6 +56,11 @@
   /* soon tab: XP bar, raid border, gravestones (same in both themes) */
   --xp: #9b59d0;
   --epic: #a335ee;
+  --q-poor: #9d9d9d;
+  --q-unc: #1eff00;
+  --q-rare: #3d8fe8;
+  --q-epic: #b45cf5;
+  --q-leg: #ff8000;
   --stone: #4a5059;
   --stone-2: #2a2e34;
   --stone-line: #5d646e;
@@ -88,6 +93,11 @@
     --horde: #e34948;
     --pve: #6250d6;
     --pvp: #e87ba4;
+    --q-poor: #6b6b6b;
+    --q-unc: #138a00;
+    --q-rare: #0058b8;
+    --q-epic: #7a1fc2;
+    --q-leg: #b35a00;
   }
 }
 :root[data-theme="light"] {
@@ -116,6 +126,11 @@
   --horde: #e34948;
   --pve: #6250d6;
   --pvp: #e87ba4;
+  --q-poor: #6b6b6b;
+  --q-unc: #138a00;
+  --q-rare: #0058b8;
+  --q-epic: #7a1fc2;
+  --q-leg: #b35a00;
 }
 
 * { box-sizing: border-box; }
@@ -363,6 +378,16 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .sub { margin: 18px 0 10px; }
 
+.toast { position: fixed; z-index: 80; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: min(520px, calc(100vw - 32px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.form-help { margin: 8px 0 0; }
+.form-help a { color: var(--accent); }
+.form-msg { font-size: 13px; color: var(--accent); min-height: 1em; margin-top: 4px; }
+.dgc .new { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 1px 4px; margin-right: 6px; vertical-align: 1px; }
+.wit { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; text-decoration: none; color: var(--q, var(--fg)); }
+.wit:hover { text-decoration: underline; }
+.wi { width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--q, var(--line)); flex: none; }
+.wit.q0 { --q: var(--q-poor); } .wit.q2 { --q: var(--q-unc); } .wit.q3 { --q: var(--q-rare); } .wit.q4 { --q: var(--q-epic); } .wit.q5 { --q: var(--q-leg); }
+.whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
 /* soon: next game, checklist, levels, dungeons, loot wishes, goals, graveyard */
 .add .short { min-width: 70px; max-width: 110px; flex: 0 1 90px; }
 .add.mini input:not(.short) { min-width: 120px; }
@@ -510,6 +535,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="scroll" id="chars"></div>
   </section>
 
+  <section class="panel" aria-labelledby="h-next" data-view="calendar" hidden>
+    <div class="panel-head"><h2 id="h-next">Ближайшая игра</h2><span class="cap">Ближайшее время, когда свободны все или почти все</span></div>
+    <div id="next"></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-cal" data-view="calendar" hidden>
     <div class="panel-head"><h2 id="h-cal">Календарь сессий</h2><span class="cap">С дня релиза, 4 ноября. Клик по ячейке открывает выбор времени</span></div>
     <div id="best"></div>
@@ -523,9 +553,13 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   </section>
 
   <div class="row" data-view="soon" hidden>
-    <section class="panel" aria-labelledby="h-next">
-      <div class="panel-head"><h2 id="h-next">Ближайшая игра</h2><span class="cap">По календарю сессий</span></div>
-      <div id="next"></div>
+    <section class="panel" aria-labelledby="h-goals">
+      <div class="panel-head"><h2 id="h-goals">Общие цели</h2><span class="cap">Клик по имени отмечает, что цель выполнена</span></div>
+      <div id="goals"></div>
+      <form class="add" id="goal-form" autocomplete="off">
+        <input id="goal-text" type="text" maxlength="60" placeholder="Новая цель" aria-label="Новая цель">
+        <button class="btn" type="submit">Добавить</button>
+      </form>
     </section>
     <section class="panel" aria-labelledby="h-tasks">
       <div class="panel-head"><h2 id="h-tasks">Чеклист к запуску</h2></div>
@@ -553,19 +587,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="scroll" id="wants"></div>
     <form class="add" id="want-form" autocomplete="off">
       <select id="want-who" aria-label="Кто хочет"></select>
-      <input id="want-item" type="text" maxlength="60" placeholder="Вещь, напр. Staff of Westfall" aria-label="Вещь">
+      <input id="want-item" type="text" maxlength="200" placeholder="Ссылка Wowhead, ID или название" aria-label="Ссылка на вещь на Wowhead, её ID или название">
       <input id="want-src" type="text" maxlength="40" placeholder="Откуда: подземелье, квест, крафт" aria-label="Откуда">
-      <button class="btn" type="submit">Добавить</button>
+      <button class="btn" type="submit" id="want-btn">Добавить</button>
     </form>
-  </section>
-
-  <section class="panel" aria-labelledby="h-goals" data-view="soon" hidden>
-    <div class="panel-head"><h2 id="h-goals">Общие цели</h2><span class="cap">Клик по имени отмечает, что цель выполнена</span></div>
-    <div id="goals"></div>
-    <form class="add" id="goal-form" autocomplete="off">
-      <input id="goal-text" type="text" maxlength="60" placeholder="Новая цель" aria-label="Новая цель">
-      <button class="btn" type="submit">Добавить</button>
-    </form>
+    <p class="cap form-help">Найди вещь на <a href="https://www.wowhead.com/forever/items" target="_blank" rel="noopener">wowhead.com/forever</a>, скопируй ссылку и вставь сюда: подтянутся иконка, название и редкость.</p>
+    <div class="form-msg" id="want-msg" role="status"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-rip" data-view="soon" hidden>
@@ -594,6 +621,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 <div class="sheet-bd" id="sheet-bd" data-act="close" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1" hidden></div>
 <div id="tip" hidden></div>
+<div class="toast" id="toast" role="alert" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
@@ -1041,20 +1069,26 @@ function setAvail(date, v, pid = sheet.pid) { save(pid, { avail: { [date]: v } }
 function closeSheet() { sheet = null; sheetNote = ""; renderSheet(); }
 
 /* ---------- soon tab ---------- */
-// Classic dungeons, level range for the run. f: entrance is in that faction's territory.
+// WoW Forever dungeons and level ranges, per Wowhead's Forever dungeon guide (beta data, may still change).
+// n: new in Forever. f: entrance is in that faction's territory.
 const DUNGEONS = [
-  { id: "rfc", name: "Ragefire Chasm", min: 13, max: 18, f: "H" }, { id: "wc", name: "Wailing Caverns", min: 17, max: 24 },
-  { id: "dm", name: "The Deadmines", min: 17, max: 26, f: "A" }, { id: "sfk", name: "Shadowfang Keep", min: 22, max: 30 },
-  { id: "bfd", name: "Blackfathom Deeps", min: 24, max: 32 }, { id: "stocks", name: "The Stockade", min: 24, max: 32, f: "A" },
-  { id: "gnomer", name: "Gnomeregan", min: 29, max: 38 }, { id: "rfk", name: "Razorfen Kraul", min: 29, max: 38 },
-  { id: "smgy", name: "SM: Graveyard", min: 28, max: 38 }, { id: "smlib", name: "SM: Library", min: 29, max: 39 },
+  { id: "thanes", name: "Hall of Thanes", min: 13, max: 18, f: "A", n: true }, { id: "rfc", name: "Ragefire Chasm", min: 13, max: 18, f: "H" },
+  { id: "lordaeron", name: "Ruins of Lordaeron", min: 15, max: 20, f: "H", n: true }, { id: "wc", name: "Wailing Caverns", min: 15, max: 25 },
+  { id: "dm", name: "The Deadmines", min: 18, max: 23, f: "A" }, { id: "sfk", name: "Shadowfang Keep", min: 22, max: 30 },
+  { id: "stocks", name: "The Stockade", min: 22, max: 30, f: "A" }, { id: "excav", name: "Excavation Site: Wetlands", min: 24, max: 29, n: true },
+  { id: "bfd", name: "Blackfathom Deeps", min: 24, max: 32 }, { id: "smgy", name: "SM: Graveyard", min: 28, max: 38 },
+  { id: "dalaran", name: "City of Dalaran", min: 28, max: 33, n: true }, { id: "smlib", name: "SM: Library", min: 29, max: 39 },
+  { id: "gnomer", name: "Gnomeregan", min: 29, max: 38 }, { id: "rfk", name: "Razorfen Kraul", min: 30, max: 40 },
   { id: "smarm", name: "SM: Armory", min: 32, max: 42 }, { id: "smcath", name: "SM: Cathedral", min: 35, max: 45 },
-  { id: "rfd", name: "Razorfen Downs", min: 37, max: 46 }, { id: "ulda", name: "Uldaman", min: 41, max: 51 },
-  { id: "zf", name: "Zul'Farrak", min: 44, max: 54 }, { id: "mara", name: "Maraudon", min: 46, max: 55 },
-  { id: "st", name: "Sunken Temple", min: 50, max: 60 }, { id: "brd", name: "Blackrock Depths", min: 52, max: 60 },
-  { id: "dmaul", name: "Dire Maul", min: 55, max: 60 }, { id: "lbrs", name: "Lower Blackrock Spire", min: 55, max: 60 },
-  { id: "ubrs", name: "Upper Blackrock Spire", min: 58, max: 60 }, { id: "strat", name: "Stratholme", min: 58, max: 60 },
-  { id: "scholo", name: "Scholomance", min: 58, max: 60 },
+  { id: "drowned", name: "The Drowned City", min: 35, max: 40, n: true }, { id: "kroldok", name: "Krol'dok Stronghold", min: 40, max: 45, n: true },
+  { id: "rfd", name: "Razorfen Downs", min: 40, max: 50 }, { id: "ulda", name: "Uldaman", min: 42, max: 52 },
+  { id: "zf", name: "Zul'Farrak", min: 44, max: 54 }, { id: "mara_wg", name: "Maraudon: Wicked Grotto", min: 45, max: 53 },
+  { id: "mara_fc", name: "Maraudon: Foulspore Cavern", min: 45, max: 53 }, { id: "mara_esf", name: "Maraudon: Earth Song Falls", min: 48, max: 57 },
+  { id: "alcaz", name: "Alcaz Prison", min: 48, max: 53, n: true }, { id: "st", name: "Sunken Temple", min: 50, max: 60 },
+  { id: "brd", name: "Blackrock Depths", min: 52, max: 60 }, { id: "lbrs", name: "Blackrock Spire: Lower", min: 55, max: 60 },
+  { id: "blackmaw", name: "Blackmaw Hold", min: 55, max: 60, n: true }, { id: "ubrs", name: "Blackrock Spire: Upper", min: 58, max: 60 },
+  { id: "scholo", name: "Scholomance", min: 58, max: 60 }, { id: "strat", name: "Stratholme", min: 58, max: 60 },
+  { id: "dmaul", name: "Dire Maul", min: 58, max: 60 }, { id: "shapers", name: "Shaper's Terrace", min: 58, max: 60, n: true },
 ];
 const RAIDS = [ // WoW Forever, открываются 9 декабря
   { id: "barrow", name: "Barrow Deeps", size: 10 }, { id: "hyjal", name: "Hyjal Summit", size: 20 }, { id: "ony", name: "Onyxia's Lair", size: 40 },
@@ -1128,7 +1162,7 @@ function renderDung() {
   const card = d => {
     const all = players.length && players.every(p => p.dungeons?.[d.id]);
     const now = avg && avg >= d.min && avg <= d.max;
-    return `<div class="dgc ${all ? "done" : now ? "now" : ""}"><b>${esc(d.name)}</b><span class="lr">${d.min}–${d.max}${d.f ? " · " + FACTIONS[d.f].label : ""}</span>${who(d)}</div>`;
+    return `<div class="dgc ${all ? "done" : now ? "now" : ""}"><b>${d.n ? `<span class="new">new</span>` : ""}${esc(d.name)}</b><span class="lr">${d.min}–${d.max}${d.f ? " · " + FACTIONS[d.f].label : ""}</span>${who(d)}</div>`;
   };
   $("#dung").innerHTML = `<div class="dg">${DUNGEONS.map(card).join("")}</div>
     <h3 style="margin-top:18px">Рейды · с 9 декабря</h3>
@@ -1141,13 +1175,27 @@ function renderWants() {
   for (const w of list) { const k = normName(w.item); (fans[k] ||= new Set()).add(w.by); }
   $("#wants").innerHTML = list.length ? `<table class="wl"><thead><tr><th>Вещь</th><th>Откуда</th><th>Кто</th><th></th><th></th></tr></thead><tbody>${list.map(w => {
     const n = fans[normName(w.item)].size;
-    return `<tr><td class="it">${esc(w.item)}</td><td class="mute">${esc(w.src || "—")}</td><td><span class="chip">${esc(byId[w.by].name)}</span></td><td>${n > 1 ? `<span class="clash">⚠ хотят ${n}</span>` : ""}</td><td>${delBtn("wantdel", w.id, "Удалить: " + w.item)}</td></tr>`;
+    return `<tr><td class="it">${itemCell(w)}</td><td class="mute">${esc(w.src || "—")}</td><td><span class="chip">${esc(byId[w.by].name)}</span></td><td>${n > 1 ? `<span class="clash">⚠ хотят ${n}</span>` : ""}</td><td>${delBtn("wantdel", w.id, "Удалить: " + w.item)}</td></tr>`;
   }).join("")}</tbody></table>` : `<p class="empty">${loaded ? "Пока никто ничего не хочет. Впиши вещь ниже." : "Загружаю…"}</p>`;
+}
+// Wowhead's tooltip endpoint (CORS-open JSON, no script): name, quality and icon of an item. dataEnv 16 = WoW Forever.
+const WH_ENV = 16;
+const whItemId = s => { const m = /item=(\d+)/.exec(s) || /^\s*(\d{1,7})\s*$/.exec(s); return m ? +m[1] : 0; };
+async function whItem(id) {
+  const r = await fetch(`https://nether.wowhead.com/tooltip/item/${id}?dataEnv=${WH_ENV}&locale=0`);
+  const j = await r.json();
+  if (!j || !j.name) throw new Error("not found");
+  return { item: String(j.name).slice(0, 80), q: Math.min(7, Math.max(0, +j.quality || 0)), icon: /^[a-z0-9_]{1,80}$/.test(j.icon) ? j.icon : "" };
+}
+function itemCell(w) {
+  if (!w.wid) return `${esc(w.item)} <a class="whs" href="https://www.wowhead.com/forever/search?q=${encodeURIComponent(w.item)}" target="_blank" rel="noopener">найти на Wowhead</a>`;
+  const icon = /^[a-z0-9_]{1,80}$/.test(w.icon || "") ? `<img class="wi" src="${ICON(w.icon)}" alt="" loading="lazy">` : "";
+  return `<a class="wit q${Math.min(7, Math.max(0, +w.q || 0))}" href="https://www.wowhead.com/forever/item=${+w.wid}" target="_blank" rel="noopener">${icon}${esc(w.item)}</a>`;
 }
 function renderGoals() {
   const ro = readOnly || offline, total = players.length;
   const at60 = players.filter(p => lvlOf(p) >= 60);
-  const auto = `<div class="gl"><div class="t"><span>60 уровень у всех к открытию рейдов, 9 декабря</span><b>${at60.length} из ${total}</b></div>
+  const auto = `<div class="gl"><div class="t"><span>Все 60 уровня к открытию рейдов (9 дек)</span><b>${at60.length} из ${total}</b></div>
     <div class="cap">Считается само по уровням выше</div><div class="gbar"><span style="width:${total ? at60.length / total * 100 : 0}%"></span></div></div>`;
   const list = [...goals].sort((a, b) => (a.at || 0) - (b.at || 0));
   $("#goals").innerHTML = auto + list.map(g => {
@@ -1184,9 +1232,20 @@ function save(id, patch) {
   const next = (chain.get(id) || Promise.resolve()).then(() => col.doc(id).update(patch)).catch(onWriteError);
   chain.set(id, next);
 }
+let toastTimer = 0;
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+}
 function onWriteError(e) {
   if (e?.code === "invalid_argument" && writeCheck !== true) readOnly = true;
-  else errNote = "Не удалось сохранить. Проверь соединение и попробуй ещё раз.";
+  else {
+    errNote = /unknown collection/.test(e?.message || "")
+      ? "База ещё не обновлена для этого раздела: выполни supabase.sql в Supabase."
+      : "Не удалось сохранить. Проверь соединение и попробуй ещё раз.";
+    toast(errNote);
+  }
   render();
 }
 function cyclePatch(p, cls) {
@@ -1291,10 +1350,21 @@ onSubmit("#goal-form", () => {
   addDoc("goals", { title: val("#goal-text"), done: {} });
   $("#goal-text").value = "";
 });
-onSubmit("#want-form", () => {
-  if (!$("#want-who").value) return $("#want-who").focus();
-  if (!val("#want-item")) return $("#want-item").focus();
-  addDoc("wants", { by: $("#want-who").value, item: val("#want-item"), src: val("#want-src") });
+onSubmit("#want-form", async () => {
+  const msg = t => { $("#want-msg").textContent = t; };
+  if (!$("#want-who").value) { msg("Выбери, кто хочет."); return $("#want-who").focus(); }
+  const raw = val("#want-item");
+  if (!raw) { msg("Вставь ссылку на вещь, её ID или название."); return $("#want-item").focus(); }
+  const doc = { by: $("#want-who").value, src: val("#want-src"), item: raw.slice(0, 60) };
+  const wid = whItemId(raw);
+  if (wid) {
+    msg("Ищу на Wowhead…"); $("#want-btn").disabled = true;
+    try { Object.assign(doc, await whItem(wid), { wid }); }
+    catch { msg("Wowhead не нашёл такую вещь. Проверь ссылку."); $("#want-btn").disabled = false; return; }
+    $("#want-btn").disabled = false;
+  } else if (/^https?:/i.test(raw)) { msg("Это не ссылка на вещь. Нужна ссылка вида wowhead.com/forever/item=…"); return; }
+  msg("");
+  await addDoc("wants", doc);
   $("#want-item").value = $("#want-src").value = "";
 });
 onSubmit("#rip-form", () => {
