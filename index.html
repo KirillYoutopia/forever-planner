@@ -110,15 +110,17 @@ body {
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
 /* squad: main characters (★) standing at the screen edges; only where there's room beside .wrap */
-.squad { position: fixed; bottom: 12px; display: flex; gap: 6px; align-items: flex-end; pointer-events: none; z-index: 1; }
-.squad.l { left: 12px; }
-.squad.r { right: 12px; }
-.hero { width: 84px; text-align: center; line-height: 1.25; }
-.hero-pic { position: relative; width: 72px; height: 72px; margin: 0 auto; }
-.hero-pic img { width: 100%; height: 100%; display: block; border-radius: 10px; border: 3px solid var(--c); background: var(--panel-2); }
-.hero-pic .hero-cls { position: absolute; right: -8px; bottom: -8px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--c); }
-.hero b { display: block; font-size: 12px; margin-top: 10px; }
-.hero span { display: block; font-size: 11px; color: var(--muted); }
+/* --gut = free space beside .wrap; squads sit centered in it and stay mid-screen while scrolling */
+.squad { --gut: calc((100vw - 1120px) / 2); --card: clamp(84px, calc(var(--gut) * .38), 160px);
+  position: fixed; top: 50%; display: flex; gap: calc(var(--card) * .14); pointer-events: none; z-index: 1; }
+.squad.l { left: calc(var(--gut) / 2); transform: translate(-50%, -50%); }
+.squad.r { right: calc(var(--gut) / 2); transform: translate(50%, -50%); }
+.hero { width: var(--card); text-align: center; line-height: 1.25; }
+.hero-pic { position: relative; width: 100%; aspect-ratio: 1; }
+.hero-pic img { width: 100%; height: 100%; display: block; border-radius: 12%; border: 3px solid var(--c); background: var(--panel-2); }
+.hero-pic .hero-cls { position: absolute; right: -10%; bottom: -10%; width: 40%; height: 40%; border-radius: 50%; border: 2px solid var(--c); }
+.hero b { display: block; font-size: calc(var(--card) * .11 + 3px); margin-top: 14%; }
+.hero span { display: block; font-size: calc(var(--card) * .08 + 3px); color: var(--muted); }
 @media (max-width: 1519px) { .squad { display: none; } }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
