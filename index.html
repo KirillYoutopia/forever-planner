@@ -36,6 +36,7 @@
   --tank: #3987e5;
   --dps: #d95926;
   --healer: #199e70;
+  --pie: #d9a441;
   --alliance: #3987e5;
   --horde: #e66767;
   --pve: #9085e9;
@@ -64,6 +65,7 @@
     --tank: #2a78d6;
     --dps: #eb6834;
     --healer: #1baf7a;
+    --pie: #b8862b;
     --alliance: #2a78d6;
     --horde: #e34948;
     --pve: #6250d6;
@@ -92,6 +94,7 @@
   --tank: #2a78d6;
   --dps: #eb6834;
   --healer: #1baf7a;
+  --pie: #b8862b;
   --alliance: #2a78d6;
   --horde: #e34948;
   --pve: #6250d6;
@@ -445,6 +448,7 @@ const ROLES = [
   { id: "tank", label: "Tank", color: "var(--tank)" },
   { id: "healer", label: "Healer", color: "var(--healer)" },
   { id: "dps", label: "DPS", color: "var(--dps)" },
+  { id: "pie", label: "Pirozochek", color: "var(--pie)" }, // шуточная роль: доступна любому классу, в состав не входит
 ];
 const FACTIONS = { A: { label: "Alliance", color: "var(--alliance)" }, H: { label: "Horde", color: "var(--horde)" } };
 const PROFS = [
@@ -495,9 +499,10 @@ const stateOf = (p, cls) => p.main?.cls === cls ? "final" : ({ "1": "first", "2"
 function effRole(p) {
   const c = CLS[p.main?.cls];
   if (!c) return "";
-  if (c.roles.includes(p.main.role)) return p.main.role;
+  if (rolesOf(c).includes(p.main.role)) return p.main.role;
   return c.roles.length === 1 ? c.roles[0] : "";
 }
+const rolesOf = c => [...c.roles, "pie"];
 const factionOf = p => RACE[p.main?.race]?.f || "";
 const countState = (cls, st) => players.filter(p => stateOf(p, cls) === st).length;
 
@@ -535,7 +540,7 @@ function renderComp() {
   const size = settings.size, tgt = TARGETS[size], total = players.length;
   $("#comp-cap").textContent = !loaded ? "" :
     `${total} из ${size} игроков · ` + (total < size ? `свободно мест: ${size - total}` : total === size ? "состав полный" : `на ${total - size} больше состава`);
-  $("#comp").innerHTML = ROLES.map(r => {
+  $("#comp").innerHTML = ROLES.filter(r => r.id in tgt).map(r => {
     const filled = players.filter(p => effRole(p) === r.id);
     const need = tgt[r.id];
     const pips = Array.from({ length: Math.max(need, filled.length) }, (_, i) => `<span class="pip ${i < filled.length ? "on" : ""}" style="--c:${r.color}"></span>`).join("");
@@ -586,8 +591,7 @@ function renderChars() {
     const c = CLS[p.main?.cls];
     const f = factionOf(p);
     let roleCell = `<span class="mute">—</span>`;
-    if (c && c.roles.length === 1) roleCell = rolePill(c.roles[0]);
-    else if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro ? "disabled" : ""}><option value="">Выбери роль</option>${c.roles.map(r => `<option value="${r}" ${p.main.role === r ? "selected" : ""}>${ROLE[r].label}</option>`).join("")}</select>`;
+    if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro ? "disabled" : ""}>${c.roles.length > 1 ? `<option value="">Выбери роль</option>` : ""}${rolesOf(c).map(r => `<option value="${r}" ${effRole(p) === r ? "selected" : ""}>${ROLE[r].label}</option>`).join("")}</select>`;
     return `<tr>
       <td>${esc(p.name)}</td>
       <td>${c ? `<span class="cls"><span class="star">★</span>${cdot(c)}${c.id}</span>` : `<span class="mute">нет ★ в таблице</span>`}</td>
