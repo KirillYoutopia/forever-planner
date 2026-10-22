@@ -27,7 +27,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `profs`: `{ [Profession]: boolean }`
   - `avail`: `{ "YYYY-MM-DD": "full" | "no" | a subset of "mde" (morning/day/evening) | "hA-B" (hours) | "" }`
   - `deleted`: `true` hides a (non-core) player. The database allows no deletes, so removal is a soft delete.
-- `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter picks themselves from the player list (remembered in localStorage as `wf-voter`).
+- `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter types their name; it must match a player name (case-insensitive) or the vote is silently refused with no hints. The name is remembered in localStorage as `wf-name`.
 - `meta/settings`: `{ size: 5 | 10 }`
 
 ## Code conventions

@@ -384,8 +384,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
     <section class="panel" aria-labelledby="h-poll">
       <div class="panel-head"><h2 id="h-poll">PvE или PvP?</h2><span class="cap">Один голос на игрока</span></div>
-      <label class="seg-label" for="vote-who">Кто голосует</label>
-      <select id="vote-who" class="poll-name"></select>
+      <label class="seg-label" for="vote-name">Твоё имя</label>
+      <input id="vote-name" class="poll-name" type="text" maxlength="24" autocomplete="off">
       <div id="poll-opts"></div>
       <div class="cap poll-msg" id="poll-msg" role="status"></div>
     </section>
@@ -489,7 +489,7 @@ let settings = { size: 5 };
 let loaded = false, offline = false, readOnly = false, writeCheck = null, errNote = "";
 let confirmDel = null, dirty = false;
 let col = null, dbRef = null;
-let votes = [], myId = null, pollNote = "", voteChain = Promise.resolve();
+let votes = [], myId = "", voterChecked = false, pollNote = "", voteChain = Promise.resolve();
 const POLL = [{ id: "pve", label: "PvE", color: "var(--pve)" }, { id: "pvp", label: "PvP", color: "var(--pvp)" }];
 
 const RELEASE = "2026-11-04";
@@ -720,16 +720,15 @@ function renderProfs() {
 }
 
 function renderPoll() {
-  // votes/{playerId}: only players from the group can vote, one vote each
+  // votes/{playerId}: only players from the group can vote, one vote each. The typed name must match a player; no hints.
   const byId = Object.fromEntries(players.map(p => [p.id, p]));
+  if (loaded && !voterChecked) { voterChecked = true; myId = matchVoter($("#vote-name").value); }
   if (myId && loaded && !byId[myId]) myId = "";
   const valid = votes.filter(v => byId[v.id] && POLL.some(o => o.id === v.vote)).sort((a, b) => (a.at || 0) - (b.at || 0));
   const total = valid.length;
   const mine = valid.find(v => v.id === myId);
   const can = !readOnly && !offline && loaded;
-  const who = $("#vote-who");
-  who.innerHTML = `<option value="">Выбери себя</option>` + players.map(p => `<option value="${esc(p.id)}" ${p.id === myId ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-  who.disabled = !can;
+  $("#vote-name").disabled = !can;
   $("#poll-opts").innerHTML = POLL.map(o => {
     const vs = valid.filter(v => v.vote === o.id);
     const pct = total ? Math.round(vs.length / total * 100) : 0;
@@ -749,13 +748,19 @@ function renderPoll() {
   if (!loaded) msg = "Загружаю…";
   else if (offline) msg = "";
   else if (readOnly) msg = "Режим просмотра: голосовать нельзя.";
-  else if (mine) msg = `Голос ${byId[myId].name}: ${POLL.find(o => o.id === mine.vote).label}. Чтобы сменить, нажми другой вариант.`;
-  else msg = myId ? "Выбери вариант." : "Выбери себя в списке и нажми вариант.";
+  else if (mine) msg = `Твой голос: ${POLL.find(o => o.id === mine.vote).label}. Чтобы сменить, нажми другой вариант.`;
+  else msg = "Впиши имя и выбери вариант.";
   $("#poll-msg").innerHTML = `<span>${esc(pollNote || msg)}</span>` + (mine && can ? `<button type="button" class="link" data-act="unvote">Убрать голос</button>` : "");
 }
+const normName = n => String(n || "").trim().toLowerCase();
+const matchVoter = name => players.find(p => normName(p.name) === normName(name))?.id || "";
 function castVote(v) {
-  if (!myId) { pollNote = "Сначала выбери себя в списке."; render(); $("#vote-who").focus(); return; }
+  const input = $("#vote-name"), name = input.value.trim();
+  if (!name) { pollNote = "Сначала впиши имя."; render(); input.focus(); return; }
+  myId = matchVoter(name);
+  if (!myId) { pollNote = "Не получилось проголосовать."; render(); return; }
   pollNote = "";
+  try { localStorage.setItem("wf-name", name); } catch {}
   const ref = dbRef.doc("votes/" + myId);
   voteChain = voteChain.then(() => ref.set({ vote: v, at: Date.now() })).catch(onWriteError);
 }
@@ -951,7 +956,6 @@ document.addEventListener("change", e => {
   const t = e.target, act = t.dataset?.act, id = t.dataset?.id;
   if (t.id === "h-from") { hFrom = +t.value; return; }
   if (t.id === "h-to") { hTo = +t.value; return; }
-  if (t.id === "vote-who") { myId = t.value; pollNote = ""; try { localStorage.setItem("wf-voter", myId); } catch {} t.blur(); render(); return; }
   if (!act || !id) return;
   if (act === "race") save(id, { main: { race: t.value } });
   else if (act === "role") save(id, { main: { role: t.value } });
@@ -1029,7 +1033,7 @@ async function boot() {
   if (!db) { offline = true; loaded = true; render(); return; }
   dbRef = db;
   writeCheck = true;
-  try { myId = localStorage.getItem("wf-voter") || ""; } catch { myId = ""; }
+  try { $("#vote-name").value = localStorage.getItem("wf-name") || ""; } catch {}
   db.collection("votes").onSnapshot(snap => {
     votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
