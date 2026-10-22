@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WoW Forever Planner</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1017'/%3E%3Cpath d='M16 5l3 8h8l-6.5 5 2.5 8-7-5-7 5 2.5-8L5 13h8z' fill='%23e0ab4a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Marcellus&display=swap">
+<style>html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>
+/* Layout: one column of panels, dark tooltip-slate world with bronze accent; grids are the Excel sheet made live. */
+:root {
+  color-scheme: dark;
+  --font-display: "Marcellus", "Palatino Linotype", Georgia, serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --bg: #0b1017;
+  --panel: #121a25;
+  --panel-2: #182231;
+  --cell: #1a2434;
+  --line: #243247;
+  --fg: #ebe6d9;
+  --muted: #94a1b3;
+  --accent: #e0ab4a;
+  --accent-ink: #1c1405;
+  --focus: #f2c46d;
+  --track: #1d2a3c;
+
+  --first-bg: #1f7a3e;  --first-fg: #ffffff;
+  --second-bg: #7cc58a; --second-fg: #0b2314;
+  --ban-bg: #b53a3a;    --ban-fg: #ffffff;
+  --final-bg: #2f6fd0;  --final-fg: #ffffff;
+
+  --tank: #3987e5;
+  --dps: #d95926;
+  --healer: #199e70;
+  --alliance: #3987e5;
+  --horde: #e66767;
+  --pve: #9085e9;
+  --pvp: #d55181;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #edf0f4;
+    --panel: #f9fafb;
+    --panel-2: #e7ebf1;
+    --cell: #e9edf3;
+    --line: #cdd5e0;
+    --fg: #161c26;
+    --muted: #596679;
+    --accent: #8a5a00;
+    --accent-ink: #fff8e8;
+    --focus: #8a5a00;
+    --track: #dfe5ed;
+
+    --first-bg: #17692f;  --first-fg: #ffffff;
+    --second-bg: #9bd9a6; --second-fg: #0d2a17;
+    --ban-bg: #d03b3b;    --ban-fg: #ffffff;
+    --final-bg: #2a78d6;  --final-fg: #ffffff;
+
+    --tank: #2a78d6;
+    --dps: #eb6834;
+    --healer: #1baf7a;
+    --alliance: #2a78d6;
+    --horde: #e34948;
+    --pve: #6250d6;
+    --pvp: #e87ba4;
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #edf0f4;
+  --panel: #f9fafb;
+  --panel-2: #e7ebf1;
+  --cell: #e9edf3;
+  --line: #cdd5e0;
+  --fg: #161c26;
+  --muted: #596679;
+  --accent: #8a5a00;
+  --accent-ink: #fff8e8;
+  --focus: #8a5a00;
+  --track: #dfe5ed;
+
+  --first-bg: #17692f;  --first-fg: #ffffff;
+  --second-bg: #9bd9a6; --second-fg: #0d2a17;
+  --ban-bg: #d03b3b;    --ban-fg: #ffffff;
+  --final-bg: #2a78d6;  --final-fg: #ffffff;
+
+  --tank: #2a78d6;
+  --dps: #eb6834;
+  --healer: #1baf7a;
+  --alliance: #2a78d6;
+  --horde: #e34948;
+  --pve: #6250d6;
+  --pvp: #e87ba4;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 14px/1.5 var(--font-body);
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled, select:disabled { cursor: not-allowed; opacity: .55; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mute { color: var(--muted); }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+h1 { font: 400 34px/1.1 var(--font-display); letter-spacing: .02em; margin: 2px 0 0; text-wrap: balance; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 8px 14px; font-weight: 600; color: var(--muted); min-height: 38px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg-label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+
+.note { border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 10px 14px; color: var(--fg); }
+
+/* panels */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 14px; }
+h2 { font: 400 20px/1.2 var(--font-display); letter-spacing: .02em; margin: 0; }
+h3 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 12px; }
+.cap { color: var(--muted); font-size: 13px; }
+
+/* group composition + poll */
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 980px) { .row { grid-template-columns: minmax(0, 1fr); } }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.poll-name { width: 100%; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; margin-bottom: 12px; }
+.poll-name:focus { border-color: var(--accent); outline: none; }
+#poll-opts { display: flex; flex-direction: column; gap: 14px; }
+.vote { width: 100%; text-align: left; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: baseline; }
+.vote:not(:disabled):hover { border-color: var(--muted); }
+.vote[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.vname { font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+.vname em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--accent); }
+.vnum { font: 400 22px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.vnum small { font: 500 12px var(--font-body); color: var(--muted); margin-left: 4px; }
+.vbar { grid-column: 1 / -1; height: 8px; background: var(--track); border-radius: 0 4px 4px 0; overflow: hidden; }
+.vbar span { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+.voters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.poll-msg { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.link { background: none; border: 0; padding: 0; color: var(--fg); text-decoration: underline; font-size: 13px; }
+.tile { background: var(--panel-2); border-radius: 6px; padding: 14px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.tile-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.role-name { font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+.rdot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.big { font: 400 28px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.big small { font-size: 15px; color: var(--muted); }
+.pips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--c); }
+.pip.on { background: var(--c); }
+.status { font-weight: 600; font-size: 13px; }
+.status.ok { color: var(--fg); }
+.cands { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.chip { background: var(--cell); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--fg); font-size: 13px; }
+.chip b { font-weight: 600; }
+.chip i { font-style: normal; color: var(--muted); }
+
+/* grids */
+.scroll { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.grid { min-width: 760px; }
+.grid thead th { font-size: 12px; font-weight: 600; text-align: center; padding: 6px 2px 10px; white-space: nowrap; }
+.grid td { padding: 3px; text-align: center; }
+.stick { position: sticky; left: 0; z-index: 1; background: var(--panel); text-align: left; min-width: 150px; padding: 3px 10px 3px 0; }
+.grid thead .stick { color: var(--muted); }
+.cdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-right: 6px; box-shadow: 0 0 0 1px var(--line); vertical-align: 0; }
+.cell { width: 100%; min-width: 64px; height: 40px; border: 0; border-radius: 4px; background: var(--cell); font-weight: 700; font-size: 15px; color: var(--fg); transition: filter .12s; }
+.cell:not(:disabled):hover { filter: brightness(1.18); outline: 1px solid var(--muted); }
+.cell.first { background: var(--first-bg); color: var(--first-fg); }
+.cell.second { background: var(--second-bg); color: var(--second-fg); }
+.cell.ban { background: var(--ban-bg); color: var(--ban-fg); }
+.cell.final { background: var(--final-bg); color: var(--final-fg); }
+.pname { display: flex; align-items: center; gap: 2px; }
+.nm { flex: 1; min-width: 0; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 6px 6px; font-weight: 600; }
+.nm:hover { border-color: var(--line); }
+.nm:focus { border-color: var(--accent); outline: none; }
+.x { flex: none; border: 0; background: transparent; color: var(--muted); border-radius: 4px; min-width: 28px; height: 28px; padding: 0 6px; font-size: 13px; }
+.x:hover { color: var(--fg); background: var(--cell); }
+.x.arm { background: var(--ban-bg); color: var(--ban-fg); font-weight: 600; }
+.sum th, .sum td { font-size: 13px; padding-block: 4px; font-variant-numeric: tabular-nums; }
+.sum th { font-weight: 500; color: var(--muted); }
+.sum td { color: var(--fg); font-weight: 600; }
+.sum td.zero { color: var(--muted); font-weight: 400; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); margin-top: 14px; align-items: center; }
+.lg { display: inline-flex; align-items: center; gap: 6px; }
+.lg i { width: 22px; height: 18px; border-radius: 3px; display: inline-grid; place-items: center; font-style: normal; font-weight: 700; font-size: 12px; }
+.lg .first { background: var(--first-bg); color: var(--first-fg); }
+.lg .second { background: var(--second-bg); color: var(--second-fg); }
+.lg .ban { background: var(--ban-bg); color: var(--ban-fg); }
+.lg .final { background: var(--final-bg); color: var(--final-fg); }
+.add { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.add input { flex: 1; min-width: 180px; max-width: 320px; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; }
+.add input:focus { border-color: var(--accent); outline: none; }
+.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 9px 16px; font-weight: 700; min-height: 40px; }
+.btn:not(:disabled):hover { filter: brightness(1.08); }
+.empty { color: var(--muted); padding: 18px 4px; margin: 0; }
+
+/* characters + profession tables */
+.list { min-width: 640px; }
+.list th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 12px 8px 0; white-space: nowrap; }
+.list td { padding: 7px 12px 7px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+.list td:first-child { font-weight: 600; }
+select { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; min-width: 130px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; }
+.cls { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.star { color: var(--accent); }
+
+.prof { min-width: 520px; }
+.prof thead th { font-size: 12px; font-weight: 600; text-align: center; padding: 4px 6px 10px; white-space: nowrap; }
+.prof td { padding: 3px; text-align: center; }
+.prof .grp th { text-align: left; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 14px 0 4px; }
+.prof .stick { min-width: 150px; font-weight: 500; }
+.pcell { width: 100%; min-width: 64px; height: 34px; border: 0; border-radius: 4px; background: var(--cell); font-weight: 700; color: var(--fg); }
+.pcell.on { background: var(--accent); color: var(--accent-ink); }
+.pcell:not(:disabled):hover { outline: 1px solid var(--muted); }
+.gap { color: var(--fg); font-size: 12px; font-weight: 600; border: 1px dashed var(--muted); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.cnt { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+.over { color: var(--fg); font-weight: 700; }
+.over::before { content: "! "; color: var(--accent); }
+
+/* countdown + roadmap */
+.sizebox { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.band { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+@media (max-width: 860px) { .band { grid-template-columns: minmax(0, 1fr); } }
+.cds { display: flex; flex-direction: column; gap: 16px; }
+.cd { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.cd h3 { margin: 0; }
+.cd-num { display: flex; gap: 14px; }
+.cd-num span { display: flex; flex-direction: column; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); gap: 4px; }
+.cd-num b, .cd-hc b { font: 400 34px/1 var(--font-display); color: var(--fg); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.cd-hc { display: flex; align-items: baseline; gap: 8px; color: var(--muted); }
+.cd-done { font: 400 24px/1.2 var(--font-display); color: var(--accent); }
+.cd-sub { margin: 0; font-size: 13px; color: var(--muted); }
+.road { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.road button { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.road img { display: block; width: 100%; height: auto; }
+.road figcaption { font-size: 12px; color: var(--muted); padding: 8px 12px; }
+.lb { position: fixed; inset: 0; z-index: 70; background: rgba(5, 8, 12, .9); overflow: auto; cursor: zoom-out; padding: 16px; }
+.lb img { display: block; width: max(100%, 900px); height: auto; margin: 0 auto; border-radius: 6px; }
+
+/* calendar */
+.best { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.best .lbl { font-size: 13px; color: var(--muted); }
+.best .chip { padding: 4px 12px; }
+.best .chip.all { border-color: var(--accent); }
+.cal { min-width: 640px; }
+.cal thead th { font-size: 12px; font-weight: 600; text-align: center; padding: 4px 4px 10px; white-space: nowrap; }
+.cal td { padding: 3px; text-align: center; }
+.cal .stick { min-width: 118px; padding: 3px 10px 3px 0; font-weight: 600; white-space: nowrap; }
+.cal tr.wk > * { border-top: 1px solid var(--line); padding-top: 8px; }
+.cal .we .stick { color: var(--accent); }
+.rel { font-size: 11px; font-weight: 700; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 0 5px; margin-left: 6px; }
+.avc { width: 100%; min-width: 78px; height: 36px; border: 0; border-radius: 4px; background: var(--cell); font-size: 12px; font-weight: 700; color: var(--fg); padding: 0 4px; }
+.avc:not(:disabled):hover { outline: 1px solid var(--muted); }
+.avc.full { background: var(--first-bg); color: var(--first-fg); }
+.avc.no { background: var(--ban-bg); color: var(--ban-fg); }
+.avc.part { background: var(--second-bg); color: var(--second-fg); }
+.mbs { display: flex; gap: 3px; justify-content: center; }
+.mb { font-size: 11px; font-weight: 700; padding: 3px 5px; border-radius: 3px; min-width: 38px; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--accent) calc(var(--r) * 75%), var(--cell)); color: var(--fg); white-space: nowrap; }
+.mb.hi { color: var(--accent-ink); }
+.mb.all { box-shadow: 0 0 0 2px var(--accent); }
+.more { margin-top: 12px; }
+.btn.ghost { background: var(--cell); color: var(--fg); border: 1px solid var(--line); }
+
+.sheet-bd { position: fixed; inset: 0; background: rgba(5, 8, 12, .6); z-index: 60; }
+.sheet { position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 32px)); max-height: calc(100% - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, .45); }
+.sheet:focus { outline: none; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; }
+.sheet-head h3 { margin: 0; font: 400 18px/1.2 var(--font-display); letter-spacing: .02em; text-transform: none; color: var(--fg); }
+.sheet-lbl { font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+.sheet-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ob { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 9px 14px; font-weight: 600; min-height: 40px; }
+.ob small { color: var(--muted); font-weight: 500; margin-left: 4px; }
+.ob:hover { border-color: var(--muted); }
+.ob[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.ob.full[aria-pressed="true"] { background: var(--first-bg); color: var(--first-fg); }
+.ob.no[aria-pressed="true"] { background: var(--ban-bg); color: var(--ban-fg); }
+.sheet-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.sheet-note { color: var(--accent); font-size: 13px; margin-top: 8px; }
+@media (max-width: 560px) {
+  .sheet { top: auto; bottom: 0; left: 0; transform: none; width: 100%; border-radius: 12px 12px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* charts */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px 32px; }
+.charts .wide { grid-column: 1 / -1; }
+.bars { display: flex; flex-direction: column; gap: 9px; }
+.brow { display: grid; grid-template-columns: minmax(96px, 120px) 1fr 52px; align-items: center; gap: 10px; }
+.blabel { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.btrack { height: 10px; background: var(--track); border-radius: 0 4px 4px 0; display: flex; overflow: hidden; gap: 2px; }
+.seg-bar { height: 100%; }
+.seg-bar:last-child { border-radius: 0 4px 4px 0; }
+.bfill { height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bval { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; text-align: right; display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+.bval .bn { font-size: 11px; background: var(--ban-bg); color: var(--ban-fg); border-radius: 3px; padding: 0 4px; font-weight: 700; }
+.bars.interest .brow { grid-template-columns: minmax(96px, 120px) 1fr 70px; }
+.stackbar { display: flex; height: 22px; border-radius: 0 4px 4px 0; overflow: hidden; gap: 2px; background: var(--track); margin-bottom: 14px; }
+.stackbar > div { display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; min-width: 0; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-top: 14px; }
+.key span { display: inline-flex; align-items: center; gap: 6px; }
+.key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.sub { margin: 18px 0 10px; }
+
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--fg); color: var(--bg); padding: 4px 9px; border-radius: 5px; font-size: 12px; font-weight: 600; max-width: 260px; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 28px; }
+  .panel { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Планировщик состава</div>
+      <h1>WoW Forever</h1>
+    </div>
+    <div class="seg" role="group" aria-label="Раздел">
+      <button type="button" data-act="nav" data-nav="plan" aria-pressed="true">Планировщик</button>
+      <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
+    </div>
+  </header>
+
+  <div id="note"></div>
+
+  <section class="band" aria-label="Обратный отсчёт и дорожная карта">
+    <div class="cds">
+      <div class="cd">
+        <h3>До старта игры</h3>
+        <div class="cd-num" id="cd-num">
+          <span><b id="cd-d">--</b>дн</span><span><b id="cd-h">--</b>ч</span><span><b id="cd-m">--</b>мин</span><span><b id="cd-s">--</b>сек</span>
+        </div>
+        <div class="cd-done" id="cd-done" hidden>Игра стартовала</div>
+        <p class="cd-sub" id="cd-launch-sub"></p>
+      </div>
+      <div class="cd">
+        <h3>До старта Hardcore, примерно</h3>
+        <div class="cd-hc"><b id="cd-hc-n">--</b><span id="cd-hc-u">дней</span></div>
+        <p class="cd-sub" id="cd-hc-sub">Официально известно только «Winter 2026». Ориентир: начало зимнего блока на карте, 9 декабря.</p>
+      </div>
+    </div>
+    <figure class="road">
+      <button type="button" data-act="zoom" aria-label="Открыть дорожную карту крупно"><img src="roadmap.png" alt="Дорожная карта World of Warcraft Forever 2026–2027. Бета с 17 сентября по 22 октября, 27 октября ранняя резервация имён и создание персонажей, запуск 4 ноября, открытие рейдов 9 декабря (Barrow Deeps, Hyjal Summit, Onyxia's Lair), крупные обновления весной и летом."></button>
+      <figcaption>Дорожная карта 2026–2027. Нажми, чтобы открыть крупно.</figcaption>
+    </figure>
+  </section>
+
+  <div class="row" data-view="plan">
+    <section class="panel" aria-labelledby="h-comp">
+      <div class="panel-head"><h2 id="h-comp">Состав группы</h2><div class="sizebox"><span class="cap" id="comp-cap"></span><div class="seg" role="group" aria-label="Размер группы" id="size"></div></div></div>
+      <div class="tiles" id="comp"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-poll">
+      <div class="panel-head"><h2 id="h-poll">PvE или PvP?</h2><span class="cap">Один голос с браузера</span></div>
+      <label class="seg-label" for="vote-name">Твоё имя</label>
+      <input id="vote-name" class="poll-name" type="text" maxlength="24" autocomplete="off" placeholder="Например, Kirill">
+      <div id="poll-opts"></div>
+      <div class="cap poll-msg" id="poll-msg" role="status"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-grid" data-view="plan">
+    <div class="panel-head"><h2 id="h-grid">Приоритеты по классам</h2><span class="cap">Клик по ячейке: 1 → 2 → бан → ★ → пусто</span></div>
+    <div class="scroll" id="grid"></div>
+    <div class="legend">
+      <span class="lg"><i class="first">1</i>1-й приоритет</span>
+      <span class="lg"><i class="second">2</i>2-й приоритет</span>
+      <span class="lg"><i class="ban">✕</i>бан</span>
+      <span class="lg"><i class="final">★</i>финальный выбор</span>
+    </div>
+    <form class="add" id="add-form" autocomplete="off">
+      <input id="new-name" type="text" maxlength="24" placeholder="Имя игрока" aria-label="Имя нового игрока">
+      <button class="btn" type="submit" id="add-btn">Добавить игрока</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="h-chars" data-view="plan">
+    <div class="panel-head"><h2 id="h-chars">Персонажи</h2><span class="cap">Класс берётся из ★ в таблице приоритетов</span></div>
+    <div class="scroll" id="chars"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-cal" data-view="calendar" hidden>
+    <div class="panel-head"><h2 id="h-cal">Календарь сессий</h2><span class="cap">С дня релиза, 4 ноября. Клик по ячейке открывает выбор времени</span></div>
+    <div id="best"></div>
+    <div class="scroll" id="cal"></div>
+    <div class="legend">
+      <span class="lg"><i class="first">✓</i>весь день</span>
+      <span class="lg"><i class="second">В</i>часть дня или часы</span>
+      <span class="lg"><i class="ban">✕</i>не могу</span>
+      <span>Утро 6–12 · День 12–18 · Вечер 18–24 (время одного часового пояса на всех)</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-split" data-view="plan">
+    <div class="panel-head"><h2 id="h-split">Разбивка</h2><span class="cap">Роли, классы и расы по финальному выбору</span></div>
+    <div class="charts" id="charts"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-prof" data-view="plan">
+    <div class="panel-head"><h2 id="h-prof">Профессии</h2><span class="cap">Основных профессий не больше двух на игрока</span></div>
+    <div class="scroll" id="profs"></div>
+  </section>
+</div>
+<div class="lb" id="lb" data-act="unzoom" hidden><img src="roadmap.png" alt="Дорожная карта World of Warcraft Forever 2026–2027, крупно"></div>
+<div class="sheet-bd" id="sheet-bd" data-act="close" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1" hidden></div>
+<div id="tip" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="store.js"></script>
+<script>
+const CLASSES = [
+  { id: "Druid",   color: "#ff7d0a", roles: ["tank", "healer", "dps"] },
+  { id: "Hunter",  color: "#abd473", roles: ["dps"] },
+  { id: "Mage",    color: "#69ccf0", roles: ["dps"] },
+  { id: "Paladin", color: "#f58cba", roles: ["tank", "healer", "dps"] },
+  { id: "Priest",  color: "#ffffff", roles: ["healer", "dps"] },
+  { id: "Rogue",   color: "#fff569", roles: ["dps"] },
+  { id: "Shaman",  color: "#0070de", roles: ["healer", "dps"] },
+  { id: "Warlock", color: "#9482c9", roles: ["dps"] },
+  { id: "Warrior", color: "#c79c6e", roles: ["tank", "dps"] },
+];
+const RACES = [
+  { id: "Human", f: "A" }, { id: "Dwarf", f: "A" }, { id: "Night Elf", f: "A" }, { id: "Gnome", f: "A" },
+  { id: "Orc", f: "H" }, { id: "Undead", f: "H" }, { id: "Tauren", f: "H" }, { id: "Troll", f: "H" },
+];
+const ROLES = [
+  { id: "tank", label: "Tank", color: "var(--tank)" },
+  { id: "healer", label: "Healer", color: "var(--healer)" },
+  { id: "dps", label: "DPS", color: "var(--dps)" },
+];
+const FACTIONS = { A: { label: "Alliance", color: "var(--alliance)" }, H: { label: "Horde", color: "var(--horde)" } };
+const PROFS = [
+  { id: "Alchemy", type: "craft" }, { id: "Blacksmithing", type: "craft" }, { id: "Enchanting", type: "craft" },
+  { id: "Engineering", type: "craft" }, { id: "Leatherworking", type: "craft" }, { id: "Tailoring", type: "craft" },
+  { id: "Herbalism", type: "gather" }, { id: "Mining", type: "gather" }, { id: "Skinning", type: "gather" },
+  { id: "First Aid", type: "second" }, { id: "Fishing", type: "second" }, { id: "Cooking", type: "second" },
+];
+const PROF_TYPES = { craft: "Crafting", gather: "Gathering", second: "Secondary" };
+const TARGETS = { 5: { tank: 1, healer: 1, dps: 3 }, 10: { tank: 2, healer: 3, dps: 5 } };
+const CYCLE = ["none", "first", "second", "ban", "final"];
+const GLYPH = { none: "", first: "1", second: "2", ban: "✕", final: "★" };
+const STATE_TEXT = { none: "не выбрано", first: "1-й приоритет", second: "2-й приоритет", ban: "бан", final: "финальный выбор" };
+const CORE = new Set(["p_denis", "p_kirill", "p_olesya", "p_yan"]); // основной состав: удалить нельзя
+const CLS = Object.fromEntries(CLASSES.map(c => [c.id, c]));
+const RACE = Object.fromEntries(RACES.map(r => [r.id, r]));
+const ROLE = Object.fromEntries(ROLES.map(r => [r.id, r]));
+
+let players = [];
+let settings = { size: 5 };
+let loaded = false, offline = false, readOnly = false, writeCheck = null, errNote = "";
+let confirmDel = null, dirty = false;
+let col = null, dbRef = null;
+let votes = [], myId = null, pollNote = "", voteChain = Promise.resolve();
+const POLL = [{ id: "pve", label: "PvE", color: "var(--pve)" }, { id: "pvp", label: "PvP", color: "var(--pvp)" }];
+
+const RELEASE = "2026-11-04";
+const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MON = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+const BLOCKS = [
+  { id: "m", label: "Утро", short: "У", from: 6, to: 12 },
+  { id: "d", label: "День", short: "Д", from: 12, to: 18 },
+  { id: "e", label: "Вечер", short: "В", from: 18, to: 24 },
+];
+let calWeeks = 4, sheet = null, sheetNote = "", hFrom = 18, hTo = 23;
+
+const LAUNCH_AT = Date.UTC(2026, 10, 4, 23, 0); // 5 ноября 2026, 00:00 CET (UTC+1)
+const HC_AT = Date.UTC(2026, 11, 9, 0, 0);      // ориентир: Winter 2026, точная дата не объявлена
+let view = "plan";
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cdot = c => `<i class="cdot" style="--c:${c.color}"></i>`;
+const rolePill = r => `<span class="pill"><i class="rdot" style="--c:${ROLE[r].color}"></i>${ROLE[r].label}</span>`;
+
+/* ---------- derived data ---------- */
+const stateOf = (p, cls) => p.main?.cls === cls ? "final" : ({ "1": "first", "2": "second", "-1": "ban" }[p.picks?.[cls]] || "none");
+function effRole(p) {
+  const c = CLS[p.main?.cls];
+  if (!c) return "";
+  if (c.roles.includes(p.main.role)) return p.main.role;
+  return c.roles.length === 1 ? c.roles[0] : "";
+}
+const factionOf = p => RACE[p.main?.race]?.f || "";
+const countState = (cls, st) => players.filter(p => stateOf(p, cls) === st).length;
+
+function candidates(p, role) {
+  const main = p.main?.cls;
+  if (main) return CLS[main].roles.includes(role) ? [{ cls: main, pr: 0 }] : [];
+  return CLASSES
+    .filter(c => c.roles.includes(role) && ["first", "second"].includes(stateOf(p, c.id)))
+    .map(c => ({ cls: c.id, pr: stateOf(p, c.id) === "first" ? 1 : 2 }))
+    .sort((a, b) => a.pr - b.pr);
+}
+
+/* ---------- render ---------- */
+function editing() {
+  const a = document.activeElement;
+  return !!a && (a.matches?.("input.nm") || a.matches?.("select"));
+}
+function render() {
+  if (editing()) { dirty = true; return; }
+  dirty = false;
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs();
+  $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline;
+}
+function renderNote() {
+  const msg = offline ? "Нет связи с базой данных. Проверь интернет или настройки в config.js."
+    : readOnly ? "Режим просмотра: изменения недоступны. Попроси владельца страницы дать тебе доступ на редактирование."
+    : errNote;
+  $("#note").innerHTML = msg ? `<div class="note" role="status">${esc(msg)}</div>` : "";
+}
+function renderSize() {
+  $("#size").innerHTML = [5, 10].map(n =>
+    `<button type="button" data-act="size" data-n="${n}" aria-pressed="${settings.size === n}" ${readOnly || offline ? "disabled" : ""}>${n} игроков</button>`).join("");
+}
+function renderComp() {
+  const size = settings.size, tgt = TARGETS[size], total = players.length;
+  $("#comp-cap").textContent = !loaded ? "" :
+    `${total} из ${size} игроков · ` + (total < size ? `свободно мест: ${size - total}` : total === size ? "состав полный" : `на ${total - size} больше состава`);
+  $("#comp").innerHTML = ROLES.map(r => {
+    const filled = players.filter(p => effRole(p) === r.id);
+    const need = tgt[r.id];
+    const pips = Array.from({ length: Math.max(need, filled.length) }, (_, i) => `<span class="pip ${i < filled.length ? "on" : ""}" style="--c:${r.color}"></span>`).join("");
+    const cands = players.filter(p => !effRole(p)).map(p => ({ p, cs: candidates(p, r.id) })).filter(x => x.cs.length);
+    const done = filled.length >= need;
+    const names = filled.length ? `<div class="cands">${filled.map(p => `<span class="chip"><b>${esc(p.name)}</b> <i>${esc(p.main.cls)}</i></span>`).join("")}</div>` : "";
+    let cand = "";
+    if (!done) {
+      cand = cands.length
+        ? `<div class="cands">Могут закрыть: ${cands.slice(0, 4).map(x => `<span class="chip"><b>${esc(x.p.name)}</b> <i>${x.cs.slice(0, 2).map(c => esc(c.cls) + (c.pr ? ` (${c.pr})` : "")).join(", ")}</i></span>`).join("")}${cands.length > 4 ? ` +${cands.length - 4}` : ""}</div>`
+        : `<div class="cands">Пока никто не заявлен</div>`;
+    }
+    return `<div class="tile">
+      <div class="tile-top"><span class="role-name"><i class="rdot" style="--c:${r.color}"></i>${r.label}</span><span class="big">${filled.length}<small> / ${need}</small></span></div>
+      <div class="pips" aria-hidden="true">${pips}</div>
+      <div class="status ${done ? "ok" : ""}">${done ? "✓ Закрыто" : `Нужно ещё ${need - filled.length}`}</div>
+      ${names}${cand}
+    </div>`;
+  }).join("");
+}
+function renderGrid() {
+  const ro = readOnly || offline;
+  if (!loaded) { $("#grid").innerHTML = `<p class="empty">Загружаю состав…</p>`; return; }
+  if (!players.length) {
+    $("#grid").innerHTML = `<p class="empty">Пока нет ни одного игрока. Введи имя ниже и добавь первого.</p>`;
+    return;
+  }
+  const head = `<thead><tr><th class="stick">Игрок</th>${CLASSES.map(c => `<th scope="col">${cdot(c)}${c.id}</th>`).join("")}</tr></thead>`;
+  const rows = players.map(p => `<tr>
+    <th class="stick" scope="row"><div class="pname">
+      <input class="nm" data-act="rename" data-id="${esc(p.id)}" value="${esc(p.name)}" maxlength="24" aria-label="Имя игрока" ${ro ? "readonly" : ""}>
+      ${ro || CORE.has(p.id) ? "" : `<button class="x${confirmDel === p.id ? "arm" : ""}" type="button" data-act="del" data-id="${esc(p.id)}" aria-label="Удалить игрока ${esc(p.name)}">${confirmDel === p.id ? "Удалить?" : "✕"}</button>`}
+    </div></th>
+    ${CLASSES.map(c => {
+      const st = stateOf(p, c.id);
+      const label = `${p.name} · ${c.id}: ${STATE_TEXT[st]}`;
+      return `<td><button type="button" class="cell ${st}" data-act="cell" data-id="${esc(p.id)}" data-cls="${c.id}" data-tip="${esc(label)}" aria-label="${esc(label)}" ${ro ? "disabled" : ""}>${GLYPH[st]}</button></td>`;
+    }).join("")}
+  </tr>`).join("");
+  $("#grid").innerHTML = `<table class="grid">${head}<tbody>${rows}</tbody></table>`;
+}
+function renderChars() {
+  const ro = readOnly || offline;
+  if (!players.length) { $("#chars").innerHTML = `<p class="empty">Добавь игроков в таблице приоритетов.</p>`; return; }
+  const raceOpts = sel => `<option value="">—</option>` + ["A", "H"].map(f =>
+    `<optgroup label="${FACTIONS[f].label}">${RACES.filter(r => r.f === f).map(r => `<option value="${r.id}" ${sel === r.id ? "selected" : ""}>${r.id}</option>`).join("")}</optgroup>`).join("");
+  const rows = players.map(p => {
+    const c = CLS[p.main?.cls];
+    const f = factionOf(p);
+    let roleCell = `<span class="mute">—</span>`;
+    if (c && c.roles.length === 1) roleCell = rolePill(c.roles[0]);
+    else if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro ? "disabled" : ""}><option value="">Выбери роль</option>${c.roles.map(r => `<option value="${r}" ${p.main.role === r ? "selected" : ""}>${ROLE[r].label}</option>`).join("")}</select>`;
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td>${c ? `<span class="cls"><span class="star">★</span>${cdot(c)}${c.id}</span>` : `<span class="mute">нет ★ в таблице</span>`}</td>
+      <td><select data-act="race" data-id="${esc(p.id)}" aria-label="Раса ${esc(p.name)}" ${ro ? "disabled" : ""}>${raceOpts(p.main?.race)}</select></td>
+      <td>${roleCell}</td>
+      <td>${f ? `<span class="pill"><i class="rdot" style="--c:${FACTIONS[f].color}"></i>${FACTIONS[f].label}</span>` : `<span class="mute">—</span>`}</td>
+    </tr>`;
+  }).join("");
+  $("#chars").innerHTML = `<table class="list"><thead><tr><th>Игрок</th><th>Класс</th><th>Раса</th><th>Роль</th><th>Фракция</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function barRows(rows) {
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return `<div class="bars">${rows.map(r => `<div class="brow" data-tip="${esc(r.tip)}">
+    <span class="blabel">${r.dot || ""}${esc(r.label)}</span>
+    <span class="btrack"><span class="bfill" style="width:${r.value / max * 100}%;background:${r.color}"></span></span>
+    <span class="bval">${r.value}</span></div>`).join("")}</div>`;
+}
+function renderCharts() {
+  if (!loaded) { $("#charts").innerHTML = ""; return; }
+  const locked = players.filter(p => p.main?.cls);
+  const scale = Math.max(1, players.length);
+
+  // class interest
+  const stats = CLASSES.map((c, i) => ({ c, i, f: countState(c.id, "final"), a: countState(c.id, "first"), b: countState(c.id, "second"), x: countState(c.id, "ban") }))
+    .sort((u, v) => (v.f + v.a + v.b) - (u.f + u.a + u.b) || v.a - u.a || u.i - v.i);
+  const interest = `<div class="bars interest">${stats.map(s => {
+    const seg = (n, color, g) => n ? `<span class="seg-bar" style="width:${n / scale * 100}%;background:${color}" title="${g}"></span>` : "";
+    const tip = `${s.c.id}: ★ ${s.f}, 1-й ${s.a}, 2-й ${s.b}, банов ${s.x}`;
+    return `<div class="brow" data-tip="${esc(tip)}"><span class="blabel">${cdot(s.c)}${s.c.id}</span>
+      <span class="btrack">${seg(s.f, "var(--final-bg)", "★")}${seg(s.a, "var(--first-bg)", "1")}${seg(s.b, "var(--second-bg)", "2")}</span>
+      <span class="bval">${s.f + s.a + s.b}${s.x ? `<span class="bn">✕ ${s.x}</span>` : ""}</span></div>`;
+  }).join("")}</div>
+  <div class="key"><span><i style="background:var(--final-bg)"></i>★ финальный выбор</span><span><i style="background:var(--first-bg)"></i>1-й приоритет</span><span><i style="background:var(--second-bg)"></i>2-й приоритет</span><span><b class="mute">✕</b> число банов</span></div>`;
+
+  const emptyStar = `<p class="empty" style="padding:4px 0">Пока нет финальных выборов. Поставь ★ в таблице приоритетов.</p>`;
+
+  // roles
+  const roleRows = ROLES.map(r => ({ label: r.label, value: players.filter(p => effRole(p) === r.id).length, color: r.color, dot: `<i class="rdot" style="--c:${r.color};display:inline-block;margin-right:8px"></i>`, tip: `${r.label}: ${players.filter(p => effRole(p) === r.id).map(p => p.name).join(", ") || "никого"}` }));
+  const undecided = locked.filter(p => !effRole(p)).length;
+  if (undecided) roleRows.push({ label: "Роль не выбрана", value: undecided, color: "var(--muted)", tip: locked.filter(p => !effRole(p)).map(p => p.name).join(", ") });
+  const roles = locked.length ? barRows(roleRows) : emptyStar;
+
+  // classes (final)
+  const clsRows = CLASSES.map(c => ({ label: c.id, value: countState(c.id, "final"), color: "var(--accent)", dot: cdot(c), tip: `${c.id}: ${players.filter(p => p.main?.cls === c.id).map(p => p.name).join(", ")}` }))
+    .filter(r => r.value).sort((a, b) => b.value - a.value);
+  const classes = clsRows.length ? barRows(clsRows) : emptyStar;
+
+  // races + factions
+  const fCount = f => players.filter(p => factionOf(p) === f).length;
+  const withRace = fCount("A") + fCount("H");
+  const raceRows = RACES.map(r => ({ label: r.id, value: players.filter(p => p.main?.race === r.id).length, color: FACTIONS[r.f].color, tip: `${r.id}: ${players.filter(p => p.main?.race === r.id).map(p => p.name).join(", ")}` }))
+    .filter(r => r.value).sort((a, b) => b.value - a.value);
+  const noRace = locked.filter(p => !p.main.race).length;
+  const races = withRace ? `
+    <div class="stackbar" role="img" aria-label="Alliance ${fCount("A")}, Horde ${fCount("H")}">${["A", "H"].map(f => fCount(f) ? `<div style="flex:${fCount(f)};background:${FACTIONS[f].color}" data-tip="${FACTIONS[f].label}: ${fCount(f)}">${fCount(f)}</div>` : "").join("")}</div>
+    ${barRows(raceRows)}
+    <div class="key"><span><i style="background:var(--alliance)"></i>Alliance</span><span><i style="background:var(--horde)"></i>Horde</span>${noRace ? `<span>раса не выбрана: ${noRace}</span>` : ""}</div>`
+    : `<p class="empty" style="padding:4px 0">Пока не выбрана ни одна раса. Выбери расу в таблице персонажей.</p>`;
+
+  $("#charts").innerHTML = `
+    <div class="wide"><h3>Интерес к классам</h3>${players.length ? interest : `<p class="empty" style="padding:4px 0">Появится, когда в таблице будут игроки.</p>`}</div>
+    <div><h3>Роли</h3>${roles}</div>
+    <div><h3>Классы</h3>${classes}</div>
+    <div><h3>Расы и фракции</h3>${races}</div>`;
+}
+function renderProfs() {
+  const ro = readOnly || offline;
+  if (!loaded) { $("#profs").innerHTML = `<p class="empty">Загружаю…</p>`; return; }
+  if (!players.length) { $("#profs").innerHTML = `<p class="empty">Добавь игроков в таблице приоритетов.</p>`; return; }
+  const head = `<thead><tr><th class="stick">Профессия</th>${players.map(p => `<th scope="col">${esc(p.name)}</th>`).join("")}<th></th></tr></thead>`;
+  let body = "";
+  for (const t of Object.keys(PROF_TYPES)) {
+    body += `<tr class="grp"><th class="stick" colspan="${players.length + 2}">${PROF_TYPES[t]}</th></tr>`;
+    for (const pr of PROFS.filter(x => x.type === t)) {
+      const who = players.filter(p => p.profs?.[pr.id]);
+      body += `<tr><th class="stick" scope="row">${pr.id}</th>${players.map(p => {
+        const on = !!p.profs?.[pr.id];
+        const label = `${p.name} · ${pr.id}: ${on ? "есть" : "нет"}`;
+        return `<td><button type="button" class="pcell ${on ? "on" : ""}" data-act="prof" data-id="${esc(p.id)}" data-prof="${pr.id}" aria-pressed="${on}" aria-label="${esc(label)}" data-tip="${esc(label)}" ${ro ? "disabled" : ""}>${on ? "✓" : ""}</button></td>`;
+      }).join("")}<td>${who.length ? `<span class="cnt">${who.length}</span>` : t === "second" ? "" : `<span class="gap">никого</span>`}</td></tr>`;
+    }
+  }
+  const prim = p => PROFS.filter(x => x.type !== "second" && p.profs?.[x.id]).length;
+  body += `<tr class="sum"><th class="stick" scope="row">Основных профессий</th>${players.map(p => { const n = prim(p); return `<td><span class="cnt ${n > 2 ? "over" : ""}">${n} / 2</span></td>`; }).join("")}<td></td></tr>`;
+  $("#profs").innerHTML = `<table class="prof">${head}<tbody>${body}</tbody></table>`;
+}
+
+function renderPoll() {
+  const valid = votes.filter(v => POLL.some(o => o.id === v.vote)).sort((a, b) => (a.at || 0) - (b.at || 0));
+  const total = valid.length;
+  const mine = valid.find(v => v.id === myId);
+  const can = !readOnly && !offline && !!myId;
+  $("#vote-name").disabled = !can;
+  $("#poll-opts").innerHTML = POLL.map(o => {
+    const vs = valid.filter(v => v.vote === o.id);
+    const pct = total ? Math.round(vs.length / total * 100) : 0;
+    const chips = vs.slice(0, 12).map(v => `<span class="chip">${esc(String(v.name || "—").slice(0, 24))}</span>`).join("")
+      + (vs.length > 12 ? `<span class="cap">+${vs.length - 12}</span>` : "");
+    const isMine = mine?.vote === o.id;
+    return `<div class="opt">
+      <button type="button" class="vote" data-act="vote" data-v="${o.id}" aria-pressed="${isMine}" ${can ? "" : "disabled"}>
+        <span class="vname"><i class="rdot" style="--c:${o.color}"></i>${o.label}${isMine ? " <em>твой голос</em>" : ""}</span>
+        <span class="vnum">${vs.length}<small>${pct}%</small></span>
+        <span class="vbar"><span style="width:${pct}%;background:${o.color}"></span></span>
+      </button>
+      ${vs.length ? `<div class="voters">${chips}</div>` : ""}
+    </div>`;
+  }).join("");
+  let msg;
+  if (!loaded) msg = "Загружаю…";
+  else if (offline) msg = "";
+  else if (readOnly) msg = "Режим просмотра: голосовать нельзя.";
+  else if (!myId) msg = "Голосование недоступно.";
+  else if (mine) msg = `Твой голос: ${POLL.find(o => o.id === mine.vote).label}. Чтобы сменить, нажми другой вариант.`;
+  else msg = "Впиши имя и выбери вариант.";
+  $("#poll-msg").innerHTML = `<span>${esc(pollNote || msg)}</span>` + (mine && can ? `<button type="button" class="link" data-act="unvote">Убрать голос</button>` : "");
+}
+function castVote(v) {
+  const input = $("#vote-name"), name = input.value.trim().slice(0, 24);
+  if (!name) { pollNote = "Сначала впиши имя."; render(); input.focus(); return; }
+  pollNote = "";
+  try { localStorage.setItem("wf-name", name); } catch {}
+  const ref = dbRef.doc("votes/" + myId);
+  voteChain = voteChain.then(() => ref.set({ vote: v, name, at: Date.now() })).catch(onWriteError);
+}
+
+/* ---------- calendar ---------- */
+function localKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function calDays() {
+  const today = localKey(), start = RELEASE > today ? RELEASE : today;
+  const [y, m, d] = start.split("-").map(Number), base = Date.UTC(y, m - 1, d);
+  return Array.from({ length: calWeeks * 7 }, (_, i) => {
+    const t = new Date(base + i * 864e5);
+    return { key: t.toISOString().slice(0, 10), wd: t.getUTCDay(), day: t.getUTCDate(), mon: t.getUTCMonth() };
+  });
+}
+const dayLabel = k => { const t = new Date(k + "T00:00:00Z"); return `${WD[t.getUTCDay()]} ${t.getUTCDate()} ${MON[t.getUTCMonth()]}`; };
+
+// value: "full" | "no" | subset of "mde" | "hA-B" | ""
+function normAv(v) {
+  if (v === "full" || v === "no") return v;
+  if (typeof v !== "string") return "";
+  if (/^[mde]{1,3}$/.test(v)) return BLOCKS.map(b => b.id).filter(i => v.includes(i)).join("");
+  const h = /^h(\d{1,2})-(\d{1,2})$/.exec(v);
+  return h && +h[1] < +h[2] && +h[2] <= 24 ? v : "";
+}
+function intervals(v) {
+  v = normAv(v);
+  if (!v || v === "no") return [];
+  if (v === "full") return [[0, 24]];
+  const h = /^h(\d+)-(\d+)$/.exec(v);
+  if (h) return [[+h[1], +h[2]]];
+  return BLOCKS.filter(b => v.includes(b.id)).map(b => [b.from, b.to]);
+}
+function blockAvail(v, b) {
+  const need = Math.min(2, b.to - b.from);
+  return intervals(v).reduce((s, [a, z]) => s + Math.max(0, Math.min(z, b.to) - Math.max(a, b.from)), 0) >= need;
+}
+function avLabel(v) {
+  v = normAv(v);
+  if (v === "full") return "Весь день";
+  if (v === "no") return "✕";
+  const h = /^h(\d+)-(\d+)$/.exec(v);
+  if (h) return `${h[1]}–${h[2]}`;
+  const bs = BLOCKS.filter(b => v.includes(b.id));
+  return bs.length === 1 ? bs[0].label : bs.map(b => b.short).join(" · ");
+}
+const avKind = v => { v = normAv(v); return v === "full" ? "full" : v === "no" ? "no" : v ? "part" : ""; };
+
+function renderCal() {
+  const ro = readOnly || offline;
+  if (!loaded) { $("#cal").innerHTML = `<p class="empty">Загружаю…</p>`; $("#best").innerHTML = ""; return; }
+  if (!players.length) { $("#cal").innerHTML = `<p class="empty">Добавь игроков в таблице приоритетов.</p>`; $("#best").innerHTML = ""; return; }
+  const days = calDays(), total = players.length;
+  const whoIn = (day, b) => players.filter(p => blockAvail(p.avail?.[day.key], b));
+
+  const cand = [];
+  for (const day of days) for (const b of BLOCKS) { const who = whoIn(day, b); if (who.length >= 2) cand.push({ day, b, who }); }
+  cand.sort((a, c) => c.who.length - a.who.length || (a.day.key < c.day.key ? -1 : a.day.key > c.day.key ? 1 : 0) || BLOCKS.indexOf(a.b) - BLOCKS.indexOf(c.b));
+  $("#best").innerHTML = cand.length
+    ? `<span class="lbl">Лучшие слоты:</span>` + cand.slice(0, 5).map(x => {
+      const miss = players.filter(p => !x.who.includes(p)).map(p => p.name);
+      return `<span class="chip ${x.who.length === total ? "all" : ""}" data-tip="${esc(miss.length ? "Нет: " + miss.join(", ") : "Свободны все")}">${dayLabel(x.day.key)} · <b>${x.b.label.toLowerCase()}</b> · ${x.who.length}/${total}</span>`;
+    }).join("")
+    : `<span class="lbl">Пока слотов, где свободны хотя бы двое, нет. Отметь время в таблице ниже.</span>`;
+
+  const head = `<thead><tr><th class="stick" scope="col">День</th><th scope="col">Свободны</th>${players.map(p => `<th scope="col">${esc(p.name)}</th>`).join("")}</tr></thead>`;
+  const rows = days.map(day => {
+    const sum = BLOCKS.map(b => {
+      const who = whoIn(day, b), r = who.length / total;
+      return `<span class="mb ${r >= .6 ? "hi" : ""} ${r === 1 ? "all" : ""}" style="--r:${r}" data-tip="${esc(`${b.label} ${b.from}–${b.to}: ${who.length} из ${total}${who.length ? " (" + who.map(p => p.name).join(", ") + ")" : ""}`)}">${b.short} ${who.length}</span>`;
+    }).join("");
+    const cells = players.map(p => {
+      const v = normAv(p.avail?.[day.key]), k = avKind(v);
+      const tip = `${p.name} · ${dayLabel(day.key)}: ${v ? (v === "no" ? "не может" : avLabel(v)) : "не отмечено"}`;
+      return `<td><button type="button" class="avc ${k}" data-act="cal" data-id="${esc(p.id)}" data-date="${day.key}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" ${ro ? "disabled" : ""}>${esc(v ? avLabel(v) : "")}</button></td>`;
+    }).join("");
+    return `<tr class="${day.wd === 1 ? "wk" : ""} ${day.wd === 0 || day.wd === 6 ? "we" : ""}"><th class="stick" scope="row">${dayLabel(day.key)}${day.key === RELEASE ? `<span class="rel">релиз</span>` : ""}</th><td><div class="mbs">${sum}</div></td>${cells}</tr>`;
+  }).join("");
+  $("#cal").innerHTML = `<table class="cal">${head}<tbody>${rows}</tbody></table>` +
+    (calWeeks < 12 ? `<button type="button" class="btn ghost more" data-act="calmore">Показать ещё 4 недели</button>` : "");
+}
+
+function renderSheet() {
+  const sh = $("#sheet"), bd = $("#sheet-bd");
+  const p = sheet && players.find(x => x.id === sheet.pid);
+  if (!p || readOnly || offline) { sheet = null; sh.hidden = bd.hidden = true; sh.innerHTML = ""; return; }
+  const cur = normAv(p.avail?.[sheet.date]);
+  const wasHidden = sh.hidden;
+  const slotOn = id => /^[mde]{1,3}$/.test(cur) && cur.includes(id);
+  const hours = n => Array.from({ length: n }, (_, i) => i);
+  const wd = new Date(sheet.date + "T00:00:00Z").getUTCDay();
+  const same = calDays().filter(d => d.wd === wd && d.key !== sheet.date && d.key >= localKey()).length;
+  sh.innerHTML = `
+    <div class="sheet-head"><h3 id="sheet-title">${esc(p.name)} · ${dayLabel(sheet.date)}</h3><button type="button" class="x" data-act="close" aria-label="Закрыть">✕</button></div>
+    <div class="sheet-row">
+      <button type="button" class="ob full" data-act="av" data-v="full" aria-pressed="${cur === "full"}">Весь день</button>
+      <button type="button" class="ob no" data-act="av" data-v="no" aria-pressed="${cur === "no"}">Не могу</button>
+    </div>
+    <div class="sheet-lbl">Могу в это время</div>
+    <div class="sheet-row">${BLOCKS.map(b => `<button type="button" class="ob" data-act="avslot" data-b="${b.id}" aria-pressed="${slotOn(b.id)}">${b.label}<small>${b.from}–${b.to}</small></button>`).join("")}</div>
+    <div class="sheet-lbl">Или точные часы</div>
+    <div class="sheet-row">
+      <select id="h-from" aria-label="С какого часа">${hours(24).map(h => `<option value="${h}" ${h === hFrom ? "selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select>
+      <span>–</span>
+      <select id="h-to" aria-label="До какого часа">${hours(24).map(h => h + 1).map(h => `<option value="${h}" ${h === hTo ? "selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select>
+      <button type="button" class="btn" data-act="avhours">Применить</button>
+    </div>
+    ${sheetNote ? `<div class="sheet-note" role="status">${esc(sheetNote)}</div>` : ""}
+    <div class="sheet-foot">
+      <button type="button" class="link" data-act="avclear">Очистить</button>
+      ${same ? `<button type="button" class="link" data-act="avcopy">Повторить для всех: ${WD[wd]} (${same})</button>` : ""}
+    </div>`;
+  sh.hidden = bd.hidden = false;
+  if (wasHidden) sh.focus();
+}
+function setAvail(date, v, pid = sheet.pid) { save(pid, { avail: { [date]: v } }); }
+function closeSheet() { sheet = null; sheetNote = ""; renderSheet(); }
+
+/* ---------- data ---------- */
+const chain = new Map();
+function save(id, patch) {
+  if (!col || readOnly) return;
+  const next = (chain.get(id) || Promise.resolve()).then(() => col.doc(id).update(patch)).catch(onWriteError);
+  chain.set(id, next);
+}
+function onWriteError(e) {
+  if (e?.code === "invalid_argument" && writeCheck !== true) readOnly = true;
+  else errNote = "Не удалось сохранить. Проверь соединение и попробуй ещё раз.";
+  render();
+}
+function cyclePatch(p, cls) {
+  const cur = stateOf(p, cls), nxt = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  const patch = { picks: { [cls]: { first: 1, second: 2, ban: -1 }[nxt] || 0 } };
+  if (nxt === "final") patch.main = { cls };
+  else if (cur === "final") patch.main = { cls: "" };
+  return patch;
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (confirmDel && !(b && b.dataset.act === "del")) { confirmDel = null; render(); }
+  if (!b || b.disabled) return;
+  const act = b.dataset.act, id = b.dataset.id, p = players.find(x => x.id === id);
+  if (act === "cell" && p) save(id, cyclePatch(p, b.dataset.cls));
+  else if (act === "prof" && p) save(id, { profs: { [b.dataset.prof]: !p.profs?.[b.dataset.prof] } });
+  else if (act === "cal" && p && !readOnly) {
+    sheet = { pid: id, date: b.dataset.date }; sheetNote = "";
+    const h = /^h(\d+)-(\d+)$/.exec(normAv(p.avail?.[sheet.date]));
+    if (h) { hFrom = +h[1]; hTo = +h[2]; }
+    renderSheet();
+  }
+  else if (act === "close") closeSheet();
+  else if (act === "nav") {
+    view = b.dataset.nav === "calendar" ? "calendar" : "plan";
+    try { history.replaceState(null, "", "#" + view); } catch {}
+    applyView();
+  }
+  else if (act === "zoom") $("#lb").hidden = false;
+  else if (act === "unzoom") $("#lb").hidden = true;
+  else if (act === "calmore") { calWeeks = Math.min(12, calWeeks + 4); render(); }
+  else if (act === "av" && sheet) { setAvail(sheet.date, b.dataset.v); closeSheet(); }
+  else if (act === "avclear" && sheet) { setAvail(sheet.date, ""); closeSheet(); }
+  else if (act === "avslot" && sheet) {
+    const cur = normAv(players.find(x => x.id === sheet.pid)?.avail?.[sheet.date]);
+    let ids = /^[mde]{1,3}$/.test(cur) ? cur.split("") : [];
+    ids = ids.includes(b.dataset.b) ? ids.filter(i => i !== b.dataset.b) : [...ids, b.dataset.b];
+    ids = BLOCKS.map(x => x.id).filter(i => ids.includes(i));
+    setAvail(sheet.date, ids.length === 3 ? "full" : ids.join(""));
+  }
+  else if (act === "avhours" && sheet) {
+    if (hTo <= hFrom) { sheetNote = "Конец должен быть позже начала."; renderSheet(); }
+    else { setAvail(sheet.date, `h${hFrom}-${hTo}`); closeSheet(); }
+  }
+  else if (act === "avcopy" && sheet) {
+    const cur = normAv(players.find(x => x.id === sheet.pid)?.avail?.[sheet.date]);
+    const wd = new Date(sheet.date + "T00:00:00Z").getUTCDay(), today = localKey();
+    const patch = Object.fromEntries(calDays().filter(d => d.wd === wd && d.key >= today).map(d => [d.key, cur]));
+    save(sheet.pid, { avail: patch });
+    closeSheet();
+  }
+  else if (act === "vote" && myId) castVote(b.dataset.v);
+  else if (act === "unvote" && myId) { pollNote = ""; voteChain = voteChain.then(() => dbRef.doc("votes/" + myId).delete()).catch(onWriteError); }
+  else if (act === "size") { const n = +b.dataset.n; settings = { size: n }; render(); dbRef?.doc("meta/settings").set({ size: n }).catch(onWriteError); }
+  else if (act === "del") {
+    if (CORE.has(id)) return;
+    if (confirmDel === id) { confirmDel = null; col.doc(id).delete().catch(onWriteError); }
+    else { confirmDel = id; render(); }
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target, act = t.dataset?.act, id = t.dataset?.id;
+  if (t.id === "h-from") { hFrom = +t.value; return; }
+  if (t.id === "h-to") { hTo = +t.value; return; }
+  if (!act || !id) return;
+  if (act === "race") save(id, { main: { race: t.value } });
+  else if (act === "role") save(id, { main: { role: t.value } });
+  else if (act === "rename") {
+    const name = t.value.trim();
+    if (name) save(id, { name });
+  }
+  if (act !== "rename") t.blur();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.matches?.("input.nm")) e.target.blur();
+  if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); }
+});
+document.addEventListener("focusout", () => setTimeout(() => { if (dirty && !editing()) render(); }, 0));
+
+$("#add-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const input = $("#new-name"), name = input.value.trim();
+  if (!name || !col || readOnly) return;
+  input.value = "";
+  col.add({ name, picks: {}, main: { cls: "", race: "", role: "" }, profs: {}, createdAt: Date.now() }).catch(onWriteError);
+});
+
+/* tooltip */
+const tip = $("#tip");
+document.addEventListener("pointermove", e => {
+  const t = e.target.closest?.("[data-tip]");
+  if (!t || !t.dataset.tip) { tip.hidden = true; return; }
+  tip.textContent = t.dataset.tip;
+  tip.hidden = false;
+  tip.style.left = Math.max(8, Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8)) + "px";
+  tip.style.top = (e.clientY + 16) + "px";
+});
+document.addEventListener("pointerleave", () => { tip.hidden = true; });
+
+/* ---------- views + countdown ---------- */
+function applyView() {
+  document.querySelectorAll("[data-view]").forEach(el => { el.hidden = el.dataset.view !== view; });
+  document.querySelectorAll("[data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === view)));
+}
+function readHash() { view = location.hash === "#calendar" ? "calendar" : "plan"; }
+const pad2 = n => String(n).padStart(2, "0");
+const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
+function tick() {
+  const left = LAUNCH_AT - Date.now();
+  $("#cd-num").hidden = left <= 0;
+  $("#cd-done").hidden = left > 0;
+  if (left > 0) {
+    const s = Math.floor(left / 1000);
+    $("#cd-d").textContent = Math.floor(s / 86400);
+    $("#cd-h").textContent = pad2(Math.floor(s % 86400 / 3600));
+    $("#cd-m").textContent = pad2(Math.floor(s % 3600 / 60));
+    $("#cd-s").textContent = pad2(s % 60);
+  }
+  const hc = HC_AT - Date.now();
+  if (hc > 0) {
+    const days = Math.ceil(hc / 864e5);
+    $("#cd-hc-n").textContent = "≈ " + days;
+    $("#cd-hc-u").textContent = plural(days, "день", "дня", "дней");
+  } else {
+    $("#cd-hc-n").textContent = "—";
+    $("#cd-hc-u").textContent = "ориентир прошёл";
+  }
+}
+function setLaunchNote() {
+  let local = "";
+  try { local = " У тебя: " + new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(LAUNCH_AT)) + "."; } catch {}
+  $("#cd-launch-sub").textContent = "5 ноября, 00:00 по Центральной Европе (CET)." + local;
+}
+
+/* ---------- boot ---------- */
+async function boot() {
+  render();
+  const db = await window.WFStore.db();
+  if (!db) { offline = true; loaded = true; render(); return; }
+  dbRef = db;
+  writeCheck = true;
+  myId = window.WFStore.userId();
+  try { $("#vote-name").value = localStorage.getItem("wf-name") || ""; } catch {}
+  db.collection("votes").onSnapshot(snap => {
+    votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const mine = votes.find(v => v.id === myId);
+    if (mine?.name && !$("#vote-name").value) $("#vote-name").value = mine.name;
+    render();
+  }, () => {});
+  col = db.collection("players");
+  col.onSnapshot(snap => {
+    players = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.name).localeCompare(b.name));
+    loaded = true; errNote = "";
+    render();
+  }, () => { offline = true; loaded = true; render(); });
+  db.doc("meta/settings").onSnapshot(s => {
+    settings = { size: s.exists && s.data().size === 10 ? 10 : 5 };
+    render();
+  }, () => {});
+}
+readHash(); applyView(); setLaunchNote(); tick(); setInterval(tick, 1000);
+window.addEventListener("hashchange", () => { readHash(); applyView(); });
+boot();
+</script>
+
+</body></html>
