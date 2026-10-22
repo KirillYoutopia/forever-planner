@@ -69,6 +69,13 @@
     });
 
     return {
+      // Server-side function (e.g. deathroll_roll). If it returns a doc's new data, show it right away.
+      async call(fn, args, coll, id) {
+        const { data, error } = await sb.rpc(fn, args);
+        if (error) fail(error);
+        if (coll && id && data && typeof data === "object") { cache.set(key(coll, id), data); emit(); }
+        return data;
+      },
       doc(path) { const [c, i] = path.split("/"); return ref(c, i); },
       collection(coll) {
         return {

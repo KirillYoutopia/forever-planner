@@ -25,8 +25,12 @@ $$;
 create or replace function public.patch_doc(p_coll text, p_id text, p_patch jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 begin
-  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths') then
+  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths', 'bets', 'fame', 'rolls') then
     raise exception 'unknown collection %', p_coll;
+  end if;
+  -- Roll to Death duels are created and rolled only by deathroll_new / deathroll_roll; the page may only hide one.
+  if p_coll = 'rolls' and exists (select 1 from jsonb_object_keys(p_patch) k where k <> 'deleted') then
+    raise exception 'rolls are changed only by deathroll functions';
   end if;
   if p_coll = 'meta' and p_id <> 'settings' then raise exception 'unknown meta doc %', p_id; end if;
   if jsonb_typeof(p_patch) <> 'object' or octet_length(p_patch::text) > 20000 then raise exception 'bad patch'; end if;
@@ -113,3 +117,50 @@ on conflict (coll, id) do update
   set data = public.docs.data
     || jsonb_strip_nulls(jsonb_build_object('text', excluded.data->'text', 'due', excluded.data->'due',
                                             'title', excluded.data->'title', 'at', excluded.data->'at'));
+
+-- 2026-10-23: Таверна (Roll to Death), Ставки, Зал славы.
+--   bets/{id}  {q, opts: [text], picks: {playerId: optionIndex | -1}, result: optionIndex | -1, resolvedAt, at}
+--   fame/{id}  {who: playerId | "" (whole group), title, icon, at, auto}. Auto ids are deterministic (e.g. lvl20_p_kirill).
+--   rolls/{id} {a, b, start, stake, rolls: [{by, max, r, at}], winner, loser, endedAt, at}. Written only by the functions
+--   below, so the dice are rolled on the server and turns are enforced.
+create or replace function public.deathroll_new(p_id text, p_a text, p_b text, p_start int, p_stake int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare g jsonb;
+begin
+  if p_id !~ '^[a-z0-9]{6,32}$' then raise exception 'bad id'; end if;
+  if p_a = p_b then raise exception 'need two different players'; end if;
+  if (select count(*) from docs where coll = 'players' and id in (p_a, p_b)
+      and not coalesce((data->>'deleted')::boolean, false)) <> 2 then
+    raise exception 'unknown player';
+  end if;
+  if p_start < 2 or p_start > 1000000 or p_stake < 0 or p_stake > 1000000 then raise exception 'bad numbers'; end if;
+  g := jsonb_build_object('a', p_a, 'b', p_b, 'start', p_start, 'stake', p_stake, 'rolls', '[]'::jsonb,
+                          'at', floor(extract(epoch from clock_timestamp()) * 1000));
+  insert into docs (coll, id, data) values ('rolls', p_id, g);
+  return g;
+end $$;
+
+create or replace function public.deathroll_roll(p_id text, p_by text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare g jsonb; rs jsonb; n int; mx int; r int; turn text; now_ms numeric;
+begin
+  select data into g from docs where coll = 'rolls' and id = p_id for update;
+  if g is null or coalesce((g->>'deleted')::boolean, false) then raise exception 'no such duel'; end if;
+  if coalesce(g->>'loser', '') <> '' then raise exception 'game over'; end if;
+  rs := coalesce(g->'rolls', '[]'::jsonb);
+  n := jsonb_array_length(rs);
+  turn := case when n % 2 = 0 then g->>'a' else g->>'b' end;
+  if p_by is distinct from turn then raise exception 'not your turn'; end if;
+  mx := case when n = 0 then (g->>'start')::int else (rs->(n - 1)->>'r')::int end;
+  r := floor(random() * mx)::int + 1;
+  now_ms := floor(extract(epoch from clock_timestamp()) * 1000);
+  g := g || jsonb_build_object('rolls', rs || jsonb_build_array(jsonb_build_object('by', p_by, 'max', mx, 'r', r, 'at', now_ms)));
+  if r = 1 then
+    g := g || jsonb_build_object('loser', p_by, 'winner', case when p_by = g->>'a' then g->>'b' else g->>'a' end, 'endedAt', now_ms);
+  end if;
+  update docs set data = g, updated_at = now() where coll = 'rolls' and id = p_id;
+  return g;
+end $$;
+
+grant execute on function public.deathroll_new(text, text, text, int, int) to anon, authenticated;
+grant execute on function public.deathroll_roll(text, text) to anon, authenticated;

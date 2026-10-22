@@ -36,6 +36,11 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `wants/{id}`: `{ by: playerId, item, src, wid?, q?, icon?, at }`, the loot wishlist. `wid`/`q`/`icon` come from Wowhead's tooltip JSON (`nether.wowhead.com/tooltip/item/{id}?dataEnv=16`, CORS-open, no script) when a Wowhead link or ID is pasted. A clash is the same item name from 2+ players.
   - `deaths/{id}`: `{ by: playerId, lvl, killer, words, at }`, the Hardcore graveyard.
   - All four collections use `deleted: true` for removal, like players.
+- "Таверна" (`#tavern`), "Ставки" (`#bets`) and "Зал славы" (`#fame`) tabs. "Ты —" (`#me`, localStorage `wf-me`) says who is acting there.
+  - `rolls/{id}`: Roll to Death duels `{ a, b, start, stake, rolls: [{ by, max, r, at }], winner, loser, endedAt, at }`. Created and rolled only by the RPCs `deathroll_new` / `deathroll_roll` (dice rolled on the server, turns enforced). `patch_doc` lets the page set only `deleted` on them. Hiding a finished duel removes it from the debt ledger.
+  - `bets/{id}`: `{ q, opts: [text], picks: { [playerId]: optionIndex | -1 }, result: optionIndex | -1, resolvedAt, at }`.
+  - `fame/{id}`: `{ who: playerId | "" (whole group), title, icon, at, auto }`. `fameCands()` derives achievements from the data, and `syncFame()` writes each new one once, under a deterministic id. Hidden ones (`deleted`) never come back. Manual entries come from the form.
+  - `data-view` can list several views separated by spaces (e.g. `"tavern bets"`).
 
 ## Code conventions
 - `render()` re-renders every section from state. `editing()` holds off re-rendering while an input or select has focus, so keep that guard working.
