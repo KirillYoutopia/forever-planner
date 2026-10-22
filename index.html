@@ -36,7 +36,6 @@
   --tank: #3987e5;
   --dps: #d95926;
   --healer: #199e70;
-  --pie: #d9a441;
   --alliance: #3987e5;
   --horde: #e66767;
   --pve: #9085e9;
@@ -65,7 +64,6 @@
     --tank: #2a78d6;
     --dps: #eb6834;
     --healer: #1baf7a;
-    --pie: #b8862b;
     --alliance: #2a78d6;
     --horde: #e34948;
     --pve: #6250d6;
@@ -94,7 +92,6 @@
   --tank: #2a78d6;
   --dps: #eb6834;
   --healer: #1baf7a;
-  --pie: #b8862b;
   --alliance: #2a78d6;
   --horde: #e34948;
   --pve: #6250d6;
@@ -443,13 +440,17 @@ const CLASSES = [
 const RACES = [
   { id: "Human", f: "A" }, { id: "Dwarf", f: "A" }, { id: "Night Elf", f: "A" }, { id: "Gnome", f: "A" },
   { id: "Orc", f: "H" }, { id: "Undead", f: "H" }, { id: "Tauren", f: "H" }, { id: "Troll", f: "H" },
+  // WoW Forever: нейтральная раса, фракцию выбирают при создании персонажа
+  { id: "Skyborne-A", name: "Skyborne", f: "A" }, { id: "Skyborne-H", name: "Skyborne", f: "H" },
 ];
+const raceLabel = r => r.name ? `${r.name} (${FACTIONS[r.f].label})` : r.id;
 const ROLES = [
   { id: "tank", label: "Tank", color: "var(--tank)" },
   { id: "healer", label: "Healer", color: "var(--healer)" },
   { id: "dps", label: "DPS", color: "var(--dps)" },
-  { id: "pie", label: "Pirozochek", color: "var(--pie)" }, // шуточная роль: доступна любому классу, в состав не входит
 ];
+const PIE_FOR = "p_denis"; // шуточная роль Pirozochek: только у Дениса, считается танком
+const roleLabel = r => r === "pie" ? "Pirozochek" : ROLE[r].label;
 const FACTIONS = { A: { label: "Alliance", color: "var(--alliance)" }, H: { label: "Horde", color: "var(--horde)" } };
 const PROFS = [
   { id: "Alchemy", type: "craft" }, { id: "Blacksmithing", type: "craft" }, { id: "Enchanting", type: "craft" },
@@ -499,10 +500,11 @@ const stateOf = (p, cls) => p.main?.cls === cls ? "final" : ({ "1": "first", "2"
 function effRole(p) {
   const c = CLS[p.main?.cls];
   if (!c) return "";
-  if (rolesOf(c).includes(p.main.role)) return p.main.role;
+  const r = p.main.role === "pie" && p.id === PIE_FOR ? "tank" : p.main.role;
+  if (c.roles.includes(r)) return r;
   return c.roles.length === 1 ? c.roles[0] : "";
 }
-const rolesOf = c => [...c.roles, "pie"];
+const roleOpts = (p, c) => c.roles.flatMap(r => r === "tank" && p.id === PIE_FOR ? ["tank", "pie"] : [r]);
 const factionOf = p => RACE[p.main?.race]?.f || "";
 const countState = (cls, st) => players.filter(p => stateOf(p, cls) === st).length;
 
@@ -540,13 +542,13 @@ function renderComp() {
   const size = settings.size, tgt = TARGETS[size], total = players.length;
   $("#comp-cap").textContent = !loaded ? "" :
     `${total} из ${size} игроков · ` + (total < size ? `свободно мест: ${size - total}` : total === size ? "состав полный" : `на ${total - size} больше состава`);
-  $("#comp").innerHTML = ROLES.filter(r => r.id in tgt).map(r => {
+  $("#comp").innerHTML = ROLES.map(r => {
     const filled = players.filter(p => effRole(p) === r.id);
     const need = tgt[r.id];
     const pips = Array.from({ length: Math.max(need, filled.length) }, (_, i) => `<span class="pip ${i < filled.length ? "on" : ""}" style="--c:${r.color}"></span>`).join("");
     const cands = players.filter(p => !effRole(p)).map(p => ({ p, cs: candidates(p, r.id) })).filter(x => x.cs.length);
     const done = filled.length >= need;
-    const names = filled.length ? `<div class="cands">${filled.map(p => `<span class="chip"><b>${esc(p.name)}</b> <i>${esc(p.main.cls)}</i></span>`).join("")}</div>` : "";
+    const names = filled.length ? `<div class="cands">${filled.map(p => `<span class="chip"><b>${esc(p.name)}</b> <i>${esc(p.main.cls)}${p.main.role === "pie" ? " · Pirozochek" : ""}</i></span>`).join("")}</div>` : "";
     let cand = "";
     if (!done) {
       cand = cands.length
@@ -586,12 +588,14 @@ function renderChars() {
   const ro = readOnly || offline;
   if (!players.length) { $("#chars").innerHTML = `<p class="empty">Добавь игроков в таблице приоритетов.</p>`; return; }
   const raceOpts = sel => `<option value="">—</option>` + ["A", "H"].map(f =>
-    `<optgroup label="${FACTIONS[f].label}">${RACES.filter(r => r.f === f).map(r => `<option value="${r.id}" ${sel === r.id ? "selected" : ""}>${r.id}</option>`).join("")}</optgroup>`).join("");
+    `<optgroup label="${FACTIONS[f].label}">${RACES.filter(r => r.f === f).map(r => `<option value="${r.id}" ${sel === r.id ? "selected" : ""}>${r.name || r.id}</option>`).join("")}</optgroup>`).join("");
   const rows = players.map(p => {
     const c = CLS[p.main?.cls];
     const f = factionOf(p);
     let roleCell = `<span class="mute">—</span>`;
-    if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro ? "disabled" : ""}>${c.roles.length > 1 ? `<option value="">Выбери роль</option>` : ""}${rolesOf(c).map(r => `<option value="${r}" ${effRole(p) === r ? "selected" : ""}>${ROLE[r].label}</option>`).join("")}</select>`;
+    const opts = c ? roleOpts(p, c) : [];
+    if (opts.length === 1) roleCell = rolePill(opts[0]);
+    else if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro ? "disabled" : ""}><option value="">Выбери роль</option>${opts.map(r => `<option value="${r}" ${p.main.role === r ? "selected" : ""}>${roleLabel(r)}</option>`).join("")}</select>`;
     return `<tr>
       <td>${esc(p.name)}</td>
       <td>${c ? `<span class="cls"><span class="star">★</span>${cdot(c)}${c.id}</span>` : `<span class="mute">нет ★ в таблице</span>`}</td>
@@ -643,7 +647,7 @@ function renderCharts() {
   // races + factions
   const fCount = f => players.filter(p => factionOf(p) === f).length;
   const withRace = fCount("A") + fCount("H");
-  const raceRows = RACES.map(r => ({ label: r.id, value: players.filter(p => p.main?.race === r.id).length, color: FACTIONS[r.f].color, tip: `${r.id}: ${players.filter(p => p.main?.race === r.id).map(p => p.name).join(", ")}` }))
+  const raceRows = RACES.map(r => ({ label: raceLabel(r), value: players.filter(p => p.main?.race === r.id).length, color: FACTIONS[r.f].color, tip: `${raceLabel(r)}:${players.filter(p => p.main?.race === r.id).map(p => p.name).join(", ")}` }))
     .filter(r => r.value).sort((a, b) => b.value - a.value);
   const noRace = locked.filter(p => !p.main.race).length;
   const races = withRace ? `

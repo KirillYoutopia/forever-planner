@@ -31,7 +31,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - `render()` re-renders every section from state. `editing()` holds off re-rendering while an input or select has focus, so keep that guard working.
 - Clicks are handled by one delegated listener that dispatches on `data-act`. Add new actions there.
 - Colors are CSS custom properties on `:root`, with a dark theme by default and a light theme. Use the tokens, never hardcoded colors.
-- Key constants: `RELEASE`, `LAUNCH_AT`, `HC_AT` (an estimated Hardcore start), `CORE` (players who can't be deleted), `CLASSES`, `RACES` and `PROFS`. The game is Classic-era, so it has 9 classes and 8 races.
+- Key constants: `RELEASE`, `LAUNCH_AT`, `HC_AT` (an estimated Hardcore start), `CORE` (players who can't be deleted), `CLASSES`, `RACES` and `PROFS`. The game is Classic-era, so it has 9 classes and 8 races, plus the WoW Forever race Skyborne (neutral: stored as `Skyborne-A` or `Skyborne-H` depending on the faction chosen).
 - Escape all user text with `esc()`.
 
 ## Rules
