@@ -164,3 +164,20 @@ end $$;
 
 grant execute on function public.deathroll_new(text, text, text, int, int) to anon, authenticated;
 grant execute on function public.deathroll_roll(text, text) to anon, authenticated;
+
+-- 2026-10-23: example bets and the "story so far" Hall of Fame entries. Existing rows (with picks/results) are left alone.
+insert into public.docs (coll, id, data) values
+  ('bets', 'b_60',    $j${"q": "Кто первым дойдёт до 60?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756800000}$j$::jsonb),
+  ('bets', 'b_hc',    $j${"q": "Кто первым умрёт в Hardcore?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756740000}$j$::jsonb),
+  ('bets', 'b_pie',   $j${"q": "Pirozochek удержит агро на первом боссе?", "opts": ["Да", "Нет", "Агро? Какое агро?"], "picks": {}, "result": -1, "at": 1792756680000}$j$::jsonb),
+  ('bets', 'b_afk',   $j${"q": "Кто первым скажет «я на минутку» и пропадёт на час?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756620000}$j$::jsonb),
+  ('bets', 'b_mount', $j${"q": "Кто первым купит маунта?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756560000}$j$::jsonb),
+  ('bets', 'b_epic',  $j${"q": "Когда у группы будет первый эпик?", "opts": ["Первая неделя", "Первый месяц", "К рейдам", "Не дождёмся"], "picks": {}, "result": -1, "at": 1792756500000}$j$::jsonb),
+  ('bets', 'b_ony',   $j${"q": "Сколько вайпов на Onyxia в первый вечер?", "opts": ["0–2", "3–5", "6–10", "Больше 10"], "picks": {}, "result": -1, "at": 1792756440000}$j$::jsonb),
+  ('fame', 'f_site',   $j${"who": "", "title": "Планировщик переехал с claude.ai на свой сайт", "icon": "inv_misc_book_09", "at": 1792701000000, "auto": true}$j$::jsonb),
+  ('fame', 'f_bots',   $j${"who": "", "title": "Пережили набег ботов: Pipiska, Donald Trump и компания", "icon": "spell_shadow_deathcoil", "at": 1792702800000, "auto": true}$j$::jsonb),
+  ('fame', 'f_dropdb', $j${"who": "", "title": "Отбили атаку «DROP DATABASE»", "icon": "spell_holy_divineprotection", "at": 1792703460000, "auto": true}$j$::jsonb),
+  ('fame', 'f_pvp',    $j${"who": "", "title": "Группа выбрала PvP (3:0)", "icon": "inv_bannerpvp_02", "at": 1792746000000, "auto": true}$j$::jsonb),
+  ('fame', 'f_pie',    $j${"who": "p_denis", "title": "Получил уникальную роль Pirozochek", "icon": "inv_misc_food_11", "at": 1792749600000, "auto": true}$j$::jsonb),
+  ('fame', 'f_tavern', $j${"who": "", "title": "Открылась Таверна: первые дуэли Roll to Death", "icon": "inv_misc_dice_02", "at": 1792760400000, "auto": true}$j$::jsonb)
+on conflict (coll, id) do nothing;
