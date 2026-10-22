@@ -12,7 +12,9 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - `supabase.sql`: schema and seed data. It's safe to re-run.
   - One table, `docs(coll, id, data jsonb)`, primary key `(coll, id)`.
   - RPC `patch_doc(p_coll, p_id, p_patch)` deep-merges a patch on the server, so two people editing different fields don't overwrite each other.
-  - RLS is open to anon, and realtime is enabled on the table.
+  - `patch_doc` is the only write path for the page (security definer, merge-only, validates collection names, vote values and that voters are group players). Anon can only `select` the table directly, never insert/update/delete.
+  - `docs_history` keeps the previous version of every changed row (not readable by anon), for undoing vandalism.
+  - Realtime is enabled on the table.
 - `roadmap.png`: the roadmap image used in the header.
 - `README.md`: setup and hosting steps (Supabase project, Netlify Drop / GitHub Pages).
 
@@ -24,7 +26,8 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `main`: `{ cls, race, role }`. A ★ in the grid means `main.cls` is set.
   - `profs`: `{ [Profession]: boolean }`
   - `avail`: `{ "YYYY-MM-DD": "full" | "no" | a subset of "mde" (morning/day/evening) | "hA-B" (hours) | "" }`
-- `votes/{browserId}`: `{ vote: "pve" | "pvp", name, at }`. `browserId` is a random id kept in localStorage.
+  - `deleted`: `true` hides a (non-core) player. The database allows no deletes, so removal is a soft delete.
+- `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter picks themselves from the player list (remembered in localStorage as `wf-voter`).
 - `meta/settings`: `{ size: 5 | 10 }`
 
 ## Code conventions

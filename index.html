@@ -383,9 +383,9 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </section>
 
     <section class="panel" aria-labelledby="h-poll">
-      <div class="panel-head"><h2 id="h-poll">PvE или PvP?</h2><span class="cap">Один голос с браузера</span></div>
-      <label class="seg-label" for="vote-name">Твоё имя</label>
-      <input id="vote-name" class="poll-name" type="text" maxlength="24" autocomplete="off" placeholder="Например, Kirill">
+      <div class="panel-head"><h2 id="h-poll">PvE или PvP?</h2><span class="cap">Один голос на игрока</span></div>
+      <label class="seg-label" for="vote-who">Кто голосует</label>
+      <select id="vote-who" class="poll-name"></select>
       <div id="poll-opts"></div>
       <div class="cap poll-msg" id="poll-msg" role="status"></div>
     </section>
@@ -720,15 +720,20 @@ function renderProfs() {
 }
 
 function renderPoll() {
-  const valid = votes.filter(v => POLL.some(o => o.id === v.vote)).sort((a, b) => (a.at || 0) - (b.at || 0));
+  // votes/{playerId}: only players from the group can vote, one vote each
+  const byId = Object.fromEntries(players.map(p => [p.id, p]));
+  if (myId && loaded && !byId[myId]) myId = "";
+  const valid = votes.filter(v => byId[v.id] && POLL.some(o => o.id === v.vote)).sort((a, b) => (a.at || 0) - (b.at || 0));
   const total = valid.length;
   const mine = valid.find(v => v.id === myId);
-  const can = !readOnly && !offline && !!myId;
-  $("#vote-name").disabled = !can;
+  const can = !readOnly && !offline && loaded;
+  const who = $("#vote-who");
+  who.innerHTML = `<option value="">Выбери себя</option>` + players.map(p => `<option value="${esc(p.id)}" ${p.id === myId ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  who.disabled = !can;
   $("#poll-opts").innerHTML = POLL.map(o => {
     const vs = valid.filter(v => v.vote === o.id);
     const pct = total ? Math.round(vs.length / total * 100) : 0;
-    const chips = vs.slice(0, 12).map(v => `<span class="chip">${esc(String(v.name || "—").slice(0, 24))}</span>`).join("")
+    const chips = vs.slice(0, 12).map(v => `<span class="chip">${esc(byId[v.id].name)}</span>`).join("")
       + (vs.length > 12 ? `<span class="cap">+${vs.length - 12}</span>` : "");
     const isMine = mine?.vote === o.id;
     return `<div class="opt">
@@ -744,18 +749,15 @@ function renderPoll() {
   if (!loaded) msg = "Загружаю…";
   else if (offline) msg = "";
   else if (readOnly) msg = "Режим просмотра: голосовать нельзя.";
-  else if (!myId) msg = "Голосование недоступно.";
-  else if (mine) msg = `Твой голос: ${POLL.find(o => o.id === mine.vote).label}. Чтобы сменить, нажми другой вариант.`;
-  else msg = "Впиши имя и выбери вариант.";
+  else if (mine) msg = `Голос ${byId[myId].name}: ${POLL.find(o => o.id === mine.vote).label}. Чтобы сменить, нажми другой вариант.`;
+  else msg = myId ? "Выбери вариант." : "Выбери себя в списке и нажми вариант.";
   $("#poll-msg").innerHTML = `<span>${esc(pollNote || msg)}</span>` + (mine && can ? `<button type="button" class="link" data-act="unvote">Убрать голос</button>` : "");
 }
 function castVote(v) {
-  const input = $("#vote-name"), name = input.value.trim().slice(0, 24);
-  if (!name) { pollNote = "Сначала впиши имя."; render(); input.focus(); return; }
+  if (!myId) { pollNote = "Сначала выбери себя в списке."; render(); $("#vote-who").focus(); return; }
   pollNote = "";
-  try { localStorage.setItem("wf-name", name); } catch {}
   const ref = dbRef.doc("votes/" + myId);
-  voteChain = voteChain.then(() => ref.set({ vote: v, name, at: Date.now() })).catch(onWriteError);
+  voteChain = voteChain.then(() => ref.set({ vote: v, at: Date.now() })).catch(onWriteError);
 }
 
 /* ---------- calendar ---------- */
@@ -936,12 +938,12 @@ document.addEventListener("click", e => {
     save(sheet.pid, { avail: patch });
     closeSheet();
   }
-  else if (act === "vote" && myId) castVote(b.dataset.v);
-  else if (act === "unvote" && myId) { pollNote = ""; voteChain = voteChain.then(() => dbRef.doc("votes/" + myId).delete()).catch(onWriteError); }
+  else if (act === "vote" && dbRef) castVote(b.dataset.v);
+  else if (act === "unvote" && myId) { pollNote = ""; voteChain = voteChain.then(() => dbRef.doc("votes/" + myId).set({ vote: "", at: Date.now() })).catch(onWriteError); }
   else if (act === "size") { const n = +b.dataset.n; settings = { size: n }; render(); dbRef?.doc("meta/settings").set({ size: n }).catch(onWriteError); }
   else if (act === "del") {
     if (CORE.has(id)) return;
-    if (confirmDel === id) { confirmDel = null; col.doc(id).delete().catch(onWriteError); }
+    if (confirmDel === id) { confirmDel = null; col.doc(id).update({ deleted: true }).catch(onWriteError); } // soft delete: the database allows no deletes
     else { confirmDel = id; render(); }
   }
 });
@@ -949,6 +951,7 @@ document.addEventListener("change", e => {
   const t = e.target, act = t.dataset?.act, id = t.dataset?.id;
   if (t.id === "h-from") { hFrom = +t.value; return; }
   if (t.id === "h-to") { hTo = +t.value; return; }
+  if (t.id === "vote-who") { myId = t.value; pollNote = ""; try { localStorage.setItem("wf-voter", myId); } catch {} t.blur(); render(); return; }
   if (!act || !id) return;
   if (act === "race") save(id, { main: { race: t.value } });
   else if (act === "role") save(id, { main: { role: t.value } });
@@ -1026,17 +1029,14 @@ async function boot() {
   if (!db) { offline = true; loaded = true; render(); return; }
   dbRef = db;
   writeCheck = true;
-  myId = window.WFStore.userId();
-  try { $("#vote-name").value = localStorage.getItem("wf-name") || ""; } catch {}
+  try { myId = localStorage.getItem("wf-voter") || ""; } catch { myId = ""; }
   db.collection("votes").onSnapshot(snap => {
     votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const mine = votes.find(v => v.id === myId);
-    if (mine?.name && !$("#vote-name").value) $("#vote-name").value = mine.name;
     render();
   }, () => {});
   col = db.collection("players");
   col.onSnapshot(snap => {
-    players = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    players = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.deleted)
       .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.name).localeCompare(b.name));
     loaded = true; errNote = "";
     render();

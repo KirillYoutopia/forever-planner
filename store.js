@@ -54,14 +54,11 @@
         const { error } = await sb.rpc("patch_doc", { p_coll: coll, p_id: id, p_patch: patch });
         if (error) { await loadAll().catch(() => {}); fail(error); }
       },
+      // The database only accepts merges through patch_doc (no direct writes, no deletes),
+      // so set() merges too: callers always pass the same keys, which makes it a replace in practice.
       async set(data) {
-        cache.set(key(coll, id), data); emit();
-        const { error } = await sb.from("docs").upsert({ coll, id, data, updated_at: new Date().toISOString() });
-        if (error) { await loadAll().catch(() => {}); fail(error); }
-      },
-      async delete() {
-        cache.delete(key(coll, id)); emit();
-        const { error } = await sb.from("docs").delete().eq("coll", coll).eq("id", id);
+        cache.set(key(coll, id), merge(cache.get(key(coll, id)) || {}, data)); emit();
+        const { error } = await sb.rpc("patch_doc", { p_coll: coll, p_id: id, p_patch: data });
         if (error) { await loadAll().catch(() => {}); fail(error); }
       },
       onSnapshot(cb) {
