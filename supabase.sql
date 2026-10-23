@@ -279,7 +279,7 @@ on conflict (coll, id) do update
 --   duels created before 2026-10-23 evening have "stake" in gold instead, and the page reads both.
 drop function if exists public.deathroll_new(text, text, text, int, int);  -- older versions without a login
 create or replace function public.deathroll_new(p_token text, p_id text, p_a text, p_b text, p_start int, p_stake_s int)
-returns jsonb language plpgsql security definer set search_path = public as $
+returns jsonb language plpgsql security definer set search_path = public as $$
 declare g jsonb; s record;
 begin
   select * into s from auth_session(p_token);
@@ -301,7 +301,7 @@ end $$;
 
 drop function if exists public.deathroll_roll(text, text);  -- older version took the player id instead of a login
 create or replace function public.deathroll_roll(p_token text, p_id text)
-returns jsonb language plpgsql security definer set search_path = public as $
+returns jsonb language plpgsql security definer set search_path = public as $$
 declare g jsonb; rs jsonb; n int; mx int; r int; turn text; now_ms numeric; s record; p_by text;
 begin
   select * into s from auth_session(p_token);
