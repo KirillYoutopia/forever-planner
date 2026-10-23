@@ -390,6 +390,27 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
+.rules summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; cursor: pointer; list-style: none; }
+.rules summary::-webkit-details-marker { display: none; }
+.rules summary h2::after { content: " ▾"; color: var(--muted); font-size: 14px; }
+.rules[open] summary h2::after { content: " ▴"; }
+.rules-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 12px; font-size: 13px; }
+@media (max-width: 900px) { .rules-body { grid-template-columns: minmax(0, 1fr); } }
+.rules-body h3 { margin: 0 0 6px; }
+.rules-body ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.bal { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.bal-c { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.bal-c span { font-size: 12px; color: var(--muted); }
+.bal-c b { font: 400 22px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.bal-c.plus b { color: var(--first-bg); }
+.bal-c.minus b { color: var(--ban-bg); }
+.owe .paid { margin-left: 10px; min-height: 30px; padding: 4px 10px; font-size: 12px; }
+.pays { list-style: none; margin: 0; padding: 0; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.stake { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.stake span { color: var(--muted); }
+.stake input { width: 64px; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+.stake .ob { min-height: 30px; padding: 3px 10px; font-size: 12px; }
+.gold { font-style: normal; color: var(--accent); font-size: 12px; margin-right: 8px; }
 .foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px; padding: 18px 0 4px; font-size: 13px; color: var(--muted); }
 /* wide screens: login pinned mid-screen just right of the content (the party frames sit on the left) */
 @media (min-width: 1520px) {
@@ -687,6 +708,37 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
+  <details class="panel rules" id="rules" data-view="tavern bets" open hidden>
+    <summary><h2>Правила Таверны</h2><span class="cap">Чтобы всё было честно</span></summary>
+    <div class="rules-body">
+      <div><h3>Roll to Death</h3><ol>
+        <li>Двое договариваются о начальном числе (обычно 1000) и ставке в золоте и серебре. Ставка может быть нулевой.</li>
+        <li>Первый бросает 1–N, второй — 1–выпавшее, и так по очереди.</li>
+        <li>Кто выбросил <b>1</b>, проиграл и отдаёт ставку второму.</li>
+        <li>Кости бросает сервер, а не браузер: подкрутить нельзя. Бросить можно только в свой ход и только за себя.</li>
+        <li>Крестик убирает дуэль совсем, например созданную по ошибке. Убранная дуэль не считается в кошельке.</li>
+      </ol></div>
+      <div><h3>Ставки</h3><ol>
+        <li>Выбрать вариант можно бесплатно. Золото к нему — по желанию.</li>
+        <li>Пока итога нет, вариант и сумму можно менять. После итога — нельзя.</li>
+        <li><b>Тотализатор:</b> золото тех, кто не угадал, делится между угадавшими пропорционально их ставкам. Угадал без золота — просто молодец.</li>
+        <li>Если с золотом никто не угадал, все ставки возвращаются.</li>
+        <li>Итог отмечает любой, когда событие случилось. Ошибся — можно отменить итог.</li>
+      </ol></div>
+      <div><h3>Кошелёк</h3><ol>
+        <li>Всё считается вместе: дуэли и ставки. Долги между двумя игроками взаимно гасятся.</li>
+        <li>Плюс — тебе должны, минус — должен ты.</li>
+        <li>Отдал золото в игре — нажми «Рассчитались». Нажать может любой из двоих, и это попадёт в историю.</li>
+        <li>Пока не нажали «Рассчитались», долг висит, даже если золото уже передано.</li>
+      </ol></div>
+    </div>
+  </details>
+
+  <section class="panel" aria-labelledby="h-wallet" data-view="tavern" hidden>
+    <div class="panel-head"><h2 id="h-wallet">Кошелёк</h2><span class="cap">Дуэли и ставки вместе, всё в золоте игры</span></div>
+    <div id="wallet"></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-dr" data-view="tavern" hidden>
     <div class="panel-head"><h2 id="h-dr">Roll to Death</h2><span class="cap">По очереди: 1–N, потом 1–выпавшее. У кого выпала 1 — отдаёт ставку</span></div>
     <div id="dr"></div>
@@ -700,8 +752,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <button class="btn" type="submit">Новая дуэль</button>
     </form>
     <div class="form-msg" id="dr-msg" role="status"></div>
-    <h3 class="sub">Кто кому должен</h3>
-    <div id="dr-ledger"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-bets" data-view="bets" hidden>
@@ -846,12 +896,12 @@ function candidates(p, role) {
 /* ---------- render ---------- */
 function editing() {
   const a = document.activeElement;
-  return !!a && (a.matches?.("input.nm") || a.matches?.("select"));
+  return !!a && (a.matches?.("input.nm") || a.matches?.("select") || a.matches?.(".stake input"));
 }
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderMe(); renderDr(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderMe(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -1344,7 +1394,7 @@ function setDoc(coll, id, patch) {
 }
 
 /* ---------- tavern (roll to death), bets, hall of fame ---------- */
-let bets = [], rolls = [], fameAll = [], fameFilter = "all", me = "";
+let bets = [], rolls = [], pays = [], fameAll = [], fameFilter = "all", me = "";
 const got = new Set();        // collections whose first snapshot has arrived
 const fameSent = new Set();   // auto achievements already written from this tab
 const seenRolls = new Map();  // duel id -> number of rolls already on screen (for the pop animation)
@@ -1390,27 +1440,52 @@ function renderDr() {
       ? `<div class="dr-end">💀 <b>${esc(nameOf(g.loser))}</b> выбросил(а) 1${stakeOf(g) ? ` и отдаёт ${fmtMoney(stakeOf(g))}` : ""}<br>Победа: <b>${esc(nameOf(g.winner))}</b></div>`
       : `<div class="dr-turn">Ход: <b>${esc(nameOf(st.turn))}</b> · 1–${st.max}</div>
         <button type="button" class="btn dr-roll" data-act="droll" data-id="${esc(g.id)}" ${ro || me !== st.turn || drBusy.has(g.id) ? "disabled" : ""}>/roll 1–${st.max}</button>
-        ${!me ? `<div class="cap">Выбери себя вверху, чтобы бросать</div>` : me !== st.turn ? `<div class="cap">Сейчас бросает ${esc(nameOf(st.turn))}</div>` : ""}`;
+        ${!me ? `<div class="cap">Войди, чтобы бросать</div>` : me !== st.turn ? `<div class="cap">Сейчас бросает ${esc(nameOf(st.turn))}</div>` : ""}`;
     const hist = st.rs.slice().reverse().slice(0, 8).map(r => `<li><span>${esc(nameOf(r.by))}</span><span class="mute">1–${r.max}</span><b class="${r.r === 1 ? "one" : ""}">${r.r}</b></li>`).join("");
     return `<div class="dr-card ${st.over ? "ended" : ""}">${head}<div class="dr-big ${fresh ? "pop" : ""} ${last && last.r === 1 ? "one" : ""}">${big}</div>${status}${hist ? `<ol class="dr-hist">${hist}</ol>` : ""}</div>`;
   };
   $("#dr").innerHTML = (going.length ? `<div class="dr-grid">${going.map(card).join("")}</div>` : `<p class="empty">${loaded ? "Сейчас никто не играет. Начни дуэль ниже." : "Загружаю…"}</p>`)
     + (done.length ? `<h3 class="sub">Последние дуэли</h3><div class="dr-grid">${done.slice(0, 4).map(card).join("")}</div>` : "");
-  // who owes whom: net per pair over finished duels still on the board (hide a duel once it's paid)
-  const owe = {};
-  for (const g of done) if (stakeOf(g) > 0) { const k = g.loser + "|" + g.winner; owe[k] = (owe[k] || 0) + stakeOf(g); }
-  const pairs = [], seen = new Set();
-  for (const k of Object.keys(owe)) {
-    const [l, w] = k.split("|"), rk = w + "|" + l;
-    if (seen.has(k)) continue;
-    seen.add(k); seen.add(rk);
-    const d = owe[k] - (owe[rk] || 0);
-    if (d) pairs.push(d > 0 ? [l, w, d] : [w, l, -d]);
+}
+// Wallet: everything in silver. debts[a][b] = how much a owes b, before netting.
+function walletDebts() {
+  const debts = {}, addD = (from, to, v) => { if (from === to || !(v > 0)) return; (debts[from] ||= {})[to] = (debts[from][to] || 0) + v; };
+  for (const g of rolls) if (g.loser && g.winner) addD(g.loser, g.winner, stakeOf(g));
+  for (const b of bets) {
+    const res = Number.isInteger(b.result) ? b.result : -1;
+    if (res < 0) continue;
+    const st = Object.entries(b.stakes || {}).map(([pid, v]) => [pid, Math.max(0, Math.round(+v || 0)), b.picks?.[pid]]).filter(([, v, i]) => v > 0 && Number.isInteger(i) && i >= 0);
+    const win = st.filter(([, , i]) => i === res), lose = st.filter(([, , i]) => i !== res);
+    const wsum = win.reduce((a, [, v]) => a + v, 0);
+    if (!wsum) continue; // nobody with gold guessed right: stakes go back
+    for (const [l, lv] of lose) for (const [w, wv] of win) addD(l, w, lv * wv / wsum);
   }
-  $("#dr-ledger").innerHTML = pairs.length
-    ? pairs.map(([l, w, d]) => `<div class="owe"><b>${esc(nameOf(l))}</b> должен <b>${esc(nameOf(w))}</b><span>${fmtMoney(d)}</span></div>`).join("")
-      + `<p class="cap">Отдал долг — убери дуэль крестиком, и она выпадет из расчёта.</p>`
-    : `<p class="empty">Пока все в расчёте.</p>`;
+  for (const p of pays) addD(p.to, p.from, Math.max(0, +p.s || 0)); // a payment is a debt the other way, so it cancels out
+  return debts;
+}
+function walletPairs() {
+  const d = walletDebts(), ids = [...new Set([...Object.keys(d), ...Object.values(d).flatMap(Object.keys)])], out = [];
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+    const a = ids[i], b = ids[j], net = Math.round((d[a]?.[b] || 0) - (d[b]?.[a] || 0));
+    if (net > 0) out.push([a, b, net]); else if (net < 0) out.push([b, a, -net]);
+  }
+  return out.sort((x, y) => y[2] - x[2]);
+}
+function renderWallet() {
+  const ro = readOnly || offline, pairs = walletPairs();
+  const bal = Object.fromEntries(players.map(p => [p.id, 0]));
+  for (const [from, to, v] of pairs) { if (from in bal) bal[from] -= v; if (to in bal) bal[to] += v; }
+  const sign = v => v > 0 ? "+" + fmtMoney(v) : v < 0 ? "−" + fmtMoney(-v) : "0";
+  const bals = `<div class="bal">${players.map(p => `<div class="bal-c ${bal[p.id] > 0 ? "plus" : bal[p.id] < 0 ? "minus" : ""}"><span>${esc(p.name)}</span><b>${sign(bal[p.id])}</b></div>`).join("")}</div>`;
+  const debts = pairs.length ? pairs.map(([from, to, v]) => {
+    const can = !ro && auth && (auth.admin || auth.player === from || auth.player === to);
+    return `<div class="owe"><b>${esc(nameOf(from))}</b> должен <b>${esc(nameOf(to))}</b><span>${fmtMoney(v)}</span>${can ? `<button type="button" class="ob paid" data-act="paid" data-from="${esc(from)}" data-to="${esc(to)}" data-s="${v}">Рассчитались</button>` : ""}</div>`;
+  }).join("") : `<p class="empty">Все в расчёте.</p>`;
+  const hist = [...pays].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 6).map(p => {
+    const d = new Date(p.at || 0);
+    return `<li>${d.getDate()} ${MON[d.getMonth()]}: <b>${esc(nameOf(p.from))}</b> → <b>${esc(nameOf(p.to))}</b> ${fmtMoney(+p.s || 0)}${p.by && p.by !== p.from ? ` <span class="mute">(отметил(а) ${esc(nameOf(p.by))})</span>` : ""}</li>`;
+  }).join("");
+  $("#wallet").innerHTML = bals + `<h3 class="sub">Кто кому должен</h3>` + debts + (hist ? `<h3 class="sub">Расчёты</h3><ul class="pays">${hist}</ul>` : "");
 }
 const dbError = (e, fallback) => /function|schema cache|unknown collection/.test(e?.message || "") ? "База ещё не обновлена: выполни supabase.sql в Supabase." : fallback;
 async function drRoll(id) {
@@ -1428,11 +1503,16 @@ function renderBets() {
   const card = b => {
     const opts = Array.isArray(b.opts) ? b.opts : [], picks = b.picks || {}, res = resOf(b);
     const voters = Object.entries(picks).filter(([pid, i]) => i >= 0 && players.some(p => p.id === pid));
+    const stakes = b.stakes || {}, potOf = i => voters.filter(([pid, x]) => x === i).reduce((a, [pid]) => a + Math.max(0, +stakes[pid] || 0), 0);
+    const pot = opts.reduce((a, o, i) => a + potOf(i), 0), my = Math.max(0, +stakes[me] || 0), myPick = picks[me];
+    const stakeRow = !ro && auth && res < 0 && Number.isInteger(myPick) && myPick >= 0
+      ? `<form class="stake" data-id="${esc(b.id)}"><span>Золото на «${esc(opts[myPick] ?? "")}»:</span><input name="g" type="number" min="0" max="1000000" value="${Math.floor(my / 100) || ""}" placeholder="з." aria-label="Золото"><input name="s" type="number" min="0" max="99" value="${my % 100 || ""}" placeholder="с." aria-label="Серебро"><button class="ob" type="submit">${my ? "Изменить" : "Поставить"}</button></form>`
+      : my ? `<div class="cap">Твоё золото: ${fmtMoney(my)}</div>` : "";
     const rows = opts.map((o, i) => {
       const who = voters.filter(([, x]) => x === i).map(([pid]) => nameOf(pid)), mineB = picks[me] === i;
       const pct = voters.length ? Math.round(who.length / voters.length * 100) : 0;
       return `<button type="button" class="bopt ${res === i ? "win" : ""}" data-act="bpick" data-id="${esc(b.id)}" data-i="${i}" aria-pressed="${mineB}" ${ro || res >= 0 ? "disabled" : ""}>
-        <span class="bo-t">${res === i ? "🏆 " : ""}${esc(o)}</span><span class="bo-n">${who.length}<small>${pct}%</small></span>
+        <span class="bo-t">${res === i ? "🏆 " : ""}${esc(o)}</span><span class="bo-n">${potOf(i) ? `<em class="gold">${fmtMoney(potOf(i))}</em>` : ""}${who.length}<small>${pct}%</small></span>
         <span class="bo-bar"><span style="width:${pct}%"></span></span>
         ${who.length ? `<span class="bo-who">${who.map(esc).join(", ")}</span>` : ""}</button>`;
     }).join("");
@@ -1441,7 +1521,7 @@ function renderBets() {
     const foot = res >= 0 ? (winners.length ? "Угадали: " + winners.map(esc).join(", ") : "Никто не угадал")
       : voters.length ? `${voters.length} ${plural(voters.length, "ставка", "ставки", "ставок")}` : "Пока без ставок";
     return `<div class="bet ${res >= 0 ? "closed" : ""}"><div class="bet-q"><b>${esc(b.q)}</b>${delBtn("betdel", b.id, "Удалить ставку")}</div>
-      <div class="bopts">${rows}</div><div class="bet-foot"><span class="cap">${foot}</span>${resSel}</div></div>`;
+      <div class="bopts">${rows}</div>${stakeRow}<div class="bet-foot"><span class="cap">${foot}${pot ? ` · банк ${fmtMoney(pot)}` : ""}</span>${resSel}</div></div>`;
   };
   const sorted = [...bets].sort((x, y) => (resOf(x) >= 0) - (resOf(y) >= 0) || (x.at || 0) - (y.at || 0));
   const html = BET_CATS.map(c => {
@@ -1694,7 +1774,19 @@ async function adminDo(fn, args, done) {
   try { await dbRef.call(fn, { p_token: auth.token, ...args }); toast(done); await openAdmin(); }
   catch (e) { authNote(/own admin/.test(e.message) ? "Себя из админов убрать нельзя." : dbError(e, "Не получилось.")); }
 }
-document.addEventListener("submit", e => { if (e.target.id === "auth-form") { e.preventDefault(); authSubmit(e.target.dataset.mode); } });
+document.addEventListener("submit", e => {
+  if (e.target.id === "auth-form") { e.preventDefault(); authSubmit(e.target.dataset.mode); }
+  if (e.target.matches?.("form.stake")) {
+    e.preventDefault();
+    if (!needMe()) return;
+    const f = e.target, g = Math.max(0, Math.round(+f.g.value || 0)), sv = Math.max(0, Math.round(+f.s.value || 0));
+    if (sv > 99) return toast("Серебра — от 0 до 99: 100 серебра = 1 золото.");
+    if (g > 1e6) return toast("Ставка — до 1 000 000 золота.");
+    setDoc("bets", f.dataset.id, { stakes: { [me]: g * 100 + sv } });
+    document.activeElement?.blur();
+    toast(g || sv ? `Ставка: ${fmtMoney(g * 100 + sv)}` : "Золото со ставки убрано.");
+  }
+});
 
 /* ---------- data ---------- */
 const chain = new Map();
@@ -1716,6 +1808,7 @@ function onWriteError(e) {
       : /change password first/.test(m) ? "Сначала смени начальный пароль."
       : /not yours/.test(m) ? "Менять можно только своё."
       : /admin only/.test(m) ? "Это может только админ."
+      : /bet closed/.test(m) ? "По этой ставке уже есть итог, менять нельзя."
       : /unknown collection|function|schema cache/.test(m) ? "База ещё не обновлена: выполни supabase.sql в Supabase."
       : "Не удалось сохранить. Проверь соединение и попробуй ещё раз.";
     toast(errNote);
@@ -1795,11 +1888,15 @@ document.addEventListener("click", e => {
   else if (act === "logout") { const t = auth?.token; setAuth(null); if (t) dbRef?.call("logout", { p_token: t }).catch(() => {}); }
   else if (act === "admrole") adminDo("admin_set_admin", { p_player: id, p_admin: b.dataset.v === "1" }, "Готово.");
   else if (act === "admreset" && confirm(`Сбросить пароль игрока ${nameOf(id)} на «Forever»?`)) adminDo("admin_reset", { p_player: id }, "Пароль сброшен на «Forever».");
+  else if (act === "paid") {
+    const from = b.dataset.from, to = b.dataset.to, v = +b.dataset.s;
+    if (needMe() && confirm(`${nameOf(from)} отдал(а) ${nameOf(to)} ${fmtMoney(v)} в игре?`)) addDoc("pays", { from, to, s: v, by: me });
+  }
   else if (act === "droll") drRoll(id);
   else if (act === "drdel") setDoc("rolls", id, { deleted: true });
   else if (act === "bpick") {
     const bet = bets.find(x => x.id === id);
-    if (bet && needMe()) { const i = +b.dataset.i; setDoc("bets", id, { picks: { [me]: bet.picks?.[me] === i ? -1 : i } }); }
+    if (bet && needMe()) { const i = +b.dataset.i, off = bet.picks?.[me] === i; setDoc("bets", id, off ? { picks: { [me]: -1 }, stakes: { [me]: 0 } } : { picks: { [me]: i } }); }
   }
   else if (act === "betdel") setDoc("bets", id, { deleted: true });
   else if (act === "famedel") setDoc("fame", id, { deleted: true });
@@ -1959,6 +2056,8 @@ async function boot() {
   dbRef = db;
   writeCheck = true;
   restoreLogin();
+  try { if (localStorage.getItem("wf-rules") === "closed") $("#rules").open = false; } catch {}
+  $("#rules").addEventListener("toggle", e => { try { localStorage.setItem("wf-rules", e.target.open ? "open" : "closed"); } catch {} });
   $("#fame-date").value = localKey();
   db.collection("votes").onSnapshot(snap => {
     votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1973,7 +2072,7 @@ async function boot() {
   }, () => { offline = true; loaded = true; render(); });
   for (const [c, set] of [["wants", v => { wants = v; }], ["deaths", v => { deaths = v; }], ["tasks", v => { tasks = v; }], ["goals", v => { goals = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
-  for (const [c, set] of [["bets", v => { bets = v; }], ["rolls", v => { rolls = v; }]])
+  for (const [c, set] of [["bets", v => { bets = v; }], ["rolls", v => { rolls = v; }], ["pays", v => { pays = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
   db.collection("fame").onSnapshot(snap => { fameAll = snap.docs.map(d => ({ id: d.id, ...d.data() })); got.add("fame"); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {

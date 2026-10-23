@@ -40,6 +40,9 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `rolls/{id}`: Roll to Death duels `{ a, b, start, stakeS (silver; older duels have stake in gold, read via stakeOf()), rolls: [{ by, max, r, at }], winner, loser, endedAt, at }`. Created and rolled only by the RPCs `deathroll_new` / `deathroll_roll` (dice rolled on the server, turns enforced). `patch_doc` lets the page set only `deleted` on them. Hiding a finished duel removes it from the debt ledger.
   - `bets/{id}`: `{ q, opts: [text], picks: { [playerId]: optionIndex | -1 }, result: optionIndex | -1, resolvedAt, at }`.
   - `fame/{id}`: `{ who: playerId | "" (whole group), title, icon, at, auto }`. `fameCands()` derives achievements from the data, and `syncFame()` writes each new one once, under a deterministic id. Hidden ones (`deleted`) never come back. Manual entries come from the form.
+  - Bets can carry gold: `bets.stakes: { [playerId]: silver }`. Pari-mutuel: losers' gold is split among the winners in proportion to their stakes. If no one with gold guessed right, nothing changes hands. Picks and stakes are frozen server-side once `result >= 0`.
+  - `pays/{id}`: `{ from, to, s (silver), by, at }`, the "Рассчитались" settlements. Either party (or the admin) can record one, and it can't be edited afterwards.
+  - The wallet (`walletDebts`/`walletPairs`) nets duels + bets − payments per pair. The rules shown in the Таверна panel must stay in sync with this logic.
   - `data-view` can list several views separated by spaces (e.g. `"tavern bets"`).
 
 ## Login and permissions

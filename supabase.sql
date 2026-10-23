@@ -148,7 +148,7 @@ begin
   select * into s from auth_session(p_token);
   if s.pid is null then raise exception 'login required'; end if;
   if s.must_change then raise exception 'change password first'; end if;
-  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths', 'bets', 'fame', 'rolls') then
+  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths', 'bets', 'fame', 'rolls', 'pays') then
     raise exception 'unknown collection %', p_coll;
   end if;
   -- Roll to Death duels are created and rolled only by deathroll_new / deathroll_roll; the page may only hide one.
@@ -156,6 +156,26 @@ begin
     raise exception 'rolls are changed only by deathroll functions';
   end if;
   if p_coll = 'meta' and p_id <> 'settings' then raise exception 'unknown meta doc %', p_id; end if;
+  -- Bets: once there is a result, picks and gold are frozen. Gold is whole silver, 0..100000000.
+  if p_coll = 'bets' and (p_patch ? 'picks' or p_patch ? 'stakes') then
+    if exists (select 1 from docs where coll = 'bets' and id = p_id and coalesce((data->>'result')::int, -1) >= 0) then
+      raise exception 'bet closed';
+    end if;
+    if jsonb_typeof(p_patch->'stakes') = 'object' and exists (
+      select 1 from jsonb_each(p_patch->'stakes') e
+      where jsonb_typeof(e.value) <> 'number' or (e.value)::numeric < 0 or (e.value)::numeric > 100000000 or (e.value)::numeric <> trunc((e.value)::numeric)) then
+      raise exception 'bad stake';
+    end if;
+  end if;
+  -- Wallet settlements ("Рассчитались"): written once, never edited; amount in silver.
+  if p_coll = 'pays' then
+    if exists (select 1 from docs where coll = 'pays' and id = p_id) and not s.admin then raise exception 'not yours'; end if;
+    if coalesce(p_patch->>'from', '') = '' or coalesce(p_patch->>'to', '') = '' or jsonb_typeof(p_patch->'s') <> 'number'
+       or (p_patch->>'s')::numeric <= 0 or (p_patch->>'s')::numeric > 100000000 then
+      raise exception 'bad payment';
+    end if;
+    if not s.admin and s.pid not in (p_patch->>'from', p_patch->>'to') then raise exception 'not yours'; end if;
+  end if;
   if jsonb_typeof(p_patch) <> 'object' or octet_length(p_patch::text) > 20000 then raise exception 'bad patch'; end if;
   if p_coll = 'votes' then
     if not exists (select 1 from docs where coll = 'players' and id = p_id
@@ -170,6 +190,8 @@ begin
     if p_coll in ('players', 'votes') and p_id <> s.pid then raise exception 'not yours'; end if;
     if p_coll = 'bets' and jsonb_typeof(p_patch->'picks') = 'object'
        and exists (select 1 from jsonb_object_keys(p_patch->'picks') k where k <> s.pid) then raise exception 'not yours'; end if;
+    if p_coll = 'bets' and jsonb_typeof(p_patch->'stakes') = 'object'
+       and exists (select 1 from jsonb_object_keys(p_patch->'stakes') k where k <> s.pid) then raise exception 'not yours'; end if;
     if p_coll = 'goals' and jsonb_typeof(p_patch->'done') = 'object'
        and exists (select 1 from jsonb_object_keys(p_patch->'done') k where k <> s.pid) then raise exception 'not yours'; end if;
     if p_coll in ('wants', 'deaths') then
@@ -273,6 +295,7 @@ on conflict (coll, id) do update
 
 -- 2026-10-23: Таверна (Roll to Death), Ставки, Зал славы.
 --   bets/{id}  {q, opts: [text], picks: {playerId: optionIndex | -1}, result: optionIndex | -1, resolvedAt, at}
+--   bets also get stakes: {playerId: silver}. pays/{id} {from, to, s (silver), by, at}: "Рассчитались" settlements.
 --   fame/{id}  {who: playerId | "" (whole group), title, icon, at, auto}. Auto ids are deterministic (e.g. lvl20_p_kirill).
 --   rolls/{id} {a, b, start, stakeS, rolls: [{by, max, r, at}], winner, loser, endedAt, at}. Written only by the functions
 --   below, so the dice are rolled on the server and turns are enforced. stakeS is in silver (1 gold = 100 silver);
