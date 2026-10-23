@@ -413,17 +413,27 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .dr-hist b.one { color: var(--ban-bg); }
 .owe { display: flex; gap: 6px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; flex-wrap: wrap; }
 .owe span { margin-left: auto; font-weight: 700; color: var(--accent); }
-.bet { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
-.bet-q { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 15px; }
-.bopt { width: 100%; text-align: left; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-bottom: 6px; }
-.bopt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.bopt.win { border-color: var(--first-bg); box-shadow: inset 0 0 0 1px var(--first-bg); }
-.bopt:disabled { opacity: 1; cursor: default; }
-.bo-t { font-weight: 600; }
-.bo-t em { font-style: normal; font-size: 12px; color: var(--accent); }
-.bo-n { font-weight: 700; font-variant-numeric: tabular-nums; }
-.bo-who { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
-.bet-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 13px; }
+.bets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.bet { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bet.closed { opacity: .8; }
+.bet-q { display: flex; justify-content: space-between; gap: 6px; align-items: flex-start; font-size: 13px; line-height: 1.3; }
+.bet-q .x { min-width: 22px; height: 22px; margin: -2px -4px 0 0; }
+.bchips { display: flex; flex-wrap: wrap; gap: 5px; }
+.bchip { background: var(--cell); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; }
+.bchip b { font-size: 11px; background: var(--track); border-radius: 8px; padding: 0 5px; }
+.bchip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.bchip[aria-pressed="true"] b { background: color-mix(in srgb, var(--accent-ink) 18%, transparent); }
+.bchip.win { border-color: var(--first-bg); box-shadow: inset 0 0 0 1px var(--first-bg); }
+.bchip:disabled { opacity: 1; cursor: default; }
+.bet-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: auto; }
+.bet-foot .cap { font-size: 12px; }
+.bres { min-width: 0; max-width: 130px; padding: 3px 6px; font-size: 12px; }
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.ach { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--cell); border: 1px dashed var(--line); font-size: 12px; min-width: 0; }
+.ach img { width: 36px; height: 36px; border-radius: 6px; filter: grayscale(1); opacity: .55; flex: none; }
+.ach b { display: block; font-size: 13px; }
+.ach span { display: block; color: var(--muted); }
+.ach .got { color: var(--accent); }
 .fame-top { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .fchip { background: var(--cell); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
 .fchip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
@@ -693,6 +703,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="panel-head"><h2 id="h-fame">Зал славы</h2><span class="cap">Достижения записываются сами, с датой</span></div>
     <div id="fame-top"></div>
     <div id="fame"></div>
+    <h3 class="sub">Можно получить</h3>
+    <div id="fame-open"></div>
     <h3 class="sub">Записать своё</h3>
     <form class="add" id="fame-form" autocomplete="off">
       <select id="fame-who" aria-label="Чьё достижение"></select>
@@ -1393,25 +1405,31 @@ async function drRoll(id) {
   drBusy.delete(id); render();
 }
 
+const BET_CATS = ["Уровни", "Профессии", "Подземелья и рейды", "Hardcore", "Таверна и разное", "Свои"];
 function renderBets() {
   const ro = readOnly || offline;
   const resOf = b => Number.isInteger(b.result) ? b.result : -1;
-  const list = [...bets].sort((x, y) => (resOf(x) >= 0) - (resOf(y) >= 0) || (y.at || 0) - (x.at || 0));
-  $("#bets").innerHTML = list.length ? list.map(b => {
+  const card = b => {
     const opts = Array.isArray(b.opts) ? b.opts : [], picks = b.picks || {}, res = resOf(b);
     const voters = Object.entries(picks).filter(([pid, i]) => i >= 0 && players.some(p => p.id === pid));
-    const rows = opts.map((o, i) => {
+    const chips = opts.map((o, i) => {
       const who = voters.filter(([, x]) => x === i).map(([pid]) => nameOf(pid)), mine = picks[me] === i;
-      return `<button type="button" class="bopt ${res === i ? "win" : ""}" data-act="bpick" data-id="${esc(b.id)}" data-i="${i}" aria-pressed="${mine}" ${ro || res >= 0 ? "disabled" : ""}>
-        <span class="bo-t">${esc(o)}${res === i ? " 🏆" : ""}${mine ? " <em>твоя ставка</em>" : ""}</span><span class="bo-n">${who.length}</span>
-        <span class="vbar"><span style="width:${voters.length ? who.length / voters.length * 100 : 0}%;background:var(--accent)"></span></span>
-        ${who.length ? `<span class="bo-who">${who.map(esc).join(", ")}</span>` : ""}</button>`;
+      const tip = `${o}: ${who.length ? who.join(", ") : "никто"}`;
+      return `<button type="button" class="bchip ${res === i ? "win" : ""}" data-act="bpick" data-id="${esc(b.id)}" data-i="${i}" aria-pressed="${mine}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" ${ro || res >= 0 ? "disabled" : ""}>${res === i ? "🏆 " : ""}${esc(o)}${who.length ? `<b>${who.length}</b>` : ""}</button>`;
     }).join("");
     const winners = res >= 0 ? voters.filter(([, x]) => x === res).map(([pid]) => nameOf(pid)) : [];
-    const resSel = `<select data-act="bres" data-id="${esc(b.id)}" aria-label="Итог ставки" ${ro ? "disabled" : ""}><option value="-1">${res >= 0 ? "Отменить итог" : "Отметить итог…"}</option>${opts.map((o, i) => `<option value="${i}" ${res === i ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
-    return `<div class="bet ${res >= 0 ? "closed" : ""}"><div class="bet-q"><b>${esc(b.q)}</b>${delBtn("betdel", b.id, "Удалить ставку")}</div>${rows}
-      <div class="bet-foot">${res >= 0 ? `<span>${winners.length ? "Угадали: " + winners.map(esc).join(", ") : "Никто не угадал"}</span>` : `<span class="cap">${voters.length} ${plural(voters.length, "ставка", "ставки", "ставок")}</span>`}${resSel}</div></div>`;
-  }).join("") : `<p class="empty">${loaded ? "Пока ставок нет. Создай первую ниже." : "Загружаю…"}</p>`;
+    const resSel = `<select class="bres" data-act="bres" data-id="${esc(b.id)}" aria-label="Итог ставки" ${ro ? "disabled" : ""}><option value="-1">${res >= 0 ? "Отменить итог" : "Итог…"}</option>${opts.map((o, i) => `<option value="${i}" ${res === i ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    const foot = res >= 0 ? (winners.length ? "Угадали: " + winners.map(esc).join(", ") : "Никто не угадал")
+      : voters.length ? `${voters.length} ${plural(voters.length, "ставка", "ставки", "ставок")}` : "Пока без ставок";
+    return `<div class="bet ${res >= 0 ? "closed" : ""}"><div class="bet-q"><b>${esc(b.q)}</b>${delBtn("betdel", b.id, "Удалить ставку")}</div>
+      <div class="bchips">${chips}</div><div class="bet-foot"><span class="cap">${foot}</span>${resSel}</div></div>`;
+  };
+  const sorted = [...bets].sort((x, y) => (resOf(x) >= 0) - (resOf(y) >= 0) || (x.at || 0) - (y.at || 0));
+  const html = BET_CATS.map(c => {
+    const list = sorted.filter(b => (BET_CATS.includes(b.cat) ? b.cat : "Свои") === c);
+    return list.length ? `<h3 class="sub">${c} <span class="mute">· ${list.length}</span></h3><div class="bets-grid">${list.map(card).join("")}</div>` : "";
+  }).join("");
+  $("#bets").innerHTML = html || `<p class="empty">${loaded ? "Пока ставок нет. Создай первую ниже." : "Загружаю…"}</p>`;
 }
 
 // Achievements are derived from the site's data; the first time one holds, it's written to fame/{id} with the date.
@@ -1444,7 +1462,78 @@ function fameCands() {
     if (stakeOf(g) >= 10000) add(`drpot_${g.id}`, g.winner, `Сорвал(а) куш ${fmtMoney(stakeOf(g))} у ${nameOf(g.loser)}`, "inv_misc_coin_02", g.endedAt);
     if ((g.rolls || []).length === 1) add(`drone_${g.id}`, g.loser, "Выбросил(а) 1 с первого броска", "inv_misc_bone_skull_01", g.endedAt);
   }
+  // group milestones
+  const doneAll = all.filter(d => players.length && players.every(p => p.dungeons?.[d.id]));
+  if (doneAll.length >= 10) add("grp_dg10", "", "10 подземелий вместе", "achievement_dungeon_classicdungeonmaster");
+  if (doneAll.length >= 20) add("grp_dg20", "", "20 подземелий вместе", "achievement_dungeon_gloryofthehero");
+  if (DUNGEONS.filter(d => d.n).every(d => doneAll.includes(d))) add("grp_new_all", "", "Первооткрыватели: все новые подземелья Forever", "inv_misc_map_01");
+  if (RAIDS.every(d => doneAll.includes(d))) add("grp_raids", "", "Рейдеры: все три рейда", "achievement_boss_onyxia");
+  const crafts = PROFS.filter(x => x.type === "craft" && players.some(p => p.profs?.[x.id]));
+  if (crafts.length === PROFS.filter(x => x.type === "craft").length) add("craft_all", "", "Ремесленная гильдия: все крафтовые профессии в группе", "trade_blacksmithing");
+  const roles = new Set(players.map(effRole));
+  if (roles.has("tank") && roles.has("healer") && roles.has("dps")) add("trinity", "", "Святая троица: есть танк, хил и ДД", "spell_holy_divinespirit");
+  if (players.length && players.every(p => CLS[p.main?.cls])) add("all_mains", "", "Все выбрали мейна", "achievement_reputation_01");
+  const facs = new Set(players.map(factionOf));
+  if (players.length > 1 && facs.size === 1 && !facs.has("")) add("one_faction", "", `Одна фракция: все за ${[...facs][0] === "H" ? "Орду" : "Альянс"}`, [...facs][0] === "H" ? "inv_bannerpvp_01" : "inv_bannerpvp_02");
+  if (players.length && players.every(p => WEEK1.filter(k => normAv(p.avail?.[k])).length >= 3)) add("cal_week1", "", "Расписание: все отметили первую неделю", "inv_misc_pocketwatch_01");
+  if (players.length > 1 && calDays().some(day => BLOCKS.some(b => players.every(p => blockAvail(p.avail?.[day.key], b))))) add("all_free", "", "Полный сбор: нашлось время, когда свободны все", "achievement_guildperk_everybodysfriend");
+  const fin = rolls.filter(g => g.loser).sort((x, y) => (x.endedAt || 0) - (y.endedAt || 0));
+  if (fin.length >= 10) add("dr10", "", "Казино: сыграно 10 дуэлей Roll to Death", "inv_misc_dice_02");
+  // per player
+  for (const p of players) {
+    const mine = fin.filter(g => g.a === p.id || g.b === p.id);
+    if (mine.filter(g => g.winner === p.id).length >= 5) add(`drwin5_${p.id}`, p.id, "Везунчик: 5 побед в Roll to Death", "inv_misc_coin_01");
+    let streak = 0, worst = 0;
+    for (const g of mine) { streak = g.loser === p.id ? streak + 1 : 0; worst = Math.max(worst, streak); }
+    if (worst >= 3) add(`drlose3_${p.id}`, p.id, "Должник: 3 поражения подряд", "inv_misc_bone_skull_01");
+    if (betsWon(p.id) >= 3) add(`bets3_${p.id}`, p.id, "Провидец: 3 угаданные ставки", "spell_holy_sealofwisdom");
+    const prim = PROFS.filter(x => x.type !== "second" && p.profs?.[x.id]).length;
+    if (prim >= 2 && PROFS.filter(x => x.type === "second").every(x => p.profs?.[x.id])) add(`jack_${p.id}`, p.id, "Мастер на все руки: 2 основные и все вспомогательные профессии", "inv_misc_book_09");
+  }
   return out;
+}
+const WEEK1 = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2026, 10, 4 + i)).toISOString().slice(0, 10));
+const betsWon = pid => bets.filter(b => Number.isInteger(b.result) && b.result >= 0 && b.picks?.[pid] === b.result).length;
+
+// What can still be earned: shown greyed out in the Hall of Fame with progress. Earned = a fame row with that id exists.
+function fameCatalog() {
+  const n = players.length, lv = players.map(lvlOf), best = Math.max(0, ...lv);
+  const all = [...DUNGEONS, ...RAIDS], doneAll = all.filter(d => n && players.every(p => p.dungeons?.[d.id]));
+  const dcount = p => all.filter(d => p.dungeons?.[d.id]).length;
+  const fin = rolls.filter(g => g.loser);
+  const G = (id, title, icon, prog) => ({ id, scope: "group", title, icon, prog });
+  const P = (key, title, icon, prog) => ({ key, scope: "player", title, icon, prog });
+  const crafts = PROFS.filter(x => x.type === "craft"), haveCraft = crafts.filter(x => players.some(p => p.profs?.[x.id])).length;
+  const goal = id => goals.find(g => g.id === id);
+  return [
+    G("grp_lvl20", "Вся группа 20+", "achievement_level_20", `${lv.filter(l => l >= 20).length}/${n}`),
+    G("grp_lvl40", "Вся группа 40+", "achievement_level_40", `${lv.filter(l => l >= 40).length}/${n}`),
+    G("grp_lvl60", "Все 60 уровня", "achievement_level_60", `${lv.filter(l => l >= 60).length}/${n}`),
+    G("grp_dg10", "10 подземелий вместе", "achievement_dungeon_classicdungeonmaster", `${doneAll.length}/10`),
+    G("grp_dg20", "20 подземелий вместе", "achievement_dungeon_gloryofthehero", `${doneAll.length}/20`),
+    G("grp_new_all", "Первооткрыватели: все новые подземелья Forever", "inv_misc_map_01", `${DUNGEONS.filter(d => d.n && doneAll.includes(d)).length}/${DUNGEONS.filter(d => d.n).length}`),
+    G("dgall_ony", "Убийцы драконов: Onyxia всей группой", "inv_misc_head_dragon_black", ""),
+    G("grp_raids", "Рейдеры: все три рейда", "achievement_boss_onyxia", `${RAIDS.filter(d => doneAll.includes(d)).length}/3`),
+    ...(goal("g_mount") ? [G("goalall_g_mount", "Маунты у всех", "ability_mount_whitetiger", `${players.filter(p => goal("g_mount").done?.[p.id]).length}/${n}`)] : []),
+    ...(goal("g_artisan") ? [G("goalall_g_artisan", "Все артизаны", "trade_blacksmithing", `${players.filter(p => goal("g_artisan").done?.[p.id]).length}/${n}`)] : []),
+    G("craft_all", "Ремесленная гильдия: все крафтовые профессии", "trade_blacksmithing", `${haveCraft}/${crafts.length}`),
+    G("trinity", "Святая троица: танк, хил и ДД", "spell_holy_divinespirit", ""),
+    G("all_mains", "Все выбрали мейна", "achievement_reputation_01", `${players.filter(p => CLS[p.main?.cls]).length}/${n}`),
+    G("one_faction", "Одна фракция у всех мейнов", "inv_bannerpvp_01", ""),
+    G("cal_week1", "Расписание: все отметили первую неделю", "inv_misc_pocketwatch_01", `${players.filter(p => WEEK1.filter(k => normAv(p.avail?.[k])).length >= 3).length}/${n}`),
+    G("all_free", "Полный сбор: время, когда свободны все", "achievement_guildperk_everybodysfriend", ""),
+    G("tasks_all", "Готовы к запуску!", "inv_crate_04", `${tasks.filter(t => t.done).length}/${tasks.length}`),
+    G("dr10", "Казино: 10 дуэлей Roll to Death", "inv_misc_dice_02", `${Math.min(10, fin.length)}/10`),
+    P("lvl20", "20 уровень", "achievement_level_20", `лучший: ${best || "—"}`),
+    P("lvl40", "40 уровень", "achievement_level_40", `лучший: ${best || "—"}`),
+    P("lvl60", "60 уровень", "achievement_level_60", `лучший: ${best || "—"}`),
+    P("dg10", "10 подземелий", "achievement_dungeon_classicdungeonmaster", `лучший: ${Math.max(0, ...players.map(dcount))}`),
+    P("jack", "Мастер на все руки", "inv_misc_book_09", "2 основные + все вспомогательные"),
+    P("bets3", "Провидец: 3 угаданные ставки", "spell_holy_sealofwisdom", `лучший: ${Math.max(0, ...players.map(p => betsWon(p.id)))}`),
+    P("drwin1", "Первая победа в Roll to Death", "inv_misc_dice_01", ""),
+    P("drwin5", "Везунчик: 5 побед в Roll to Death", "inv_misc_coin_01", `лучший: ${Math.max(0, ...players.map(p => fin.filter(g => g.winner === p.id).length))}`),
+    P("drlose3", "Должник: 3 поражения подряд", "inv_misc_bone_skull_01", ""),
+  ];
 }
 function syncFame() {
   if (!dbRef || readOnly || !loaded || !["fame", "bets", "rolls", "goals", "tasks"].every(c => got.has(c))) return;
@@ -1470,6 +1559,16 @@ function renderFame() {
   }
   $("#fame").innerHTML = shown.length ? html + "</ol>"
     : `<p class="empty">${loaded ? "Пока пусто. Достижения появятся сами: уровни, подземелья, цели, ставки и дуэли." : "Загружаю…"}</p>`;
+  // still to earn
+  const ids = new Set(fameAll.map(f => f.id));
+  const open = fameCatalog().map(a => {
+    if (a.scope === "group") return ids.has(a.id) ? null : { ...a, who: "" };
+    const got = players.filter(p => ids.has(`${a.key}_${p.id}`)).map(p => p.name);
+    return got.length === players.length ? null : { ...a, who: got.length ? "уже: " + got.join(", ") : "" };
+  }).filter(Boolean);
+  $("#fame-open").innerHTML = open.length ? `<div class="ach-grid">${open.map(a => `<div class="ach"><img src="${ICON(a.icon)}" alt="" loading="lazy"><div><b>${esc(a.title)}</b>
+      <span>${a.scope === "group" ? "Вся группа" : "Каждый"}${a.prog ? " · " + esc(a.prog) : ""}</span>${a.who ? `<span class="got">${esc(a.who)}</span>` : ""}</div></div>`).join("")}</div>`
+    : `<p class="empty">Всё получено. Вы легенды.</p>`;
 }
 
 /* ---------- data ---------- */
@@ -1650,7 +1749,7 @@ onSubmit("#bet-form", () => {
   if (!q) return $("#bet-q").focus();
   let opts = val("#bet-opts").split(",").map(x => x.trim().slice(0, 40)).filter(Boolean).slice(0, 8);
   if (opts.length < 2) opts = players.map(p => String(p.name).slice(0, 40));
-  addDoc("bets", { q, opts, picks: {}, result: -1 });
+  addDoc("bets", { q, opts, picks: {}, result: -1, cat: "Свои" });
   $("#bet-q").value = $("#bet-opts").value = "";
 });
 onSubmit("#fame-form", () => {

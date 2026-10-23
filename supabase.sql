@@ -167,15 +167,8 @@ end $$;
 grant execute on function public.deathroll_new(text, text, text, int, int) to anon, authenticated;
 grant execute on function public.deathroll_roll(text, text) to anon, authenticated;
 
--- 2026-10-23: example bets and the "story so far" Hall of Fame entries. Existing rows (with picks/results) are left alone.
+-- 2026-10-23: the "story so far" Hall of Fame entries. Existing rows are left alone.
 insert into public.docs (coll, id, data) values
-  ('bets', 'b_60',    $j${"q": "Кто первым дойдёт до 60?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756800000}$j$::jsonb),
-  ('bets', 'b_hc',    $j${"q": "Кто первым умрёт в Hardcore?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756740000}$j$::jsonb),
-  ('bets', 'b_pie',   $j${"q": "Pirozochek удержит агро на первом боссе?", "opts": ["Да", "Нет", "Агро? Какое агро?"], "picks": {}, "result": -1, "at": 1792756680000}$j$::jsonb),
-  ('bets', 'b_afk',   $j${"q": "Кто первым скажет «я на минутку» и пропадёт на час?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756620000}$j$::jsonb),
-  ('bets', 'b_mount', $j${"q": "Кто первым купит маунта?", "opts": ["Denis", "Kirill", "Olesya", "Yan"], "picks": {}, "result": -1, "at": 1792756560000}$j$::jsonb),
-  ('bets', 'b_epic',  $j${"q": "Когда у группы будет первый эпик?", "opts": ["Первая неделя", "Первый месяц", "К рейдам", "Не дождёмся"], "picks": {}, "result": -1, "at": 1792756500000}$j$::jsonb),
-  ('bets', 'b_ony',   $j${"q": "Сколько вайпов на Onyxia в первый вечер?", "opts": ["0–2", "3–5", "6–10", "Больше 10"], "picks": {}, "result": -1, "at": 1792756440000}$j$::jsonb),
   ('fame', 'f_site',   $j${"who": "", "title": "Планировщик переехал с claude.ai на свой сайт", "icon": "inv_misc_book_09", "at": 1792701000000, "auto": true}$j$::jsonb),
   ('fame', 'f_bots',   $j${"who": "", "title": "Пережили набег ботов: Pipiska, Donald Trump и компания", "icon": "spell_shadow_deathcoil", "at": 1792702800000, "auto": true}$j$::jsonb),
   ('fame', 'f_dropdb', $j${"who": "", "title": "Отбили атаку «DROP DATABASE»", "icon": "spell_holy_divineprotection", "at": 1792703460000, "auto": true}$j$::jsonb),
@@ -183,3 +176,35 @@ insert into public.docs (coll, id, data) values
   ('fame', 'f_pie',    $j${"who": "p_denis", "title": "Получил уникальную роль Pirozochek", "icon": "inv_misc_food_11", "at": 1792749600000, "auto": true}$j$::jsonb),
   ('fame', 'f_tavern', $j${"who": "", "title": "Открылась Таверна: первые дуэли Roll to Death", "icon": "inv_misc_dice_02", "at": 1792760400000, "auto": true}$j$::jsonb)
 on conflict (coll, id) do nothing;
+
+-- Starter bets (26, grouped by cat). A re-run refreshes wording, options, category and order but keeps picks and results.
+insert into public.docs (coll, id, data) values
+  ('bets', 'b_l10', $j${"q":"Кто первым возьмёт 10 уровень?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778400000}$j$::jsonb),
+  ('bets', 'b_l20', $j${"q":"Кто первым возьмёт 20 уровень?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778401000}$j$::jsonb),
+  ('bets', 'b_l30', $j${"q":"Кто первым возьмёт 30 уровень?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778402000}$j$::jsonb),
+  ('bets', 'b_l40', $j${"q":"Кто первым возьмёт 40 уровень?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778403000}$j$::jsonb),
+  ('bets', 'b_l50', $j${"q":"Кто первым возьмёт 50 уровень?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778404000}$j$::jsonb),
+  ('bets', 'b_60', $j${"q":"Кто первым дойдёт до 60?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778405000}$j$::jsonb),
+  ('bets', 'b_last60', $j${"q":"Кто дойдёт до 60 последним?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Уровни","picks":{},"result":-1,"at":1792778406000}$j$::jsonb),
+  ('bets', 'b_fish', $j${"q":"Кто первым прокачает рыбалку до 300?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Профессии","picks":{},"result":-1,"at":1792778407000}$j$::jsonb),
+  ('bets', 'b_aid', $j${"q":"Кто первым прокачает первую помощь до 300?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Профессии","picks":{},"result":-1,"at":1792778408000}$j$::jsonb),
+  ('bets', 'b_cook', $j${"q":"Кто первым прокачает кулинарию до 300?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Профессии","picks":{},"result":-1,"at":1792778409000}$j$::jsonb),
+  ('bets', 'b_artisan', $j${"q":"Кто первым станет артизаном (300) в основной профессии?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Профессии","picks":{},"result":-1,"at":1792778410000}$j$::jsonb),
+  ('bets', 'b_craftsell', $j${"q":"Кто первым продаст скрафченную вещь на аукционе?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Профессии","picks":{},"result":-1,"at":1792778411000}$j$::jsonb),
+  ('bets', 'b_epic1', $j${"q":"Кто первым получит эпик?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Подземелья и рейды","picks":{},"result":-1,"at":1792778412000}$j$::jsonb),
+  ('bets', 'b_epic', $j${"q":"Когда у группы будет первый эпик?","opts":["Первая неделя","Первый месяц","К рейдам","Не дождёмся"],"cat":"Подземелья и рейды","picks":{},"result":-1,"at":1792778413000}$j$::jsonb),
+  ('bets', 'b_newdg', $j${"q":"Какое новое подземелье пройдём первым?","opts":["Ruins of Lordaeron","Excavation Site","City of Dalaran","The Drowned City"],"cat":"Подземелья и рейды","picks":{},"result":-1,"at":1792778414000}$j$::jsonb),
+  ('bets', 'b_pie', $j${"q":"Pirozochek удержит агро на первом боссе?","opts":["Да","Нет","Агро? Какое агро?"],"cat":"Подземелья и рейды","picks":{},"result":-1,"at":1792778415000}$j$::jsonb),
+  ('bets', 'b_dgdeath', $j${"q":"Кто чаще всех будет умирать в подземельях?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Подземелья и рейды","picks":{},"result":-1,"at":1792778416000}$j$::jsonb),
+  ('bets', 'b_ony', $j${"q":"Сколько вайпов на Onyxia в первый вечер?","opts":["0–2","3–5","6–10","Больше 10"],"cat":"Подземелья и рейды","picks":{},"result":-1,"at":1792778417000}$j$::jsonb),
+  ('bets', 'b_hc', $j${"q":"Кто первым умрёт в Hardcore?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Hardcore","picks":{},"result":-1,"at":1792778418000}$j$::jsonb),
+  ('bets', 'b_hclvl', $j${"q":"На каком уровне будет первая смерть в Hardcore?","opts":["1–10","11–20","21–30","31+"],"cat":"Hardcore","picks":{},"result":-1,"at":1792778419000}$j$::jsonb),
+  ('bets', 'b_hc60', $j${"q":"Кто первым дойдёт до 60 в Hardcore?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Hardcore","picks":{},"result":-1,"at":1792778420000}$j$::jsonb),
+  ('bets', 'b_mount', $j${"q":"Кто первым купит маунта?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Таверна и разное","picks":{},"result":-1,"at":1792778421000}$j$::jsonb),
+  ('bets', 'b_100g', $j${"q":"Кто первым заработает 100 золота?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Таверна и разное","picks":{},"result":-1,"at":1792778422000}$j$::jsonb),
+  ('bets', 'b_drloss', $j${"q":"Кто больше всех проиграет в Roll to Death за первый месяц?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Таверна и разное","picks":{},"result":-1,"at":1792778423000}$j$::jsonb),
+  ('bets', 'b_afk', $j${"q":"Кто первым скажет «я на минутку» и пропадёт на час?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Таверна и разное","picks":{},"result":-1,"at":1792778424000}$j$::jsonb),
+  ('bets', 'b_late', $j${"q":"Кто первым опоздает на собранную группу?","opts":["Denis","Kirill","Olesya","Yan"],"cat":"Таверна и разное","picks":{},"result":-1,"at":1792778425000}$j$::jsonb)
+on conflict (coll, id) do update
+  set data = public.docs.data || jsonb_build_object('q', excluded.data->'q', 'opts', excluded.data->'opts',
+                                                    'cat', excluded.data->'cat', 'at', excluded.data->'at');
