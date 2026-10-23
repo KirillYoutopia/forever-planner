@@ -42,6 +42,13 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `fame/{id}`: `{ who: playerId | "" (whole group), title, icon, at, auto }`. `fameCands()` derives achievements from the data, and `syncFame()` writes each new one once, under a deterministic id. Hidden ones (`deleted`) never come back. Manual entries come from the form.
   - `data-view` can list several views separated by spaces (e.g. `"tavern bets"`).
 
+## Login and permissions
+- Footer button "I'm kute expat" opens the login dialog (pick a player, enter a password). The session token is kept in localStorage (`wf-token`) and sent with every write. Logged out, the site is read-only.
+- Server side (supabase.sql): `accounts` (bcrypt hashes, `is_admin`, `must_change`) and `sessions` are hidden tables. RPCs: `login`, `whoami`, `logout`, `change_password` (min 4 characters, not "Forever"), `admin_accounts`, `admin_reset` (back to "Forever"), `admin_set_admin`.
+- `patch_doc(p_token, ...)` enforces the rights: non-admins change only their own player row, vote, bet picks, goal ticks, wants and deaths; admin-only for meta, deleting players and adding players. `deathroll_*` take the token, so you always roll as yourself.
+- The page mirrors those rules (`mine(id)`) to grey out other people's controls. The database is what actually enforces them.
+- Initial passwords are never committed (the repo is public). Kirill's admin account comes from a one-off script kept outside the repo. Others start with "Forever" and must change it before they can write.
+
 ## Code conventions
 - `render()` re-renders every section from state. `editing()` holds off re-rendering while an input or select has focus, so keep that guard working.
 - Clicks are handled by one delegated listener that dispatches on `data-act`. Add new actions there.

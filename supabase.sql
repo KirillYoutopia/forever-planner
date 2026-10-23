@@ -21,10 +21,133 @@ returns jsonb language sql immutable as $$
     else b end
 $$;
 
--- The only way the page can write: merge-only (no deletes, no full overwrite) and validated.
-create or replace function public.patch_doc(p_coll text, p_id text, p_patch jsonb)
+-- ===== Login =====
+-- accounts and sessions are invisible to the page (RLS on, no grants); only the functions below use them.
+-- Passwords are stored as bcrypt hashes. Initial passwords are NOT in this file (the repo is public): Kirill's admin
+-- account is created by a one-off script, the others start with the shared password "Forever" and must change it.
+create extension if not exists pgcrypto with schema extensions;
+create table if not exists public.accounts (
+  player_id   text        primary key,
+  pass_hash   text        not null,
+  must_change boolean     not null default true,
+  is_admin    boolean     not null default false,
+  updated_at  timestamptz not null default now()
+);
+create table if not exists public.sessions (
+  token      uuid        primary key default gen_random_uuid(),
+  player_id  text        not null references public.accounts (player_id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.accounts enable row level security;
+alter table public.sessions enable row level security;
+revoke all on public.accounts, public.sessions from anon, authenticated;
+
+-- Who is calling: the session's player (null if the token is unknown or older than 90 days).
+create or replace function public.auth_session(p_token text, out pid text, out admin boolean, out must_change boolean)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if p_token is null or p_token !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return; end if;
+  select a.player_id, a.is_admin, a.must_change into pid, admin, must_change
+  from sessions s join accounts a on a.player_id = s.player_id
+  where s.token = p_token::uuid and s.created_at > now() - interval '90 days';
+end $$;
+revoke execute on function public.auth_session(text) from public, anon, authenticated;
+
+create or replace function public.login(p_player text, p_pass text)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare a public.accounts; t uuid;
+begin
+  select * into a from accounts where player_id = p_player;
+  if not found or a.pass_hash <> crypt(coalesce(p_pass, ''), a.pass_hash) then
+    perform pg_sleep(0.7);  -- slows down password guessing
+    raise exception 'bad login';
+  end if;
+  delete from sessions where created_at < now() - interval '90 days';
+  insert into sessions (player_id) values (a.player_id) returning token into t;
+  return jsonb_build_object('token', t, 'player', a.player_id, 'admin', a.is_admin, 'must_change', a.must_change);
+end $$;
+
+create or replace function public.whoami(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s record;
+begin
+  select * into s from auth_session(p_token);
+  if s.pid is null then return null; end if;
+  return jsonb_build_object('player', s.pid, 'admin', s.admin, 'must_change', s.must_change);
+end $$;
+
+create or replace function public.logout(p_token text)
 returns void language plpgsql security definer set search_path = public as $$
 begin
+  if p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    delete from sessions where token = p_token::uuid;
+  end if;
+end $$;
+
+create or replace function public.change_password(p_token text, p_old text, p_new text)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare s record; h text;
+begin
+  select * into s from auth_session(p_token);
+  if s.pid is null then raise exception 'login required'; end if;
+  select pass_hash into h from accounts where player_id = s.pid;
+  if h <> crypt(coalesce(p_old, ''), h) then perform pg_sleep(0.7); raise exception 'bad old password'; end if;
+  if char_length(coalesce(p_new, '')) < 4 or char_length(p_new) > 64 or p_new = 'Forever' then
+    raise exception 'bad new password';
+  end if;
+  update accounts set pass_hash = crypt(p_new, gen_salt('bf')), must_change = false, updated_at = now() where player_id = s.pid;
+  delete from sessions where player_id = s.pid and token <> p_token::uuid;  -- log out other devices
+end $$;
+
+-- Admin tools: list accounts (never the hashes), reset a password to "Forever", grant or take admin.
+create or replace function public.admin_accounts(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s record;
+begin
+  select * into s from auth_session(p_token);
+  if not coalesce(s.admin, false) then raise exception 'admin only'; end if;
+  return (select coalesce(jsonb_agg(jsonb_build_object('player', player_id, 'admin', is_admin, 'must_change', must_change)), '[]'::jsonb) from accounts);
+end $$;
+
+create or replace function public.admin_reset(p_token text, p_player text)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare s record;
+begin
+  select * into s from auth_session(p_token);
+  if not coalesce(s.admin, false) then raise exception 'admin only'; end if;
+  if not exists (select 1 from docs where coll = 'players' and id = p_player) then raise exception 'unknown player'; end if;
+  insert into accounts (player_id, pass_hash, must_change) values (p_player, crypt('Forever', gen_salt('bf')), true)
+  on conflict (player_id) do update set pass_hash = excluded.pass_hash, must_change = true, updated_at = now();
+  delete from sessions where player_id = p_player;
+end $$;
+
+create or replace function public.admin_set_admin(p_token text, p_player text, p_admin boolean)
+returns void language plpgsql security definer set search_path = public as $$
+declare s record;
+begin
+  select * into s from auth_session(p_token);
+  if not coalesce(s.admin, false) then raise exception 'admin only'; end if;
+  if p_player = s.pid and not p_admin then raise exception 'cannot remove own admin'; end if;
+  update accounts set is_admin = p_admin, updated_at = now() where player_id = p_player;
+end $$;
+
+-- Starting accounts for the group (Kirill's comes from the one-off admin script). Existing accounts are left alone.
+insert into public.accounts (player_id, pass_hash, must_change)
+select id, extensions.crypt('Forever', extensions.gen_salt('bf')), true
+from public.docs where coll = 'players' and id in ('p_denis', 'p_yan', 'p_olesya')
+on conflict (player_id) do nothing;
+
+-- ===== Writes =====
+-- The only way the page can write: merge-only (no deletes, no full overwrite), validated, and limited to what the
+-- logged-in player may change. Admins may change anything.
+drop function if exists public.patch_doc(text, text, jsonb);  -- the old version without a login
+create or replace function public.patch_doc(p_token text, p_coll text, p_id text, p_patch jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare s record; owner text;
+begin
+  select * into s from auth_session(p_token);
+  if s.pid is null then raise exception 'login required'; end if;
+  if s.must_change then raise exception 'change password first'; end if;
   if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths', 'bets', 'fame', 'rolls') then
     raise exception 'unknown collection %', p_coll;
   end if;
@@ -41,6 +164,33 @@ begin
     end if;
     if coalesce(p_patch->>'vote', '') not in ('pve', 'pvp', '') then raise exception 'bad vote'; end if;
   end if;
+  if not s.admin then
+    if p_coll = 'meta' then raise exception 'admin only'; end if;
+    if p_coll = 'players' and p_patch ? 'deleted' then raise exception 'admin only'; end if;
+    if p_coll in ('players', 'votes') and p_id <> s.pid then raise exception 'not yours'; end if;
+    if p_coll = 'bets' and jsonb_typeof(p_patch->'picks') = 'object'
+       and exists (select 1 from jsonb_object_keys(p_patch->'picks') k where k <> s.pid) then raise exception 'not yours'; end if;
+    if p_coll = 'goals' and jsonb_typeof(p_patch->'done') = 'object'
+       and exists (select 1 from jsonb_object_keys(p_patch->'done') k where k <> s.pid) then raise exception 'not yours'; end if;
+    if p_coll in ('wants', 'deaths') then
+      select data->>'by' into owner from docs where coll = p_coll and id = p_id;
+      if coalesce(owner, p_patch->>'by') is distinct from s.pid or (p_patch ? 'by' and p_patch->>'by' <> s.pid) then
+        raise exception 'not yours';
+      end if;
+    end if;
+    if p_coll = 'bets' then
+      select data->>'by' into owner from docs where coll = 'bets' and id = p_id;
+      if p_patch ? 'deleted' and owner is distinct from s.pid then raise exception 'not yours'; end if;
+      if p_patch ? 'by' and p_patch->>'by' <> s.pid then raise exception 'not yours'; end if;
+    end if;
+    if p_coll = 'fame' and p_patch ? 'deleted' then
+      select coalesce(data->>'who', '') into owner from docs where coll = 'fame' and id = p_id;
+      if coalesce(owner, '') not in ('', s.pid) then raise exception 'not yours'; end if;
+    end if;
+    if p_coll = 'rolls' and not exists (select 1 from docs where coll = 'rolls' and id = p_id and s.pid in (data->>'a', data->>'b')) then
+      raise exception 'not yours';
+    end if;
+  end if;
   insert into docs (coll, id, data) values (p_coll, p_id, p_patch)
   on conflict (coll, id) do update
     set data = jsonb_deep_merge(docs.data, excluded.data), updated_at = now();
@@ -53,7 +203,10 @@ drop policy if exists "read" on public.docs;
 create policy "read" on public.docs for select to anon, authenticated using (true);
 revoke insert, update, delete on public.docs from anon, authenticated;
 grant select on public.docs to anon, authenticated;
-grant execute on function public.patch_doc(text, text, jsonb) to anon, authenticated;
+grant execute on function public.patch_doc(text, text, text, jsonb) to anon, authenticated;
+grant execute on function public.login(text, text), public.whoami(text), public.logout(text),
+  public.change_password(text, text, text), public.admin_accounts(text), public.admin_reset(text, text),
+  public.admin_set_admin(text, text, boolean) to anon, authenticated;
 
 -- Every change keeps the previous version here (not readable from the page), so vandalism can be undone.
 create table if not exists public.docs_history (
@@ -124,11 +277,15 @@ on conflict (coll, id) do update
 --   rolls/{id} {a, b, start, stakeS, rolls: [{by, max, r, at}], winner, loser, endedAt, at}. Written only by the functions
 --   below, so the dice are rolled on the server and turns are enforced. stakeS is in silver (1 gold = 100 silver);
 --   duels created before 2026-10-23 evening have "stake" in gold instead, and the page reads both.
-drop function if exists public.deathroll_new(text, text, text, int, int);  -- parameter renamed p_stake -> p_stake_s
-create or replace function public.deathroll_new(p_id text, p_a text, p_b text, p_start int, p_stake_s int)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare g jsonb;
+drop function if exists public.deathroll_new(text, text, text, int, int);  -- older versions without a login
+create or replace function public.deathroll_new(p_token text, p_id text, p_a text, p_b text, p_start int, p_stake_s int)
+returns jsonb language plpgsql security definer set search_path = public as $
+declare g jsonb; s record;
 begin
+  select * into s from auth_session(p_token);
+  if s.pid is null then raise exception 'login required'; end if;
+  if s.must_change then raise exception 'change password first'; end if;
+  if not s.admin and s.pid not in (p_a, p_b) then raise exception 'not yours'; end if;
   if p_id !~ '^[a-z0-9]{6,32}$' then raise exception 'bad id'; end if;
   if p_a = p_b then raise exception 'need two different players'; end if;
   if (select count(*) from docs where coll = 'players' and id in (p_a, p_b)
@@ -142,10 +299,15 @@ begin
   return g;
 end $$;
 
-create or replace function public.deathroll_roll(p_id text, p_by text)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare g jsonb; rs jsonb; n int; mx int; r int; turn text; now_ms numeric;
+drop function if exists public.deathroll_roll(text, text);  -- older version took the player id instead of a login
+create or replace function public.deathroll_roll(p_token text, p_id text)
+returns jsonb language plpgsql security definer set search_path = public as $
+declare g jsonb; rs jsonb; n int; mx int; r int; turn text; now_ms numeric; s record; p_by text;
 begin
+  select * into s from auth_session(p_token);
+  if s.pid is null then raise exception 'login required'; end if;
+  if s.must_change then raise exception 'change password first'; end if;
+  p_by := s.pid;  -- you always roll as yourself
   select data into g from docs where coll = 'rolls' and id = p_id for update;
   if g is null or coalesce((g->>'deleted')::boolean, false) then raise exception 'no such duel'; end if;
   if coalesce(g->>'loser', '') <> '' then raise exception 'game over'; end if;
@@ -164,7 +326,7 @@ begin
   return g;
 end $$;
 
-grant execute on function public.deathroll_new(text, text, text, int, int) to anon, authenticated;
+grant execute on function public.deathroll_new(text, text, text, text, int, int) to anon, authenticated;
 grant execute on function public.deathroll_roll(text, text) to anon, authenticated;
 
 -- 2026-10-23: the "story so far" Hall of Fame entries. Existing rows are left alone.

@@ -390,8 +390,18 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
-.me-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 18px; }
-.me-bar label { font-weight: 700; }
+.foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px; padding: 18px 0 4px; font-size: 13px; color: var(--muted); }
+.foot b { color: var(--fg); }
+.kute { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; font-size: 15px; padding: 10px 22px; }
+.adm { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 1px 5px; vertical-align: 1px; }
+.link.warn { color: var(--accent); font-weight: 700; }
+.pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pick .ob { min-height: 52px; font-size: 15px; }
+.adm-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.adm-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.adm-row .cap { display: block; font-size: 12px; }
+.adm-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.adm-btns .ob { min-height: 34px; padding: 5px 10px; font-size: 12px; }
 .vs { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; align-self: center; }
 .dr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .dr-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
@@ -413,21 +423,29 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .dr-hist b.one { color: var(--ban-bg); }
 .owe { display: flex; gap: 6px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; flex-wrap: wrap; }
 .owe span { margin-left: auto; font-weight: 700; color: var(--accent); }
-.bets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
-.bet { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.bet.closed { opacity: .8; }
-.bet-q { display: flex; justify-content: space-between; gap: 6px; align-items: flex-start; font-size: 13px; line-height: 1.3; }
-.bet-q .x { min-width: 22px; height: 22px; margin: -2px -4px 0 0; }
-.bchips { display: flex; flex-wrap: wrap; gap: 5px; }
-.bchip { background: var(--cell); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; }
-.bchip b { font-size: 11px; background: var(--track); border-radius: 8px; padding: 0 5px; }
-.bchip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.bchip[aria-pressed="true"] b { background: color-mix(in srgb, var(--accent-ink) 18%, transparent); }
-.bchip.win { border-color: var(--first-bg); box-shadow: inset 0 0 0 1px var(--first-bg); }
-.bchip:disabled { opacity: 1; cursor: default; }
+.bets-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .bets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .bets-grid { grid-template-columns: minmax(0, 1fr); } }
+.bet { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.bet.closed { opacity: .85; }
+.bet-q { display: flex; justify-content: space-between; gap: 6px; align-items: flex-start; font-size: 14px; line-height: 1.3; }
+.bet-q .x { min-width: 24px; height: 24px; margin: -3px -6px 0 0; }
+.bopts { display: flex; flex-direction: column; gap: 6px; }
+.bopt { width: 100%; text-align: left; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: baseline; }
+.bopt:not(:disabled):hover { border-color: var(--muted); }
+.bopt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.bopt.win { border-color: var(--first-bg); box-shadow: inset 0 0 0 1px var(--first-bg); }
+.bopt:disabled { opacity: 1; cursor: default; }
+.bo-t { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bo-n { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.bo-n small { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.bo-bar { grid-column: 1 / -1; height: 6px; background: var(--track); border-radius: 0 3px 3px 0; overflow: hidden; }
+.bo-bar span { display: block; height: 100%; background: var(--accent); min-width: 2px; border-radius: 0 3px 3px 0; }
+.bopt.win .bo-bar span { background: var(--first-bg); }
+.bo-who { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
 .bet-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: auto; }
 .bet-foot .cap { font-size: 12px; }
-.bres { min-width: 0; max-width: 130px; padding: 3px 6px; font-size: 12px; }
+.bres { min-width: 0; max-width: 140px; padding: 3px 6px; font-size: 12px; }
 .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
 .ach { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--cell); border: 1px dashed var(--line); font-size: 12px; min-width: 0; }
 .ach img { width: 36px; height: 36px; border-radius: 6px; filter: grayscale(1); opacity: .55; flex: none; }
@@ -567,8 +585,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
     <section class="panel" aria-labelledby="h-poll">
       <div class="panel-head"><h2 id="h-poll">PvE или PvP?</h2><span class="cap">Один голос на игрока</span></div>
-      <label class="seg-label" for="vote-name">Твоё имя</label>
-      <input id="vote-name" class="poll-name" type="text" maxlength="24" autocomplete="off">
       <div id="poll-opts"></div>
       <div class="cap poll-msg" id="poll-msg" role="status"></div>
     </section>
@@ -666,19 +682,13 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <section class="panel me-bar" data-view="tavern bets" hidden>
-    <label for="me">Ты —</label>
-    <select id="me" aria-label="Кто ты"></select>
-    <span class="cap">Нужно, чтобы ставить и бросать кости. Запоминается в этом браузере</span>
-  </section>
-
   <section class="panel" aria-labelledby="h-dr" data-view="tavern" hidden>
     <div class="panel-head"><h2 id="h-dr">Roll to Death</h2><span class="cap">По очереди: 1–N, потом 1–выпавшее. У кого выпала 1 — отдаёт ставку</span></div>
     <div id="dr"></div>
     <form class="add" id="dr-form" autocomplete="off">
       <select id="dr-a" aria-label="Первый игрок"></select>
-      <span class="vs">vs</span>
-      <select id="dr-b" aria-label="Второй игрок"></select>
+      <span class="vs" id="dr-vs">vs</span>
+      <select id="dr-b" aria-label="С кем"></select>
       <input id="dr-start" type="number" min="2" max="1000000" value="1000" class="short" aria-label="С какого числа" title="С какого числа">
       <input id="dr-gold" type="number" min="0" max="1000000" placeholder="з." class="short" aria-label="Ставка: золото">
       <input id="dr-silver" type="number" min="0" max="99" placeholder="с." class="short" aria-label="Ставка: серебро">
@@ -724,11 +734,14 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="scroll" id="profs"></div>
   </section>
 </div>
+<footer class="foot" id="auth-foot"></footer>
 <div class="lb" id="lb" data-act="unzoom" hidden><img src="roadmap.png" alt="Дорожная карта World of Warcraft Forever 2026–2027, крупно"></div>
 <div class="sheet-bd" id="sheet-bd" data-act="close" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1" hidden></div>
 <div id="tip" hidden></div>
 <div class="toast" id="toast" role="alert" hidden></div>
+<div class="sheet-bd" id="auth-bd" data-act="authclose" hidden></div>
+<div class="sheet" id="auth-box" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
@@ -781,7 +794,7 @@ let settings = { size: 5 };
 let loaded = false, offline = false, readOnly = false, writeCheck = null, errNote = "";
 let confirmDel = null, dirty = false;
 let col = null, dbRef = null;
-let votes = [], myId = "", voterChecked = false, pollNote = "", voteChain = Promise.resolve();
+let votes = [], myId = "", pollNote = "", voteChain = Promise.resolve();
 const POLL = [{ id: "pve", label: "PvE", color: "var(--pve)" }, { id: "pvp", label: "PvP", color: "var(--pvp)" }];
 
 const RELEASE = "2026-11-04";
@@ -834,17 +847,18 @@ function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
   renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderMe(); renderDr(); renderBets(); renderFame(); syncFame();
-  $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline;
+  $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
+  renderAuth();
 }
 function renderNote() {
   const msg = offline ? "Нет связи с базой данных. Проверь интернет или настройки в config.js."
-    : readOnly ? "Режим просмотра: изменения недоступны. Попроси владельца страницы дать тебе доступ на редактирование."
+    : readOnly ? "Режим просмотра. Чтобы что-то менять, войди внизу страницы: «I'm kute expat»."
     : errNote;
   $("#note").innerHTML = msg ? `<div class="note" role="status">${esc(msg)}</div>` : "";
 }
 function renderSize() {
   $("#size").innerHTML = [5, 10].map(n =>
-    `<button type="button" data-act="size" data-n="${n}" aria-pressed="${settings.size === n}" ${readOnly || offline ? "disabled" : ""}>${n} игроков</button>`).join("");
+    `<button type="button" data-act="size" data-n="${n}" aria-pressed="${settings.size === n}" ${readOnly || offline || !auth?.admin ? "disabled" : ""}>${n} игроков</button>`).join("");
 }
 function renderComp() {
   const size = settings.size, tgt = TARGETS[size], total = players.length;
@@ -881,13 +895,13 @@ function renderGrid() {
   const head = `<thead><tr><th class="stick">Игрок</th>${CLASSES.map(c => `<th scope="col">${cdot(c)}${c.id}</th>`).join("")}</tr></thead>`;
   const rows = players.map(p => `<tr>
     <th class="stick" scope="row"><div class="pname">
-      <input class="nm" data-act="rename" data-id="${esc(p.id)}" value="${esc(p.name)}" maxlength="24" aria-label="Имя игрока" ${ro ? "readonly" : ""}>
-      ${ro || CORE.has(p.id) ? "" : `<button class="x${confirmDel === p.id ? "arm" : ""}" type="button" data-act="del" data-id="${esc(p.id)}" aria-label="Удалить игрока ${esc(p.name)}">${confirmDel === p.id ? "Удалить?" : "✕"}</button>`}
+      <input class="nm" data-act="rename" data-id="${esc(p.id)}" value="${esc(p.name)}" maxlength="24" aria-label="Имя игрока" ${ro || !mine(p.id) ? "readonly" : ""}>
+      ${ro || !auth?.admin || CORE.has(p.id) ? "" : `<button class="x${confirmDel === p.id ? "arm" : ""}" type="button" data-act="del" data-id="${esc(p.id)}" aria-label="Удалить игрока ${esc(p.name)}">${confirmDel === p.id ? "Удалить?" : "✕"}</button>`}
     </div></th>
     ${CLASSES.map(c => {
       const st = stateOf(p, c.id);
       const label = `${p.name} · ${c.id}: ${STATE_TEXT[st]}`;
-      return `<td><button type="button" class="cell ${st}" data-act="cell" data-id="${esc(p.id)}" data-cls="${c.id}" data-tip="${esc(label)}" aria-label="${esc(label)}" ${ro ? "disabled" : ""}>${GLYPH[st]}</button></td>`;
+      return `<td><button type="button" class="cell ${st}" data-act="cell" data-id="${esc(p.id)}" data-cls="${c.id}" data-tip="${esc(label)}" aria-label="${esc(label)}" ${ro || !mine(p.id) ? "disabled" : ""}>${GLYPH[st]}</button></td>`;
     }).join("")}
   </tr>`).join("");
   $("#grid").innerHTML = `<table class="grid">${head}<tbody>${rows}</tbody></table>`;
@@ -924,11 +938,11 @@ function renderChars() {
     let roleCell = `<span class="mute">—</span>`;
     const opts = c ? roleOpts(p, c) : [];
     if (opts.length === 1) roleCell = rolePill(opts[0]);
-    else if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro ? "disabled" : ""}><option value="">Выбери роль</option>${opts.map(r => `<option value="${r}" ${p.main.role === r ? "selected" : ""}>${roleLabel(r)}</option>`).join("")}</select>`;
+    else if (c) roleCell = `<select data-act="role" data-id="${esc(p.id)}" aria-label="Роль ${esc(p.name)}" ${ro || !mine(p.id) ? "disabled" : ""}><option value="">Выбери роль</option>${opts.map(r => `<option value="${r}" ${p.main.role === r ? "selected" : ""}>${roleLabel(r)}</option>`).join("")}</select>`;
     return `<tr>
       <td>${esc(p.name)}</td>
       <td>${c ? `<span class="cls"><span class="star">★</span>${cdot(c)}${c.id}</span>` : `<span class="mute">нет ★ в таблице</span>`}</td>
-      <td><select data-act="race" data-id="${esc(p.id)}" aria-label="Раса ${esc(p.name)}" ${ro ? "disabled" : ""}>${raceOpts(p.main?.race)}</select></td>
+      <td><select data-act="race" data-id="${esc(p.id)}" aria-label="Раса ${esc(p.name)}" ${ro || !mine(p.id) ? "disabled" : ""}>${raceOpts(p.main?.race)}</select></td>
       <td>${roleCell}</td>
       <td>${f ? `<span class="pill"><i class="rdot" style="--c:${FACTIONS[f].color}"></i>${FACTIONS[f].label}</span>` : `<span class="mute">—</span>`}</td>
     </tr>`;
@@ -1004,7 +1018,7 @@ function renderProfs() {
       body += `<tr><th class="stick" scope="row">${pr.id}</th>${players.map(p => {
         const on = !!p.profs?.[pr.id];
         const label = `${p.name} · ${pr.id}: ${on ? "есть" : "нет"}`;
-        return `<td><button type="button" class="pcell ${on ? "on" : ""}" data-act="prof" data-id="${esc(p.id)}" data-prof="${pr.id}" aria-pressed="${on}" aria-label="${esc(label)}" data-tip="${esc(label)}" ${ro ? "disabled" : ""}>${on ? "✓" : ""}</button></td>`;
+        return `<td><button type="button" class="pcell ${on ? "on" : ""}" data-act="prof" data-id="${esc(p.id)}" data-prof="${pr.id}" aria-pressed="${on}" aria-label="${esc(label)}" data-tip="${esc(label)}" ${ro || !mine(p.id) ? "disabled" : ""}>${on ? "✓" : ""}</button></td>`;
       }).join("")}<td>${who.length ? `<span class="cnt">${who.length}</span>` : t === "second" ? "" : `<span class="gap">никого</span>`}</td></tr>`;
     }
   }
@@ -1016,13 +1030,11 @@ function renderProfs() {
 function renderPoll() {
   // votes/{playerId}: only players from the group can vote, one vote each. The typed name must match a player; no hints.
   const byId = Object.fromEntries(players.map(p => [p.id, p]));
-  if (loaded && !voterChecked) { voterChecked = true; myId = matchVoter($("#vote-name").value); }
   if (myId && loaded && !byId[myId]) myId = "";
   const valid = votes.filter(v => byId[v.id] && POLL.some(o => o.id === v.vote)).sort((a, b) => (a.at || 0) - (b.at || 0));
   const total = valid.length;
   const mine = valid.find(v => v.id === myId);
   const can = !readOnly && !offline && loaded;
-  $("#vote-name").disabled = !can;
   $("#poll-opts").innerHTML = POLL.map(o => {
     const vs = valid.filter(v => v.vote === o.id);
     const pct = total ? Math.round(vs.length / total * 100) : 0;
@@ -1041,20 +1053,15 @@ function renderPoll() {
   let msg;
   if (!loaded) msg = "Загружаю…";
   else if (offline) msg = "";
-  else if (readOnly) msg = "Режим просмотра: голосовать нельзя.";
+  else if (readOnly) msg = "Войди внизу страницы, чтобы голосовать.";
   else if (mine) msg = `Твой голос: ${POLL.find(o => o.id === mine.vote).label}. Чтобы сменить, нажми другой вариант.`;
-  else msg = "Впиши имя и выбери вариант.";
+  else msg = "Выбери вариант.";
   $("#poll-msg").innerHTML = `<span>${esc(pollNote || msg)}</span>` + (mine && can ? `<button type="button" class="link" data-act="unvote">Убрать голос</button>` : "");
 }
 const normName = n => String(n || "").trim().toLowerCase();
-const matchVoter = name => players.find(p => normName(p.name) === normName(name))?.id || "";
 function castVote(v) {
-  const input = $("#vote-name"), name = input.value.trim();
-  if (!name) { pollNote = "Сначала впиши имя."; render(); input.focus(); return; }
-  myId = matchVoter(name);
-  if (!myId) { pollNote = "Не получилось проголосовать."; render(); return; }
+  if (!needMe()) return;
   pollNote = "";
-  try { localStorage.setItem("wf-name", name); } catch {}
   const ref = dbRef.doc("votes/" + myId);
   voteChain = voteChain.then(() => ref.set({ vote: v, at: Date.now() })).catch(onWriteError);
 }
@@ -1131,7 +1138,7 @@ function renderCal() {
     const cells = players.map(p => {
       const v = normAv(p.avail?.[day.key]), k = avKind(v);
       const tip = `${p.name} · ${dayLabel(day.key)}: ${v ? (v === "no" ? "не может" : avLabel(v)) : "не отмечено"}`;
-      return `<td><button type="button" class="avc ${k}" data-act="cal" data-id="${esc(p.id)}" data-date="${day.key}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" ${ro ? "disabled" : ""}>${esc(v ? avLabel(v) : "")}</button></td>`;
+      return `<td><button type="button" class="avc ${k}" data-act="cal" data-id="${esc(p.id)}" data-date="${day.key}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" ${ro || !mine(p.id) ? "disabled" : ""}>${esc(v ? avLabel(v) : "")}</button></td>`;
     }).join("");
     return `<tr class="${day.wd === 1 ? "wk" : ""} ${day.wd === 0 || day.wd === 6 ? "we" : ""}"><th class="stick" scope="row">${dayLabel(day.key)}${day.key === RELEASE ? `<span class="rel">релиз</span>` : ""}</th><td><div class="mbs">${sum}</div></td>${cells}</tr>`;
   }).join("");
@@ -1142,7 +1149,7 @@ function renderCal() {
 function renderSheet() {
   const sh = $("#sheet"), bd = $("#sheet-bd");
   const p = sheet && players.find(x => x.id === sheet.pid);
-  if (!p || readOnly || offline) { sheet = null; sh.hidden = bd.hidden = true; sh.innerHTML = ""; return; }
+  if (!p || readOnly || offline || !mine(p.id)) { sheet = null; sh.hidden = bd.hidden = true; sh.innerHTML = ""; return; }
   const cur = normAv(p.avail?.[sheet.date]);
   const wasHidden = sh.hidden;
   const slotOn = id => /^[mde]{1,3}$/.test(cur) && cur.includes(id);
@@ -1212,7 +1219,6 @@ function fillWho(sel) {
 }
 function renderSoon() {
   renderNext(); renderTasks(); renderLevels(); renderDung(); renderWants(); renderGoals(); renderRip();
-  if (!editing()) { fillWho($("#want-who")); fillWho($("#rip-who")); }
 }
 function renderNext() {
   if (!loaded || !players.length) { $("#next").innerHTML = `<p class="empty">${loaded ? "Добавь игроков." : "Загружаю…"}</p>`; return; }
@@ -1247,8 +1253,8 @@ function renderLevels() {
   const rows = players.map(p => {
     const lv = lvlOf(p), xp = Math.min(100, Math.max(0, +p.xp || 0)), c = CLS[p.main?.cls];
     return `<div class="lv"><b>${c ? cdot(c) : ""}${esc(p.name)}</b><span class="n">${lv || "—"}</span>
-      <button type="button" class="xp" data-act="xp" data-id="${esc(p.id)}" data-tip="${esc(`${p.name}: ${xp}% опыта до ${Math.min(60, (lv || 1) + 1)}`)}" aria-label="${esc(`Опыт ${p.name}: ${xp}%`)}" ${ro || !lv || lv >= 60 ? "disabled" : ""}><span style="width:${lv >= 60 ? 100 : xp}%"></span></button>
-      <span class="pm"><button type="button" data-act="lvl" data-d="-1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень −1" ${ro || lv <= 1 ? "disabled" : ""}>−</button><button type="button" data-act="lvl" data-d="1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень +1" ${ro || lv >= 60 ? "disabled" : ""}>+</button></span></div>`;
+      <button type="button" class="xp" data-act="xp" data-id="${esc(p.id)}" data-tip="${esc(`${p.name}: ${xp}% опыта до ${Math.min(60, (lv || 1) + 1)}`)}" aria-label="${esc(`Опыт ${p.name}: ${xp}%`)}" ${ro || !mine(p.id) || !lv || lv >= 60 ? "disabled" : ""}><span style="width:${lv >= 60 ? 100 : xp}%"></span></button>
+      <span class="pm"><button type="button" data-act="lvl" data-d="-1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень −1" ${ro || !mine(p.id) || lv <= 1 ? "disabled" : ""}>−</button><button type="button" data-act="lvl" data-d="1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень +1" ${ro || !mine(p.id) || lv >= 60 ? "disabled" : ""}>+</button></span></div>`;
   }).join("");
   const set = players.filter(p => lvlOf(p) > 0);
   let warn = "";
@@ -1265,7 +1271,7 @@ function groupLevel() {
 function renderDung() {
   const ro = readOnly || offline, avg = groupLevel();
   $("#dung-cap").textContent = avg ? `Средний уровень группы: ${avg}` : "Отметь уровни выше, и подсветятся подземелья по силам";
-  const who = d => `<div class="who">${players.map(p => `<button type="button" data-act="dg" data-id="${esc(p.id)}" data-dg="${d.id}" aria-pressed="${!!p.dungeons?.[d.id]}" data-tip="${esc(p.name + (p.dungeons?.[d.id] ? ": был(а)" : ": ещё не был(а)"))}" aria-label="${esc(`${p.name}, ${d.name}`)}" ${ro ? "disabled" : ""}>${short(p.name)}</button>`).join("")}</div>`;
+  const who = d => `<div class="who">${players.map(p => `<button type="button" data-act="dg" data-id="${esc(p.id)}" data-dg="${d.id}" aria-pressed="${!!p.dungeons?.[d.id]}" data-tip="${esc(p.name + (p.dungeons?.[d.id] ? ": был(а)" : ": ещё не был(а)"))}" aria-label="${esc(`${p.name}, ${d.name}`)}" ${ro || !mine(p.id) ? "disabled" : ""}>${short(p.name)}</button>`).join("")}</div>`;
   const card = d => {
     const all = players.length && players.every(p => p.dungeons?.[d.id]);
     const now = avg && avg >= d.min && avg <= d.max;
@@ -1308,7 +1314,7 @@ function renderGoals() {
   $("#goals").innerHTML = auto + list.map(g => {
     const n = players.filter(p => g.done?.[p.id]).length;
     return `<div class="gl"><div class="t"><span>${esc(g.title)}</span><span style="display:flex;gap:8px;align-items:center"><b>${n} из ${total}</b>${delBtn("goaldel", g.id, "Удалить цель: " + g.title)}</span></div>
-      <div class="who">${players.map(p => `<button type="button" data-act="goal" data-id="${esc(g.id)}" data-p="${esc(p.id)}" aria-pressed="${!!g.done?.[p.id]}" ${ro ? "disabled" : ""}>${esc(p.name)}</button>`).join("")}</div>
+      <div class="who">${players.map(p => `<button type="button" data-act="goal" data-id="${esc(g.id)}" data-p="${esc(p.id)}" aria-pressed="${!!g.done?.[p.id]}" ${ro || !mine(p.id) ? "disabled" : ""}>${esc(p.name)}</button>`).join("")}</div>
       <div class="gbar"><span style="width:${total ? n / total * 100 : 0}%"></span></div></div>`;
   }).join("");
 }
@@ -1333,7 +1339,7 @@ function setDoc(coll, id, patch) {
 }
 
 /* ---------- tavern (roll to death), bets, hall of fame ---------- */
-let bets = [], rolls = [], fameAll = [], fameFilter = "all", me = "", meGuessed = false;
+let bets = [], rolls = [], fameAll = [], fameFilter = "all", me = "";
 const got = new Set();        // collections whose first snapshot has arrived
 const fameSent = new Set();   // auto achievements already written from this tab
 const seenRolls = new Map();  // duel id -> number of rolls already on screen (for the pop animation)
@@ -1343,16 +1349,21 @@ const nameOf = id => players.find(p => p.id === id)?.name || "—";
 const stakeOf = g => g.stakeS != null ? Math.max(0, +g.stakeS || 0) : Math.max(0, +g.stake || 0) * 100;
 const fmtMoney = s => { const g = Math.floor(s / 100), c = s % 100; return [g ? `${g.toLocaleString("ru-RU")} з.` : "", c ? `${c} с.` : ""].filter(Boolean).join(" ") || "0 с."; };
 function needMe() {
-  if (me && players.some(p => p.id === me)) return true;
-  toast("Сначала выбери себя вверху: «Ты —».");
+  if (auth && players.some(p => p.id === auth.player)) return true;
+  toast(auth ? "Твоего игрока нет в списке." : "Сначала войди: кнопка «I'm kute expat» внизу страницы.");
   return false;
 }
+// Who-selects are for the admin only; everyone else acts as themselves.
 function renderMe() {
-  if (!me && loaded && !meGuessed) { meGuessed = true; me = matchVoter($("#vote-name").value); }
-  if (me && loaded && !players.some(p => p.id === me)) me = "";
-  const sel = $("#me");
-  fillWho(sel); sel.options[0].textContent = "Выбери себя"; sel.value = me;
-  fillWho($("#dr-a")); fillWho($("#dr-b"));
+  const adm = !!auth?.admin;
+  for (const id of ["#want-who", "#rip-who", "#dr-a"]) {
+    const sel = $(id);
+    sel.hidden = !adm;
+    if (adm) { fillWho(sel); if (!sel.value) sel.value = me; }
+  }
+  $("#dr-vs").textContent = adm ? "vs" : "Ты vs";
+  const b = $("#dr-b"); fillWho(b); b.options[0].textContent = "С кем";
+  for (const o of b.options) o.hidden = !adm && o.value === me;
   const fw = $("#fame-who"); fillWho(fw); fw.options[0].textContent = "Вся группа";
 }
 
@@ -1400,7 +1411,7 @@ const dbError = (e, fallback) => /function|schema cache|unknown collection/.test
 async function drRoll(id) {
   if (!dbRef || !needMe() || drBusy.has(id)) return;
   drBusy.add(id); render();
-  try { await dbRef.call("deathroll_roll", { p_id: id, p_by: me }, "rolls", id); }
+  try { await dbRef.call("deathroll_roll", { p_token: auth.token, p_id: id }, "rolls", id); }
   catch (e) { toast(/not your turn/.test(e.message) ? "Сейчас не твой ход." : /game over/.test(e.message) ? "Дуэль уже закончилась." : dbError(e, "Не получилось бросить. Попробуй ещё раз.")); }
   drBusy.delete(id); render();
 }
@@ -1412,17 +1423,20 @@ function renderBets() {
   const card = b => {
     const opts = Array.isArray(b.opts) ? b.opts : [], picks = b.picks || {}, res = resOf(b);
     const voters = Object.entries(picks).filter(([pid, i]) => i >= 0 && players.some(p => p.id === pid));
-    const chips = opts.map((o, i) => {
-      const who = voters.filter(([, x]) => x === i).map(([pid]) => nameOf(pid)), mine = picks[me] === i;
-      const tip = `${o}: ${who.length ? who.join(", ") : "никто"}`;
-      return `<button type="button" class="bchip ${res === i ? "win" : ""}" data-act="bpick" data-id="${esc(b.id)}" data-i="${i}" aria-pressed="${mine}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" ${ro || res >= 0 ? "disabled" : ""}>${res === i ? "🏆 " : ""}${esc(o)}${who.length ? `<b>${who.length}</b>` : ""}</button>`;
+    const rows = opts.map((o, i) => {
+      const who = voters.filter(([, x]) => x === i).map(([pid]) => nameOf(pid)), mineB = picks[me] === i;
+      const pct = voters.length ? Math.round(who.length / voters.length * 100) : 0;
+      return `<button type="button" class="bopt ${res === i ? "win" : ""}" data-act="bpick" data-id="${esc(b.id)}" data-i="${i}" aria-pressed="${mineB}" ${ro || res >= 0 ? "disabled" : ""}>
+        <span class="bo-t">${res === i ? "🏆 " : ""}${esc(o)}</span><span class="bo-n">${who.length}<small>${pct}%</small></span>
+        <span class="bo-bar"><span style="width:${pct}%"></span></span>
+        ${who.length ? `<span class="bo-who">${who.map(esc).join(", ")}</span>` : ""}</button>`;
     }).join("");
     const winners = res >= 0 ? voters.filter(([, x]) => x === res).map(([pid]) => nameOf(pid)) : [];
     const resSel = `<select class="bres" data-act="bres" data-id="${esc(b.id)}" aria-label="Итог ставки" ${ro ? "disabled" : ""}><option value="-1">${res >= 0 ? "Отменить итог" : "Итог…"}</option>${opts.map((o, i) => `<option value="${i}" ${res === i ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
     const foot = res >= 0 ? (winners.length ? "Угадали: " + winners.map(esc).join(", ") : "Никто не угадал")
       : voters.length ? `${voters.length} ${plural(voters.length, "ставка", "ставки", "ставок")}` : "Пока без ставок";
     return `<div class="bet ${res >= 0 ? "closed" : ""}"><div class="bet-q"><b>${esc(b.q)}</b>${delBtn("betdel", b.id, "Удалить ставку")}</div>
-      <div class="bchips">${chips}</div><div class="bet-foot"><span class="cap">${foot}</span>${resSel}</div></div>`;
+      <div class="bopts">${rows}</div><div class="bet-foot"><span class="cap">${foot}</span>${resSel}</div></div>`;
   };
   const sorted = [...bets].sort((x, y) => (resOf(x) >= 0) - (resOf(y) >= 0) || (x.at || 0) - (y.at || 0));
   const html = BET_CATS.map(c => {
@@ -1486,12 +1500,14 @@ function fameCands() {
     let streak = 0, worst = 0;
     for (const g of mine) { streak = g.loser === p.id ? streak + 1 : 0; worst = Math.max(worst, streak); }
     if (worst >= 3) add(`drlose3_${p.id}`, p.id, "Должник: 3 поражения подряд", "inv_misc_bone_skull_01");
+    if (CAL4.every(k => normAv(p.avail?.[k]))) add(`cal_full_${p.id}`, p.id, "Хозяин расписания: заполнил(а) все 4 недели календаря", "spell_holy_borrowedtime");
     if (betsWon(p.id) >= 3) add(`bets3_${p.id}`, p.id, "Провидец: 3 угаданные ставки", "spell_holy_sealofwisdom");
     const prim = PROFS.filter(x => x.type !== "second" && p.profs?.[x.id]).length;
     if (prim >= 2 && PROFS.filter(x => x.type === "second").every(x => p.profs?.[x.id])) add(`jack_${p.id}`, p.id, "Мастер на все руки: 2 основные и все вспомогательные профессии", "inv_misc_book_09");
   }
   return out;
 }
+const CAL4 = Array.from({ length: 28 }, (_, i) => new Date(Date.UTC(2026, 10, 4 + i)).toISOString().slice(0, 10)); // first 4 weeks from release
 const WEEK1 = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2026, 10, 4 + i)).toISOString().slice(0, 10));
 const betsWon = pid => bets.filter(b => Number.isInteger(b.result) && b.result >= 0 && b.picks?.[pid] === b.result).length;
 
@@ -1528,6 +1544,7 @@ function fameCatalog() {
     P("lvl40", "40 уровень", "achievement_level_40", `лучший: ${best || "—"}`),
     P("lvl60", "60 уровень", "achievement_level_60", `лучший: ${best || "—"}`),
     P("dg10", "10 подземелий", "achievement_dungeon_classicdungeonmaster", `лучший: ${Math.max(0, ...players.map(dcount))}`),
+    P("cal_full", "Хозяин расписания: все 4 недели календаря", "spell_holy_borrowedtime", `лучший: ${Math.max(0, ...players.map(p => CAL4.filter(k => normAv(p.avail?.[k])).length))}/28`),
     P("jack", "Мастер на все руки", "inv_misc_book_09", "2 основные + все вспомогательные"),
     P("bets3", "Провидец: 3 угаданные ставки", "spell_holy_sealofwisdom", `лучший: ${Math.max(0, ...players.map(p => betsWon(p.id)))}`),
     P("drwin1", "Первая победа в Roll to Death", "inv_misc_dice_01", ""),
@@ -1536,7 +1553,7 @@ function fameCatalog() {
   ];
 }
 function syncFame() {
-  if (!dbRef || readOnly || !loaded || !["fame", "bets", "rolls", "goals", "tasks"].every(c => got.has(c))) return;
+  if (!dbRef || !auth || auth.mustChange || !loaded || !["fame", "bets", "rolls", "goals", "tasks"].every(c => got.has(c))) return;
   const have = new Set(fameAll.map(f => f.id)); // includes hidden ones, so a hidden achievement never comes back
   for (const c of fameCands()) {
     if (have.has(c.id) || fameSent.has(c.id)) continue;
@@ -1571,6 +1588,109 @@ function renderFame() {
     : `<p class="empty">Всё получено. Вы легенды.</p>`;
 }
 
+/* ---------- login ---------- */
+// The database decides what each player may change (patch_doc); the page only mirrors it to grey out other people's controls.
+let auth = null, authUI = null; // auth: { token, player, admin, mustChange }
+const mine = id => !!auth && (auth.admin || auth.player === id);
+function setAuth(a) {
+  auth = a;
+  window.WFStore.setToken(a?.token || "");
+  try { a ? localStorage.setItem("wf-token", a.token) : localStorage.removeItem("wf-token"); } catch {}
+  me = myId = a?.player || "";
+  readOnly = !a;
+  render();
+}
+async function restoreLogin() {
+  let t = "";
+  try { t = localStorage.getItem("wf-token") || ""; } catch {}
+  if (!t || !dbRef) return setAuth(null);
+  try {
+    const r = await dbRef.call("whoami", { p_token: t });
+    if (!r) return setAuth(null);
+    setAuth({ token: t, player: r.player, admin: !!r.admin, mustChange: !!r.must_change });
+    if (r.must_change) openAuth("change");
+  } catch { setAuth(null); }
+}
+function renderAuth() {
+  $("#auth-foot").innerHTML = !auth
+    ? `<button type="button" class="btn kute" data-act="login" ${offline ? "disabled" : ""}>I'm kute expat</button>`
+    : `<span>Ты: <b>${esc(nameOf(auth.player))}</b>${auth.admin ? ` <span class="adm">admin</span>` : ""}</span>
+       ${auth.mustChange ? `<button type="button" class="link warn" data-act="pwd">Смени начальный пароль</button>` : `<button type="button" class="link" data-act="pwd">Сменить пароль</button>`}
+       ${auth.admin ? `<button type="button" class="link" data-act="admin">Управление</button>` : ""}
+       <button type="button" class="link" data-act="logout">Выйти</button>`;
+}
+function openAuth(mode, extra = {}) { authUI = { mode, ...extra }; drawAuth(); }
+function closeAuth() { authUI = null; drawAuth(); }
+const authNote = t => { const n = $("#auth-note"); if (n) n.textContent = t; };
+function drawAuth() {
+  const box = $("#auth-box"), bd = $("#auth-bd");
+  if (!authUI) { box.hidden = bd.hidden = true; box.innerHTML = ""; return; }
+  const m = authUI.mode;
+  const head = t => `<div class="sheet-head"><h3 id="auth-title">${t}</h3><button type="button" class="x" data-act="authclose" aria-label="Закрыть">✕</button></div>`;
+  const field = (id, label, ac) => `<label class="sheet-lbl" for="${id}">${label}</label><input id="${id}" class="poll-name" type="password" autocomplete="${ac}" maxlength="64" required>`;
+  let html = "";
+  if (m === "pick") {
+    html = head("Кто ты?") + `<div class="pick">${players.map(p => `<button type="button" class="ob" data-act="authpick" data-id="${esc(p.id)}">${esc(p.name)}</button>`).join("")}</div>`;
+  } else if (m === "pass") {
+    html = head(esc(nameOf(authUI.player))) + `<form id="auth-form" data-mode="login">${field("auth-pass", "Пароль", "current-password")}
+      <div class="sheet-note" id="auth-note" role="status"></div>
+      <div class="sheet-foot"><button type="button" class="link" data-act="login">← Другой игрок</button><button class="btn" type="submit">Войти</button></div></form>`;
+  } else if (m === "change") {
+    const first = auth?.mustChange;
+    html = head(first ? "Придумай свой пароль" : "Сменить пароль") + `<form id="auth-form" data-mode="change">
+      ${first ? `<p class="cap">Сейчас у тебя начальный пароль. Придумай свой: не короче 4 символов.</p>` : ""}
+      ${authUI.old != null ? "" : field("auth-old", "Текущий пароль", "current-password")}
+      ${field("auth-new", "Новый пароль", "new-password")}${field("auth-new2", "Ещё раз", "new-password")}
+      <div class="sheet-note" id="auth-note" role="status"></div>
+      <div class="sheet-foot"><span></span><button class="btn" type="submit">Сохранить</button></div></form>`;
+  } else if (m === "admin") {
+    const acc = authUI.accounts;
+    html = head("Управление") + (!acc ? `<p class="empty">Загружаю…</p>` : `<div class="adm-list">${players.map(p => {
+      const a = acc.find(x => x.player === p.id), self = p.id === auth.player;
+      const st = !a ? "нет доступа" : a.must_change ? "начальный пароль" : "свой пароль";
+      return `<div class="adm-row"><div><b>${esc(p.name)}</b>${a?.admin ? ` <span class="adm">admin</span>` : ""}<span class="cap">${st}</span></div>
+        <div class="adm-btns">${a ? `<button type="button" class="ob" data-act="admrole" data-id="${esc(p.id)}" data-v="${a.admin ? 0 : 1}" ${self ? "disabled" : ""}>${a.admin ? "Убрать админа" : "Сделать админом"}</button>` : ""}
+        <button type="button" class="ob" data-act="admreset" data-id="${esc(p.id)}">${a ? "Сбросить пароль" : "Создать доступ"}</button></div></div>`;
+    }).join("")}</div><p class="cap">Сброс ставит начальный пароль «Forever». При входе игрока попросят придумать свой.</p>`)
+      + `<div class="sheet-note" id="auth-note" role="status"></div>`;
+  }
+  const wasHidden = box.hidden;
+  box.innerHTML = html;
+  box.hidden = bd.hidden = false;
+  const first = box.querySelector("input");
+  if (first) first.focus(); else if (wasHidden) box.focus();
+}
+async function authSubmit(mode) {
+  if (!dbRef) return;
+  if (mode === "login") {
+    const pass = $("#auth-pass").value;
+    try {
+      const r = await dbRef.call("login", { p_player: authUI.player, p_pass: pass });
+      setAuth({ token: r.token, player: r.player, admin: !!r.admin, mustChange: !!r.must_change });
+      if (r.must_change) openAuth("change", { old: pass }); else { closeAuth(); toast(`Привет, ${nameOf(r.player)}!`); }
+    } catch (e) { authNote(/bad login/.test(e.message) ? "Неверный пароль." : dbError(e, "Не получилось войти.")); }
+  } else if (mode === "change") {
+    const old = authUI.old ?? $("#auth-old").value, n1 = $("#auth-new").value, n2 = $("#auth-new2").value;
+    if (n1.length < 4) return authNote("Пароль — не короче 4 символов.");
+    if (n1 !== n2) return authNote("Пароли не совпадают.");
+    if (n1 === "Forever") return authNote("Это начальный пароль. Придумай другой.");
+    try {
+      await dbRef.call("change_password", { p_token: auth.token, p_old: old, p_new: n1 });
+      auth.mustChange = false; closeAuth(); render(); toast("Пароль сохранён.");
+    } catch (e) { authNote(/bad old/.test(e.message) ? "Текущий пароль неверный." : /password/.test(e.message) ? "Пароль — от 4 до 64 символов и не «Forever»." : dbError(e, "Не получилось сменить пароль.")); }
+  }
+}
+async function openAdmin() {
+  openAuth("admin", { accounts: null });
+  try { authUI.accounts = await dbRef.call("admin_accounts", { p_token: auth.token }) || []; drawAuth(); }
+  catch (e) { authNote(dbError(e, "Не получилось загрузить список.")); }
+}
+async function adminDo(fn, args, done) {
+  try { await dbRef.call(fn, { p_token: auth.token, ...args }); toast(done); await openAdmin(); }
+  catch (e) { authNote(/own admin/.test(e.message) ? "Себя из админов убрать нельзя." : dbError(e, "Не получилось.")); }
+}
+document.addEventListener("submit", e => { if (e.target.id === "auth-form") { e.preventDefault(); authSubmit(e.target.dataset.mode); } });
+
 /* ---------- data ---------- */
 const chain = new Map();
 function save(id, patch) {
@@ -1585,10 +1705,13 @@ function toast(text) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
 }
 function onWriteError(e) {
-  if (e?.code === "invalid_argument" && writeCheck !== true) readOnly = true;
-  else {
-    errNote = /unknown collection/.test(e?.message || "")
-      ? "База ещё не обновлена для этого раздела: выполни supabase.sql в Supabase."
+  {
+    const m = e?.message || "";
+    errNote = /login required/.test(m) ? "Войди внизу страницы, чтобы что-то менять."
+      : /change password first/.test(m) ? "Сначала смени начальный пароль."
+      : /not yours/.test(m) ? "Менять можно только своё."
+      : /admin only/.test(m) ? "Это может только админ."
+      : /unknown collection|function|schema cache/.test(m) ? "База ещё не обновлена: выполни supabase.sql в Supabase."
       : "Не удалось сохранить. Проверь соединение и попробуй ещё раз.";
     toast(errNote);
   }
@@ -1609,7 +1732,7 @@ document.addEventListener("click", e => {
   const act = b.dataset.act, id = b.dataset.id, p = players.find(x => x.id === id);
   if (act === "cell" && p) save(id, cyclePatch(p, b.dataset.cls));
   else if (act === "prof" && p) save(id, { profs: { [b.dataset.prof]: !p.profs?.[b.dataset.prof] } });
-  else if (act === "cal" && p && !readOnly) {
+  else if (act === "cal" && p && mine(id)) {
     sheet = { pid: id, date: b.dataset.date }; sheetNote = "";
     const h = /^h(\d+)-(\d+)$/.exec(normAv(p.avail?.[sheet.date]));
     if (h) { hFrom = +h[1]; hTo = +h[2]; }
@@ -1659,6 +1782,14 @@ document.addEventListener("click", e => {
   else if (act === "goaldel") setDoc("goals", id, { deleted: true });
   else if (act === "wantdel") setDoc("wants", id, { deleted: true });
   else if (act === "ripdel") setDoc("deaths", id, { deleted: true });
+  else if (act === "login") openAuth("pick");
+  else if (act === "authpick") openAuth("pass", { player: id });
+  else if (act === "authclose") closeAuth();
+  else if (act === "pwd") openAuth("change");
+  else if (act === "admin") openAdmin();
+  else if (act === "logout") { const t = auth?.token; setAuth(null); if (t) dbRef?.call("logout", { p_token: t }).catch(() => {}); }
+  else if (act === "admrole") adminDo("admin_set_admin", { p_player: id, p_admin: b.dataset.v === "1" }, "Готово.");
+  else if (act === "admreset" && confirm(`Сбросить пароль игрока ${nameOf(id)} на «Forever»?`)) adminDo("admin_reset", { p_player: id }, "Пароль сброшен на «Forever».");
   else if (act === "droll") drRoll(id);
   else if (act === "drdel") setDoc("rolls", id, { deleted: true });
   else if (act === "bpick") {
@@ -1678,7 +1809,6 @@ document.addEventListener("change", e => {
   const t = e.target, act = t.dataset?.act, id = t.dataset?.id;
   if (t.id === "h-from") { hFrom = +t.value; return; }
   if (t.id === "h-to") { hTo = +t.value; return; }
-  if (t.id === "me") { me = t.value; try { localStorage.setItem("wf-me", me); } catch {} t.blur(); render(); return; }
   if (act === "bres" && id) { setDoc("bets", id, { result: +t.value, resolvedAt: Date.now() }); t.blur(); return; }
   if (!act || !id) return;
   if (act === "race") save(id, { main: { race: t.value } });
@@ -1691,11 +1821,11 @@ document.addEventListener("change", e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.matches?.("input.nm")) e.target.blur();
-  if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); }
+  if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); if (authUI) closeAuth(); }
 });
 document.addEventListener("focusout", () => setTimeout(() => { if (dirty && !editing()) render(); }, 0));
 
-const onSubmit = (id, fn) => $(id).addEventListener("submit", e => { e.preventDefault(); if (dbRef && !readOnly) fn(); });
+const onSubmit = (id, fn) => $(id).addEventListener("submit", e => { e.preventDefault(); if (dbRef && needMe()) fn(); });
 const val = id => $(id).value.trim();
 onSubmit("#task-form", () => {
   if (!val("#task-text")) return $("#task-text").focus();
@@ -1709,10 +1839,9 @@ onSubmit("#goal-form", () => {
 });
 onSubmit("#want-form", async () => {
   const msg = t => { $("#want-msg").textContent = t; };
-  if (!$("#want-who").value) { msg("Выбери, кто хочет."); return $("#want-who").focus(); }
   const raw = val("#want-item");
   if (!raw) { msg("Вставь ссылку на вещь, её ID или название."); return $("#want-item").focus(); }
-  const doc = { by: $("#want-who").value, src: val("#want-src"), item: raw.slice(0, 60) };
+  const doc = { by: (auth?.admin && $("#want-who").value) || me, src: val("#want-src"), item: raw.slice(0, 60) };
   const wid = whItemId(raw);
   if (wid) {
     msg("Ищу на Wowhead…"); $("#want-btn").disabled = true;
@@ -1725,15 +1854,14 @@ onSubmit("#want-form", async () => {
   $("#want-item").value = $("#want-src").value = "";
 });
 onSubmit("#rip-form", () => {
-  if (!$("#rip-who").value) return $("#rip-who").focus();
   const lvl = Math.min(60, Math.max(0, Math.round(+$("#rip-lvl").value || 0)));
-  addDoc("deaths", { by: $("#rip-who").value, lvl: lvl || "", killer: val("#rip-killer"), words: val("#rip-words") });
+  addDoc("deaths", { by: (auth?.admin && $("#rip-who").value) || me, lvl: lvl || "", killer: val("#rip-killer"), words: val("#rip-words") });
   ["#rip-lvl", "#rip-killer", "#rip-words"].forEach(i => { $(i).value = ""; });
 });
 
 onSubmit("#dr-form", async () => {
   const msg = t => { $("#dr-msg").textContent = t; };
-  const a = $("#dr-a").value, b = $("#dr-b").value, start = Math.round(+$("#dr-start").value);
+  const a = auth?.admin ? $("#dr-a").value : me, b = $("#dr-b").value, start = Math.round(+$("#dr-start").value);
   const gold = Math.max(0, Math.round(+$("#dr-gold").value || 0)), silver = Math.max(0, Math.round(+$("#dr-silver").value || 0));
   if (!a || !b || a === b) return msg("Выбери двух разных игроков.");
   if (!(start >= 2 && start <= 1e6)) return msg("Начальное число — от 2 до 1 000 000.");
@@ -1741,7 +1869,7 @@ onSubmit("#dr-form", async () => {
   if (gold > 1e6) return msg("Ставка — до 1 000 000 золота.");
   msg("");
   const id = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36)).replace(/[^a-z0-9]/g, "").slice(0, 16);
-  try { await dbRef.call("deathroll_new", { p_id: id, p_a: a, p_b: b, p_start: start, p_stake_s: gold * 100 + silver }, "rolls", id); $("#dr-gold").value = $("#dr-silver").value = ""; }
+  try { await dbRef.call("deathroll_new", { p_token: auth.token, p_id: id, p_a: a, p_b: b, p_start: start, p_stake_s: gold * 100 + silver }, "rolls", id); $("#dr-gold").value = $("#dr-silver").value = ""; }
   catch (e) { msg(dbError(e, "Не получилось начать дуэль.")); }
 });
 onSubmit("#bet-form", () => {
@@ -1749,7 +1877,7 @@ onSubmit("#bet-form", () => {
   if (!q) return $("#bet-q").focus();
   let opts = val("#bet-opts").split(",").map(x => x.trim().slice(0, 40)).filter(Boolean).slice(0, 8);
   if (opts.length < 2) opts = players.map(p => String(p.name).slice(0, 40));
-  addDoc("bets", { q, opts, picks: {}, result: -1, cat: "Свои" });
+  addDoc("bets", { q, opts, picks: {}, result: -1, cat: "Свои", by: me });
   $("#bet-q").value = $("#bet-opts").value = "";
 });
 onSubmit("#fame-form", () => {
@@ -1825,7 +1953,7 @@ async function boot() {
   if (!db) { offline = true; loaded = true; render(); return; }
   dbRef = db;
   writeCheck = true;
-  try { $("#vote-name").value = localStorage.getItem("wf-name") || ""; me = localStorage.getItem("wf-me") || ""; } catch {}
+  restoreLogin();
   $("#fame-date").value = localKey();
   db.collection("votes").onSnapshot(snap => {
     votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));

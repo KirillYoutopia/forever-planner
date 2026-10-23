@@ -19,6 +19,9 @@
     return id;
   }
 
+  // Login token: every write carries it, and the database checks what this player may change.
+  let token = "";
+
   async function createDb() {
     if (!cfg.supabaseUrl || !cfg.supabaseAnonKey || !window.supabase) return null;
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
@@ -51,14 +54,14 @@
     const ref = (coll, id) => ({
       async update(patch) {
         cache.set(key(coll, id), merge(cache.get(key(coll, id)) || {}, patch)); emit();
-        const { error } = await sb.rpc("patch_doc", { p_coll: coll, p_id: id, p_patch: patch });
+        const { error } = await sb.rpc("patch_doc", { p_token: token, p_coll: coll, p_id: id, p_patch: patch });
         if (error) { await loadAll().catch(() => {}); fail(error); }
       },
       // The database only accepts merges through patch_doc (no direct writes, no deletes),
       // so set() merges too: callers always pass the same keys, which makes it a replace in practice.
       async set(data) {
         cache.set(key(coll, id), merge(cache.get(key(coll, id)) || {}, data)); emit();
-        const { error } = await sb.rpc("patch_doc", { p_coll: coll, p_id: id, p_patch: data });
+        const { error } = await sb.rpc("patch_doc", { p_token: token, p_coll: coll, p_id: id, p_patch: data });
         if (error) { await loadAll().catch(() => {}); fail(error); }
       },
       onSnapshot(cb) {
@@ -98,5 +101,6 @@
   window.WFStore = {
     db: () => createDb().catch(e => { console.error("Supabase:", e); return null; }),
     userId: browserId,
+    setToken: t => { token = t || ""; },
   };
 })();
