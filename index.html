@@ -412,13 +412,15 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .stake .ob { min-height: 30px; padding: 3px 10px; font-size: 12px; }
 .gold { font-style: normal; color: var(--accent); font-size: 12px; margin-right: 8px; }
 .foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px; padding: 18px 0 4px; font-size: 13px; color: var(--muted); }
-/* wide screens: login pinned mid-screen just right of the content (the party frames sit on the left) */
-@media (min-width: 1520px) {
-  .foot { position: fixed; z-index: 2; top: 50%; left: calc(50% + 560px + 32px); transform: translateY(-50%); max-width: calc(50% - 560px - 48px);
-    flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; padding: 0; }
-}
+/* logged out: a quiet link in the bottom-right corner (those who know, know) */
+.foot.out { position: fixed; right: 10px; bottom: 6px; z-index: 3; padding: 0; }
+.kute { background: none; border: 0; padding: 2px 4px; font-size: 11px; color: var(--muted); opacity: .45; }
+.kute:hover, .kute:focus-visible { opacity: 1; }
+/* logged in, wide screens: controls sit under the party frames instead of the footer */
+.auth-side { pointer-events: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 10px; padding-left: 8px; font-size: 13px; color: var(--muted); }
+.auth-side b { color: var(--fg); }
+@media (min-width: 1520px) { .foot:not(.out) { display: none; } }
 .foot b { color: var(--fg); }
-.kute { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; font-size: 15px; padding: 10px 22px; }
 .adm { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 1px 5px; vertical-align: 1px; }
 .link.warn { color: var(--accent); font-weight: 700; }
 .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1697,12 +1699,15 @@ async function restoreLogin() {
   } catch { setAuth(null); }
 }
 function renderAuth() {
-  $("#auth-foot").innerHTML = !auth
-    ? `<button type="button" class="btn kute" data-act="login" ${offline ? "disabled" : ""}>I'm kute expat</button>`
-    : `<span>Ты: <b>${esc(nameOf(auth.player))}</b>${auth.admin ? ` <span class="adm">admin</span>` : ""}</span>
-       ${auth.mustChange ? `<button type="button" class="link warn" data-act="pwd">Смени начальный пароль</button>` : `<button type="button" class="link" data-act="pwd">Сменить пароль</button>`}
-       ${auth.admin ? `<button type="button" class="link" data-act="admin">Управление</button>` : ""}
-       <button type="button" class="link" data-act="logout">Выйти</button>`;
+  const foot = $("#auth-foot");
+  foot.classList.toggle("out", !auth);
+  if (!auth) { foot.innerHTML = `<button type="button" class="kute" data-act="login" ${offline ? "disabled" : ""}>I'm kute expat</button>`; return; }
+  const html = `<span>Ты: <b>${esc(nameOf(auth.player))}</b>${auth.admin ? ` <span class="adm">admin</span>` : ""}</span>
+     ${auth.mustChange ? `<button type="button" class="link warn" data-act="pwd">Смени начальный пароль</button>` : `<button type="button" class="link" data-act="pwd">Сменить пароль</button>`}
+     ${auth.admin ? `<button type="button" class="link" data-act="admin">Управление</button>` : ""}
+     <button type="button" class="link" data-act="logout">Выйти</button>`;
+  foot.innerHTML = html;
+  $("#squad").insertAdjacentHTML("beforeend", `<div class="auth-side">${html}</div>`); // the squad is redrawn every render
 }
 function openAuth(mode, extra = {}) { authUI = { mode, ...extra }; drawAuth(); }
 function closeAuth() { authUI = null; drawAuth(); }
