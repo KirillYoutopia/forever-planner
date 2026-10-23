@@ -43,10 +43,11 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - Bets can carry gold: `bets.stakes: { [playerId]: silver }`. Pari-mutuel: losers' gold is split among the winners in proportion to their stakes. If no one with gold guessed right, nothing changes hands. Picks and stakes are frozen server-side once `result >= 0`.
   - `pays/{id}`: `{ from, to, s (silver), by, at }`, the "Рассчитались" settlements. Either party (or the admin) can record one, and it can't be edited afterwards.
   - The wallet (`walletDebts`/`walletPairs`) nets duels + bets − payments per pair. The rules shown in the Таверна panel must stay in sync with this logic.
+  - Таверна shows who has the site open (Supabase Realtime presence via `db.presence()` in store.js, nothing stored). Online players also get a green dot on their party frame.
   - `data-view` can list several views separated by spaces (e.g. `"tavern bets"`).
 
 ## Login and permissions
-- A quiet "I'm kute expat" link fixed in the bottom-right corner opens the login dialog (logged in: controls sit under the party frames on wide screens, in the footer on narrow ones) (pick a player, enter a password). The session token is kept in localStorage (`wf-token`) and sent with every write. Logged out, the site is read-only.
+- A quiet "I'm kute expat" link fixed in the bottom-right corner opens the login dialog (logged in: account controls sit in the bottom-left corner on screens 900px+, in the footer below that) (pick a player, enter a password). The session token is kept in localStorage (`wf-token`) and sent with every write. Logged out, the site is read-only.
 - Server side (supabase.sql): `accounts` (bcrypt hashes, `is_admin`, `must_change`) and `sessions` are hidden tables. RPCs: `login`, `whoami`, `logout`, `change_password` (min 4 characters, not "Forever"), `admin_accounts`, `admin_reset` (back to "Forever"), `admin_set_admin`.
 - `patch_doc(p_token, ...)` enforces the rights: non-admins change only their own player row, vote, bet picks, goal ticks, wants and deaths; admin-only for meta, deleting players and adding players. `deathroll_*` take the token, so you always roll as yourself.
 - The page mirrors those rules (`mine(id)`) to grey out other people's controls. The database is what actually enforces them.

@@ -95,6 +95,14 @@
           },
         };
       },
+      // Who has the site open right now (Supabase Realtime presence, nothing stored). One entry per browser tab.
+      presence(onChange) {
+        let meta = { player: "" };
+        const ch = sb.channel("online", { config: { presence: { key: browserId() + "-" + rid().slice(0, 6) } } });
+        ch.on("presence", { event: "sync" }, () => onChange(Object.values(ch.presenceState()).flat()))
+          .subscribe(st => { if (st === "SUBSCRIBED") ch.track(meta).catch(() => {}); });
+        return { set(m) { meta = m; ch.track(meta).catch(() => {}); } };
+      },
     };
   }
 

@@ -412,14 +412,21 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .stake .ob { min-height: 30px; padding: 3px 10px; font-size: 12px; }
 .gold { font-style: normal; color: var(--accent); font-size: 12px; margin-right: 8px; }
 .foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px; padding: 18px 0 4px; font-size: 13px; color: var(--muted); }
-/* logged out: a quiet link in the bottom-right corner (those who know, know) */
-.foot.out { position: fixed; right: 10px; bottom: 6px; z-index: 3; padding: 0; }
-.kute { background: none; border: 0; padding: 2px 4px; font-size: 11px; color: var(--muted); opacity: .45; }
-.kute:hover, .kute:focus-visible { opacity: 1; }
-/* logged in, wide screens: controls sit under the party frames instead of the footer */
-.auth-side { pointer-events: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 10px; padding-left: 8px; font-size: 13px; color: var(--muted); }
-.auth-side b { color: var(--fg); }
-@media (min-width: 1520px) { .foot:not(.out) { display: none; } }
+/* logged out: a small login button in the bottom-right corner */
+.foot.out { position: fixed; right: 10px; bottom: 8px; z-index: 3; padding: 0; }
+.kute { min-height: 0; padding: 5px 12px; font-size: 12px; }
+/* logged in: account controls tucked into the bottom-left corner (secondary feature) */
+@media (min-width: 900px) {
+  .foot:not(.out) { position: fixed; left: 12px; bottom: 8px; z-index: 3; padding: 0; justify-content: flex-start; gap: 6px 12px; font-size: 12px; }
+}
+.on-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+.on-lbl { font-weight: 700; }
+.on-chip { display: inline-flex; align-items: center; gap: 6px; }
+.on-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--first-bg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--first-bg) 25%, transparent); margin-right: 6px; vertical-align: 1px; }
+.on-chip .on-dot { margin-right: 0; }
+.panel.online { padding: 12px 18px; }
+.rules-note, .bets-note { margin: 10px 0 0; }
+.bets-note { margin: -6px 0 12px; }
 .foot b { color: var(--fg); }
 .adm { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 1px 5px; vertical-align: 1px; }
 .link.warn { color: var(--accent); font-weight: 700; }
@@ -710,8 +717,33 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <details class="panel rules" id="rules" data-view="tavern bets" open hidden>
-    <summary><h2>Правила Таверны</h2><span class="cap">Чтобы всё было честно</span></summary>
+  <section class="panel online" data-view="tavern" hidden aria-label="Кто сейчас на сайте">
+    <div id="online"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-dr" data-view="tavern" hidden>
+    <div class="panel-head"><h2 id="h-dr">Roll to Death</h2><span class="cap">По очереди: 1–N, потом 1–выпавшее. У кого выпала 1 — отдаёт ставку</span></div>
+    <div id="dr"></div>
+    <form class="add" id="dr-form" autocomplete="off">
+      <select id="dr-a" aria-label="Первый игрок"></select>
+      <span class="vs" id="dr-vs">vs</span>
+      <select id="dr-b" aria-label="С кем"></select>
+      <input id="dr-start" type="number" min="2" max="1000000" value="1000" class="short" aria-label="С какого числа" title="С какого числа">
+      <input id="dr-gold" type="number" min="0" max="1000000" placeholder="з." class="short" aria-label="Ставка: золото">
+      <input id="dr-silver" type="number" min="0" max="99" placeholder="с." class="short" aria-label="Ставка: серебро">
+      <button class="btn" type="submit">Новая дуэль</button>
+    </form>
+    <div class="form-msg" id="dr-msg" role="status"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-wallet" data-view="tavern" hidden>
+    <div class="panel-head"><h2 id="h-wallet">Кошелёк</h2><span class="cap">Дуэли и ставки вместе, всё в золоте WoW Forever</span></div>
+    <div id="wallet"></div>
+  </section>
+
+  <details class="panel rules" id="rules" data-view="tavern" hidden>
+    <summary><h2>Правила Таверны</h2><span class="cap">Нажми, чтобы открыть</span></summary>
+    <p class="cap rules-note">Все ставки и дуэли — на золото из WoW Forever. Сайт ничего не переводит: это просто для развлечения и чтобы не забыть, кто кому должен.</p>
     <div class="rules-body">
       <div><h3>Roll to Death</h3><ol>
         <li>Двое договариваются о начальном числе (обычно 1000) и ставке в золоте и серебре. Ставка может быть нулевой.</li>
@@ -736,28 +768,9 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </div>
   </details>
 
-  <section class="panel" aria-labelledby="h-wallet" data-view="tavern" hidden>
-    <div class="panel-head"><h2 id="h-wallet">Кошелёк</h2><span class="cap">Дуэли и ставки вместе, всё в золоте игры</span></div>
-    <div id="wallet"></div>
-  </section>
-
-  <section class="panel" aria-labelledby="h-dr" data-view="tavern" hidden>
-    <div class="panel-head"><h2 id="h-dr">Roll to Death</h2><span class="cap">По очереди: 1–N, потом 1–выпавшее. У кого выпала 1 — отдаёт ставку</span></div>
-    <div id="dr"></div>
-    <form class="add" id="dr-form" autocomplete="off">
-      <select id="dr-a" aria-label="Первый игрок"></select>
-      <span class="vs" id="dr-vs">vs</span>
-      <select id="dr-b" aria-label="С кем"></select>
-      <input id="dr-start" type="number" min="2" max="1000000" value="1000" class="short" aria-label="С какого числа" title="С какого числа">
-      <input id="dr-gold" type="number" min="0" max="1000000" placeholder="з." class="short" aria-label="Ставка: золото">
-      <input id="dr-silver" type="number" min="0" max="99" placeholder="с." class="short" aria-label="Ставка: серебро">
-      <button class="btn" type="submit">Новая дуэль</button>
-    </form>
-    <div class="form-msg" id="dr-msg" role="status"></div>
-  </section>
-
   <section class="panel" aria-labelledby="h-bets" data-view="bets" hidden>
     <div class="panel-head"><h2 id="h-bets">Ставки</h2><span class="cap">Ставь на исход, а когда случится — отметь итог</span></div>
+    <p class="cap bets-note">Золото — из WoW Forever, по желанию. Сайт ничего не переводит: это для развлечения и учёта. Правила и кошелёк — в Таверне.</p>
     <div id="bets"></div>
     <form class="add" id="bet-form" autocomplete="off">
       <input id="bet-q" type="text" maxlength="80" placeholder="Вопрос, напр. Кто первым дойдёт до 60?" aria-label="Вопрос">
@@ -903,7 +916,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderMe(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -980,7 +993,7 @@ function renderSquad() {
     const r = RACE[p.main.race], role = p.main.role === "pie" && effRole(p) ? "pie" : effRole(p);
     const sub = [r && (r.name || r.id), c.id].filter(Boolean).join(" ") + (role ? " · " + roleLabel(role) : "");
     return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${portrait(p)}</div>${lvlOf(p) ? `<span class="lvl">${lvlOf(p)}</span>` : ""}<div class="meta">
-      <div class="nm"><span>${esc(p.name)}</span><img src="${ICON("classicon_" + c.id.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
+      <div class="nm"><span>${online.some(m => m.player === p.id) ? `<i class="on-dot" title="на сайте"></i>` : ""}${esc(p.name)}</span><img src="${ICON("classicon_" + c.id.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
       <div class="bar"></div><div class="bar res"></div><div class="sub">${esc(sub)}</div></div></div>`;
   }).join("");
 }
@@ -1396,7 +1409,7 @@ function setDoc(coll, id, patch) {
 }
 
 /* ---------- tavern (roll to death), bets, hall of fame ---------- */
-let bets = [], rolls = [], pays = [], fameAll = [], fameFilter = "all", me = "";
+let online = [], presence = null, bets = [], rolls = [], pays = [], fameAll = [], fameFilter = "all", me = "";
 const got = new Set();        // collections whose first snapshot has arrived
 const fameSent = new Set();   // auto achievements already written from this tab
 const seenRolls = new Map();  // duel id -> number of rolls already on screen (for the pop animation)
@@ -1407,7 +1420,7 @@ const stakeOf = g => g.stakeS != null ? Math.max(0, +g.stakeS || 0) : Math.max(0
 const fmtMoney = s => { const g = Math.floor(s / 100), c = s % 100; return [g ? `${g.toLocaleString("ru-RU")} з.` : "", c ? `${c} с.` : ""].filter(Boolean).join(" ") || "0 с."; };
 function needMe() {
   if (auth && players.some(p => p.id === auth.player)) return true;
-  toast(auth ? "Твоего игрока нет в списке." : "Сначала войди: кнопка «I'm kute expat» внизу страницы.");
+  toast(auth ? "Твоего игрока нет в списке." : "Сначала войди: кнопка «I'm kute expat» в правом нижнем углу.");
   return false;
 }
 // Who-selects are for the admin only; everyone else acts as themselves.
@@ -1472,6 +1485,11 @@ function walletPairs() {
     if (net > 0) out.push([a, b, net]); else if (net < 0) out.push([b, a, -net]);
   }
   return out.sort((x, y) => y[2] - x[2]);
+}
+function renderOnline() {
+  const ids = [...new Set(online.map(m => m.player).filter(id => players.some(p => p.id === id)))];
+  const guests = online.filter(m => !m.player).length;
+  $("#online").innerHTML = `<div class="on-row"><span class="on-lbl">Сейчас на сайте:</span>${ids.length ? ids.map(id => `<span class="chip on-chip"><i class="on-dot"></i>${esc(nameOf(id))}</span>`).join("") : `<span class="mute">из группы никого</span>`}${guests ? `<span class="mute">· ещё ${guests} ${plural(guests, "гость", "гостя", "гостей")}</span>` : ""}</div>`;
 }
 function renderWallet() {
   const ro = readOnly || offline, pairs = walletPairs();
@@ -1685,6 +1703,7 @@ function setAuth(a) {
   try { a ? localStorage.setItem("wf-token", a.token) : localStorage.removeItem("wf-token"); } catch {}
   me = myId = a?.player || "";
   readOnly = !a;
+  presence?.set({ player: me });
   render();
 }
 async function restoreLogin() {
@@ -1701,13 +1720,12 @@ async function restoreLogin() {
 function renderAuth() {
   const foot = $("#auth-foot");
   foot.classList.toggle("out", !auth);
-  if (!auth) { foot.innerHTML = `<button type="button" class="kute" data-act="login" ${offline ? "disabled" : ""}>I'm kute expat</button>`; return; }
+  if (!auth) { foot.innerHTML = `<button type="button" class="btn kute" data-act="login" ${offline ? "disabled" : ""}>I'm kute expat</button>`; return; }
   const html = `<span>Ты: <b>${esc(nameOf(auth.player))}</b>${auth.admin ? ` <span class="adm">admin</span>` : ""}</span>
      ${auth.mustChange ? `<button type="button" class="link warn" data-act="pwd">Смени начальный пароль</button>` : `<button type="button" class="link" data-act="pwd">Сменить пароль</button>`}
      ${auth.admin ? `<button type="button" class="link" data-act="admin">Управление</button>` : ""}
      <button type="button" class="link" data-act="logout">Выйти</button>`;
   foot.innerHTML = html;
-  $("#squad").insertAdjacentHTML("beforeend", `<div class="auth-side">${html}</div>`); // the squad is redrawn every render
 }
 function openAuth(mode, extra = {}) { authUI = { mode, ...extra }; drawAuth(); }
 function closeAuth() { authUI = null; drawAuth(); }
@@ -2060,9 +2078,10 @@ async function boot() {
   if (!db) { offline = true; loaded = true; render(); return; }
   dbRef = db;
   writeCheck = true;
+  presence = db.presence(list => { online = list; render(); });
   restoreLogin();
-  try { if (localStorage.getItem("wf-rules") === "closed") $("#rules").open = false; } catch {}
-  $("#rules").addEventListener("toggle", e => { try { localStorage.setItem("wf-rules", e.target.open ? "open" : "closed"); } catch {} });
+  try { if (localStorage.getItem("wf-rules-open") === "1") $("#rules").open = true; } catch {} // collapsed unless this viewer opened it
+  $("#rules").addEventListener("toggle", e => { try { localStorage.setItem("wf-rules-open", e.target.open ? "1" : "0"); } catch {} });
   $("#fame-date").value = localKey();
   db.collection("votes").onSnapshot(snap => {
     votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
