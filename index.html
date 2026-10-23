@@ -391,6 +391,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
 .foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px; padding: 18px 0 4px; font-size: 13px; color: var(--muted); }
+/* wide screens: login pinned mid-screen just right of the content (the party frames sit on the left) */
+@media (min-width: 1520px) {
+  .foot { position: fixed; z-index: 2; top: 50%; left: calc(50% + 560px + 32px); transform: translateY(-50%); max-width: calc(50% - 560px - 48px);
+    flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; padding: 0; }
+}
 .foot b { color: var(--fg); }
 .kute { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; font-size: 15px; padding: 10px 22px; }
 .adm { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 1px 5px; vertical-align: 1px; }
@@ -852,7 +857,7 @@ function render() {
 }
 function renderNote() {
   const msg = offline ? "Нет связи с базой данных. Проверь интернет или настройки в config.js."
-    : readOnly ? "Режим просмотра. Чтобы что-то менять, войди внизу страницы: «I'm kute expat»."
+    : readOnly ? "" // logged out: no hint on purpose, those who know will find the button
     : errNote;
   $("#note").innerHTML = msg ? `<div class="note" role="status">${esc(msg)}</div>` : "";
 }
