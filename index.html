@@ -494,6 +494,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .rrow .ri img { display: block; width: 100%; height: 100%; }
 .rrow b { font-weight: 600; }
 .rrow small { display: block; color: var(--muted); font-size: 12px; }
+.rrow small.rds { color: var(--fg); font-size: 13px; }
+.rrow .rtip { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
 .rrow .rw { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (max-width: 560px) { .rrow { grid-template-columns: 36px minmax(0, 1fr); } .rrow .rw { grid-column: 2; justify-content: flex-start; } }
 /* tavern, bets, hall of fame */
@@ -2308,7 +2310,7 @@ function renderRecipes() {
   const rows = [];
   for (const pr of q ? profs : [rProf]) for (const [id, who] of Object.entries(by[pr])) {
     const r = info(pr, id), re = Array.isArray(r.re) ? r.re : [];
-    if (q && ![r.n, r.i, ...re.map(x => x[0])].some(t => String(t || "").toLowerCase().includes(q))) continue;
+    if (q && ![r.n, r.i, r.ds, ...re.map(x => x[0])].some(t => String(t || "").toLowerCase().includes(q))) continue;
     rows.push({ pr, id, r, re, who, cat: r.c || "Другое", n: r.n || `Рецепт ${id}` });
   }
   rows.sort((a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n));
@@ -2316,8 +2318,9 @@ function renderRecipes() {
   for (const x of rows.slice(0, 300)) {
     const h = q ? `${x.pr} · ${x.cat}` : x.cat;
     if (h !== head) { head = h; html += `<div class="gpg">${esc(h)}</div>`; }
-    html += `<div class="rrow"><span class="ri">${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
-      <div><b>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.n && !("re" in x.r) && !("i" in x.r) && !("icon" in x.r) ? "детали ещё загружаются" : ""}</small></div>
+    const tip = Array.isArray(x.r.tip) && x.r.tip.length ? ` data-rid="${esc(x.pr)}:${esc(x.id)}" tabindex="0"` : "";
+    html += `<div class="rrow"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
+      <div><b${tip ? tip.replace(' tabindex="0"', "") + ' class="rtip"' : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small></div>
       <div class="rw">${x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}" aria-haspopup="dialog">${esc(name(sl))}</button>`).join("")}</div></div>`;
   }
   $("#rlist").innerHTML = rows.length ? html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос.</p>` : "")
@@ -2365,14 +2368,15 @@ function renderGSheet() {
 function closeG() { gOpen = ""; gTipHide(); renderGSheet(); }
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
 function gTipShow(el) {
-  const it = gchars[gOpen]?.items?.[el.dataset.slot], tt = $("#gtt");
+  const tt = $("#gtt"), [rp, rid] = (el.dataset.rid || "").split(":"), rc = rid && gcat[rp]?.r?.[rid];
+  const it = rc ? { name: rc.i || rc.n, q: rc.iq, lvl: rc.il, tip: rc.tip } : gchars[gOpen]?.items?.[el.dataset.slot];
   if (!it) return gTipHide();
   const lines = Array.isArray(it.tip) ? it.tip : [];
   tt.className = G_Q.includes(it.q) ? "gq-" + it.q : "";
   tt.innerHTML = `<h4>${esc(it.name)}</h4>${+it.lvl ? `<p class="il">Item Level ${+it.lvl}</p>` : ""}` + lines.filter(l => Array.isArray(l) && l[0]).map(l =>
     `<p class="${["g", "y", "m"].includes(l[1]) ? l[1] : ""}"><span>${esc(l[0])}</span>${l[2] ? `<span>${esc(l[2])}</span>` : ""}</p>`).join("");
   tt.hidden = false;
-  const r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight, icon = el.classList.contains("gslot");
+  const r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight, icon = el.classList.contains("gslot") || el.classList.contains("ri");
   let x = icon ? r.right + 8 : r.left + 90, y = icon ? r.top : r.bottom + 4;
   if (x + w > innerWidth - 8) x = icon ? r.left - 8 - w : innerWidth - 8 - w;
   if (x < 8) { x = Math.max(8, Math.min(r.left, innerWidth - 8 - w)); y = r.bottom + 6; } // phone: no room at the sides, go below
@@ -2387,7 +2391,13 @@ function gTipHide() { $("#gtt").hidden = true; }
   box.addEventListener("focusin", e => { const el = at(e); if (el) gTipShow(el); });
   box.addEventListener("focusout", gTipHide);
   box.addEventListener("scroll", gTipHide);
-  document.addEventListener("pointerdown", e => { const el = e.target.closest?.("#gc-box [data-slot]"); el ? gTipShow(el) : gTipHide(); }); // tap on phones
+  const list = $("#rlist"), ra = e => e.target.closest?.("[data-rid]"); // recipes: tooltip of the crafted item
+  list.addEventListener("pointerover", e => { const el = ra(e); el ? gTipShow(el) : gTipHide(); });
+  list.addEventListener("pointerleave", gTipHide);
+  list.addEventListener("focusin", e => { const el = ra(e); if (el) gTipShow(el); });
+  list.addEventListener("focusout", gTipHide);
+  window.addEventListener("scroll", gTipHide, { passive: true });
+  document.addEventListener("pointerdown", e => { const el = e.target.closest?.("#gc-box [data-slot], #rlist [data-rid]"); el ? gTipShow(el) : gTipHide(); }); // tap on phones
 }
 // Crosshair: snaps to the nearest day and lists every line of that chart for it.
 function gHover(e) {
