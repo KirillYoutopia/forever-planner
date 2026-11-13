@@ -25,3 +25,14 @@ Static site + Supabase. No claude.ai account needed: anyone with the link can vi
   The old PvP vote stays in the count but can't be changed from the new site; delete its row
   in Supabase (coll = votes) if you want to re-vote.
 - Core players (Denis, Kirill, Olesya, Yan) still can't be deleted from the UI.
+
+## Guild levels («Гильдия» tab)
+Levels come from Blizzard's API, fetched hourly inside Supabase (`guild_sync()` in `supabase.sql`).
+1. develop.battle.net → API Access → create a client.
+2. Supabase → SQL Editor (do not commit these values):
+   ```sql
+   insert into public.bnet_config (k, v) values ('client_id', '...'), ('client_secret', '...')
+   on conflict (k) do update set v = excluded.v;
+   select public.guild_sync();
+   ```
+3. Check runs: `select * from cron.job_run_details order by start_time desc limit 5;`

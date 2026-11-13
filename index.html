@@ -40,6 +40,8 @@
   --horde: #e66767;
   --pve: #9085e9;
   --pvp: #d55181;
+  /* guild chart lines: fixed order, one per character */
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
 
   /* party frames: game-UI look, dark in both themes */
   --frame-bg: #0d0b08f0;
@@ -93,6 +95,7 @@
     --horde: #e34948;
     --pve: #6250d6;
     --pvp: #e87ba4;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
     --q-poor: #6b6b6b;
     --q-unc: #138a00;
     --q-rare: #0058b8;
@@ -126,6 +129,7 @@
   --horde: #e34948;
   --pve: #6250d6;
   --pvp: #e87ba4;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
   --q-poor: #6b6b6b;
   --q-unc: #138a00;
   --q-rare: #0058b8;
@@ -388,6 +392,45 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .wi { width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--q, var(--line)); flex: none; }
 .wit.q0 { --q: var(--q-poor); } .wit.q2 { --q: var(--q-unc); } .wit.q3 { --q: var(--q-rare); } .wit.q4 { --q: var(--q-epic); } .wit.q5 { --q: var(--q-leg); }
 .whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
+/* guild tab: roster + day-by-day level chart */
+.gr { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(110px, .9fr) minmax(80px, 2fr) 40px 84px; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 6px; }
+.gr + .gr { border-top: 1px solid var(--line); }
+.gr b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr .gc { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr .n { font: 400 22px/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
+.gr .gd { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gr .gd.up { color: var(--fg); font-weight: 600; }
+.gbar { height: 8px; background: var(--track); border-radius: 0 4px 4px 0; overflow: hidden; }
+.gbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.gkey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c, transparent); margin-right: 8px; vertical-align: middle; }
+.gnote { color: var(--muted); font-size: 12px; margin: 12px 0 0; }
+.gkeys { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; margin-bottom: 8px; }
+.gkeys span { cursor: default; white-space: nowrap; }
+.gplot { position: relative; touch-action: pan-y; }
+.gplot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gplot text { fill: var(--muted); font: 500 11px var(--font-body); font-variant-numeric: tabular-nums; }
+.gplot .grid { stroke: var(--line); stroke-width: 1; }
+.gplot .ln { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.gplot .pt { fill: var(--c); stroke: var(--panel); stroke-width: 2; }
+.gplot .dim { opacity: .18; }
+.gplot .xh { stroke: var(--muted); stroke-width: 1; }
+.gtip { position: absolute; z-index: 5; top: 0; pointer-events: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); white-space: nowrap; }
+.gtip h4 { margin: 0 0 4px; font: 600 12px var(--font-body); color: var(--muted); }
+.gtip div { display: flex; align-items: center; gap: 2px; }
+.gtip b { min-width: 22px; font-variant-numeric: tabular-nums; }
+.gtable { margin-top: 14px; }
+.gtable summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.gtable table { border-collapse: collapse; font-size: 13px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.gtable th, .gtable td { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.gtable th { font-weight: 600; color: var(--muted); }
+.gtable th:first-child, .gtable td:first-child { text-align: left; }
+@media (max-width: 640px) {
+  .gr { grid-template-columns: minmax(0, 1fr) 36px 78px; gap: 6px 10px; }
+  .gr .gc { grid-column: 1; grid-row: 2; padding-left: 22px; }
+  .gr .gbar { grid-column: 1 / -1; grid-row: 3; }
+  .gr .n { grid-row: 1 / span 2; grid-column: 2; }
+  .gr .gd { grid-row: 1 / span 2; grid-column: 3; }
+}
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
 .rules summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; cursor: pointer; list-style: none; }
@@ -582,6 +625,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <button type="button" data-act="nav" data-nav="plan" aria-pressed="true">Планировщик</button>
       <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
       <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
+      <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">Гильдия</button>
       <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Таверна</button>
       <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
       <button type="button" data-act="nav" data-nav="fame" aria-pressed="false">Зал славы</button>
@@ -715,6 +759,17 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <input id="rip-words" type="text" maxlength="60" placeholder="Последние слова" aria-label="Последние слова">
       <button class="btn" type="submit">Похоронить</button>
     </form>
+  </section>
+
+  <section class="panel" aria-labelledby="h-guild" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span></div>
+    <div id="groster"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-gchart" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-gchart">Прогресс по дням</h2><span class="cap">Уровень на конец дня по Центральной Европе, персонажи с 10 уровня</span></div>
+    <div id="gchart"></div>
+    <details class="gtable"><summary>Таблица по дням</summary><div class="scroll" id="gtable"></div></details>
   </section>
 
   <section class="panel online" data-view="tavern" hidden aria-label="Кто сейчас на сайте">
@@ -916,7 +971,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderGuild(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -2033,14 +2088,121 @@ document.addEventListener("pointermove", e => {
 });
 document.addEventListener("pointerleave", () => { tip.hidden = true; });
 
+/* ---------- guild: levels from Blizzard's API, synced hourly on the server (guild_sync in supabase.sql) ---------- */
+const BCLS = { 1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage", 9: "Warlock", 11: "Druid" };
+const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "Skyborne", 96: "Skyborne" };
+const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, later characters are grey
+let guild = null, glevels = [], gModel = null;
+const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
+const dayShort = k => `${+k.slice(8, 10)} ${MON[+k.slice(5, 7) - 1]}`;
+function guildData() {
+  const days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id) && d.lv && typeof d.lv === "object").sort((a, b) => a.id < b.id ? -1 : 1);
+  const mem = guild?.members || {};
+  // Colour follows the character: order by the first day at level 10+, then by slug. History only grows, so it never reshuffles.
+  const first = {};
+  days.forEach((d, i) => { for (const [s, l] of Object.entries(d.lv)) if (l >= G_MIN && !(s in first)) first[s] = i; });
+  const order = Object.keys(first).sort((a, b) => first[a] - first[b] || (a < b ? -1 : 1));
+  const color = Object.fromEntries(order.map((s, i) => [s, i < G_SLOTS ? `var(--s${i + 1})` : "var(--muted)"]));
+  const name = s => mem[s] ? `${mem[s].name}${mem[s].surname ? " " + mem[s].surname : ""}` : s;
+  const series = order.filter(s => mem[s]).map(s => ({ slug: s, name: name(s), color: color[s],
+    pts: days.map((d, i) => ({ i, lv: +d.lv[s] })).filter(p => p.lv > 0) }));
+  return { days, mem, color, name, series };
+}
+function renderGuild() {
+  const g = guildData(), list = Object.entries(g.mem).map(([slug, m]) => ({ slug, ...m })).sort((a, b) => b.level - a.level || g.name(a.slug).localeCompare(g.name(b.slug)));
+  if (!list.length) {
+    const msg = got.has("guild") ? "Данных пока нет: синхронизация с Blizzard ещё не настроена." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
+    $("#guild-cap").textContent = "";
+    $("#groster").innerHTML = `<p class="empty">${msg}</p>`;
+    $("#gchart").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; gModel = null;
+    return;
+  }
+  let when = "";
+  try { when = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(guild.at)); } catch {}
+  $("#guild-cap").textContent = `${guild.name || "Гильдия"} · ${list.length} ${plural(list.length, "персонаж", "персонажа", "персонажей")}${when ? " · обновлено " + when : ""}`;
+  // growth over the last 7 days: against the oldest snapshot in that window that already has the character
+  const lastDay = g.days[g.days.length - 1], from = lastDay ? dayNum(lastDay.id) - 7 : 0;
+  const delta = m => {
+    const base = g.days.find(d => dayNum(d.id) >= from && d.lv[m.slug] > 0);
+    return base && base !== lastDay ? m.level - base.lv[m.slug] : null;
+  };
+  $("#groster").innerHTML = list.map(m => {
+    const c = CLS[BCLS[m.cls]], d = delta(m);
+    return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${esc(g.name(m.slug))}</b>
+      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}</span>
+      <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
+      <span class="n">${+m.level || "—"}</span>
+      <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
+  }).join("") + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры.</p>`;
+  renderGChart(g);
+}
+function renderGChart(g) {
+  const el = $("#gchart"), { days, series } = g;
+  if (!days.length || !series.length) {
+    el.innerHTML = `<p class="empty">Пока нет ни одного персонажа ${G_MIN}+ уровня с историей.</p>`; $("#gtable").innerHTML = ""; gModel = null;
+    return;
+  }
+  const W = Math.max(280, Math.round(el.clientWidth) || 680), H = W < 480 ? 220 : 300, m = { l: 30, r: 24, t: 10, b: 24 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const t0 = dayNum(days[0].id), span = dayNum(days[days.length - 1].id) - t0;
+  const xs = days.map(d => span ? m.l + (dayNum(d.id) - t0) / span * pw : m.l + pw / 2);
+  const all = series.flatMap(s => s.pts.map(p => p.lv));
+  const lo = Math.max(0, Math.floor((Math.min(...all) - 1) / 5) * 5), hi = Math.max(lo + 5, Math.min(60, Math.ceil((Math.max(...all) + 1) / 5) * 5));
+  const y = v => m.t + (hi - v) / (hi - lo) * ph, step = hi - lo > 30 ? 10 : 5;
+  let svg = "";
+  for (let v = lo; v <= hi; v += step) svg += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  const every = Math.max(1, Math.ceil((span + 1) / (W < 480 ? 4 : 8)));
+  days.forEach((d, i) => { if ((dayNum(d.id) - t0) % every === 0) svg += `<text x="${xs[i]}" y="${H - 6}" text-anchor="middle">${dayShort(d.id)}</text>`; });
+  svg += `<line class="xh" id="gxh" y1="${m.t}" y2="${m.t + ph}" hidden/>`;
+  for (const s of series) {
+    const last = s.pts[s.pts.length - 1];
+    svg += `<g data-s="${esc(s.slug)}" style="--c:${s.color}">${s.pts.length > 1 ? `<path class="ln" d="${s.pts.map((p, k) => `${k ? "L" : "M"}${xs[p.i].toFixed(1)} ${y(p.lv).toFixed(1)}`).join("")}"/>` : ""}<circle class="pt" cx="${xs[last.i].toFixed(1)}" cy="${y(last.lv).toFixed(1)}" r="4"/></g>`;
+  }
+  el.innerHTML = `<div class="gkeys">${series.map(s => `<span data-g="${esc(s.slug)}"><i class="gkey" style="--c:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>
+    <div class="gplot" id="gplot"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Уровни персонажей гильдии по дням. Те же данные в таблице ниже.">${svg}</svg><div class="gtip" id="gtip" hidden></div></div>
+    ${days.length < 2 ? `<p class="gnote">Пока есть данные только за один день. Линии появятся завтра.</p>` : ""}`;
+  gModel = { days, series, xs, W };
+  const rows = days.slice(-60).reverse();
+  $("#gtable").innerHTML = `<table><thead><tr><th>День</th>${series.map(s => `<th>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${
+    rows.map(d => `<tr><td>${dayShort(d.id)}</td>${series.map(s => `<td>${+d.lv[s.slug] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+// Crosshair: snaps to the nearest day and lists every charted character for it.
+function gHover(e) {
+  const plot = e.target.closest?.("#gplot"), tipEl = $("#gtip"), xh = $("#gxh");
+  if (!plot || !gModel || !tipEl || !xh) return;
+  const box = plot.getBoundingClientRect(), k = gModel.W / box.width, px = (e.clientX - box.left) * k;
+  let i = 0;
+  gModel.xs.forEach((x, j) => { if (Math.abs(x - px) < Math.abs(gModel.xs[i] - px)) i = j; });
+  const d = gModel.days[i], x = gModel.xs[i];
+  xh.setAttribute("x1", x); xh.setAttribute("x2", x); xh.removeAttribute("hidden");
+  const rows = gModel.series.map(s => ({ s, lv: +d.lv[s.slug] || 0 })).filter(r => r.lv).sort((a, b) => b.lv - a.lv);
+  tipEl.innerHTML = `<h4>${dayShort(d.id)}</h4>` + rows.map(r => `<div><b>${r.lv}</b><i class="gkey" style="--c:${r.s.color}"></i>${esc(r.s.name)}</div>`).join("");
+  tipEl.hidden = false;
+  const left = x / k + 12;
+  tipEl.style.left = (left + tipEl.offsetWidth > box.width ? Math.max(0, x / k - 12 - tipEl.offsetWidth) : left) + "px";
+}
+function gLeave() { const t = $("#gtip"), xh = $("#gxh"); if (t) t.hidden = true; if (xh) xh.setAttribute("hidden", ""); }
+function gDim(slug) { document.querySelectorAll("#gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
+$("#gchart").addEventListener("pointermove", gHover);
+$("#gchart").addEventListener("pointerdown", gHover);
+$("#gchart").addEventListener("pointerleave", gLeave);
+// Pointing at a name (legend or roster) fades the other lines.
+for (const id of ["#gchart", "#groster"]) {
+  $(id).addEventListener("pointerover", e => { const n = e.target.closest?.("[data-g]"); gDim(n ? n.dataset.g : ""); });
+  $(id).addEventListener("pointerleave", () => gDim(""));
+}
+let gResize = 0;
+window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTimeout(() => { if (view === "guild") renderGuild(); }, 150); });
+
 /* ---------- views + countdown ---------- */
 function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = !el.dataset.view.split(" ").includes(view); });
   document.querySelectorAll("[data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === view)));
   const seg = $(".top .seg"), cur = seg.querySelector("[aria-pressed=\"true\"]");
   if (cur && seg.scrollWidth > seg.clientWidth) seg.scrollLeft = cur.offsetLeft - seg.offsetLeft - 24; // keep the active tab visible on phones
+  if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
 }
-const VIEWS = ["plan", "calendar", "soon", "tavern", "bets", "fame"];
+const VIEWS = ["plan", "calendar", "soon", "guild", "tavern", "bets", "fame"];
 function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "plan"; }
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
@@ -2099,6 +2261,8 @@ async function boot() {
   for (const [c, set] of [["bets", v => { bets = v; }], ["rolls", v => { rolls = v; }], ["pays", v => { pays = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
   db.collection("fame").onSnapshot(snap => { fameAll = snap.docs.map(d => ({ id: d.id, ...d.data() })); got.add("fame"); render(); }, () => {});
+  db.doc("guild/roster").onSnapshot(s => { guild = s.exists ? s.data() : null; got.add("guild"); render(); }, () => {});
+  db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
     settings = { size: s.exists && s.data().size === 10 ? 10 : 5 };
     render();

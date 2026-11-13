@@ -248,7 +248,8 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row execute function public.docs_keep_history();
+  for each row when (old.coll not in ('guild', 'glevels'))  -- hourly Blizzard sync rows: nothing to undo there
+  execute function public.docs_keep_history();
 
 -- Live sync
 alter table public.docs replica identity full;
@@ -393,3 +394,63 @@ insert into public.docs (coll, id, data) values
 on conflict (coll, id) do update
   set data = public.docs.data || jsonb_build_object('q', excluded.data->'q', 'opts', excluded.data->'opts',
                                                     'cat', excluded.data->'cat', 'at', excluded.data->'at');
+
+-- 2026-11-13: "Гильдия" tab. Guild levels come from Blizzard's WoW Forever API (undocumented so far), fetched here on
+-- the server once an hour, so the API secret never reaches the page. The page only reads these rows:
+--   guild/roster          {name, at (ms), members: {slug: {name, surname, level, cls, race, rank}}}  (cls/race: Blizzard ids)
+--   glevels/{YYYY-MM-DD}  {at, lv: {slug: level}}  one row per day (Central European time), overwritten until the day ends
+-- Neither collection is in patch_doc's allow-list, so nobody can write them from the page.
+-- One-off setup, in the SQL Editor (NOT in this file, the repo is public):
+--   insert into public.bnet_config (k, v) values ('client_id', '...'), ('client_secret', '...')
+--   on conflict (k) do update set v = excluded.v;
+--   select public.guild_sync();   -- first snapshot right away; after that it runs hourly
+-- Optional keys: 'region' (default eu), 'guild' (guild slug, default kute-expats).
+create extension if not exists http with schema extensions;
+create extension if not exists pg_cron;
+
+create table if not exists public.bnet_config (k text primary key, v text not null);
+alter table public.bnet_config enable row level security;
+revoke all on public.bnet_config from anon, authenticated;
+
+create or replace function public.guild_sync()
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
+        now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
+begin
+  select v into cid from bnet_config where k = 'client_id';
+  select v into sec from bnet_config where k = 'client_secret';
+  if coalesce(cid, '') = '' or coalesce(sec, '') = '' then raise exception 'bnet_config: client_id / client_secret are not set'; end if;
+  region := coalesce((select v from bnet_config where k = 'region'), 'eu');
+  slug := coalesce((select v from bnet_config where k = 'guild'), 'kute-expats');
+  if region !~ '^[a-z]{2}$' or slug !~ '^[a-z0-9-]{1,64}$' then raise exception 'bnet_config: bad region or guild'; end if;
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  -- encode() wraps base64 at 76 characters, so the line breaks have to go
+  select h.status, h.content into st, body from http(('POST', 'https://oauth.battle.net/token',
+    array[http_header('Authorization', 'Basic ' || replace(encode(convert_to(cid || ':' || sec, 'utf8'), 'base64'), E'\n', ''))],
+    'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
+  if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
+  tok := body::jsonb->>'access_token';
+  select h.status, h.content into st, body from http(('GET',
+    format('https://%s.api.blizzard.com/data/wow/guild/%s/roster?namespace=profile-forever-%s&locale=en_US', region, slug, region),
+    array[http_header('Authorization', 'Bearer ' || tok)], null, null)::http_request) h;
+  if st <> 200 then raise exception 'guild roster: HTTP %', st; end if;
+  r := body::jsonb;
+  select jsonb_object_agg(m->'character'->>'slug', jsonb_build_object(
+           'name', m->'character'->'name', 'surname', coalesce(m->'character'->'surname', '""'::jsonb),
+           'level', m->'character'->'level', 'cls', m->'character'->'playable_class'->'id',
+           'race', m->'character'->'playable_race'->'id', 'rank', m->'rank')),
+         jsonb_object_agg(m->'character'->>'slug', m->'character'->'level')
+    into members, lv
+  from jsonb_array_elements(r->'members') m
+  where coalesce(m->'character'->>'slug', '') <> '' and jsonb_typeof(m->'character'->'level') = 'number';
+  if members is null then raise exception 'guild roster: no members'; end if;
+  insert into docs (coll, id, data) values
+    ('guild', 'roster', jsonb_build_object('name', coalesce(r->'guild'->>'name', slug), 'at', now_ms, 'members', members)),
+    ('glevels', to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD'), jsonb_build_object('at', now_ms, 'lv', lv))
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now();
+  return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'at', now_ms);
+end $$;
+revoke execute on function public.guild_sync() from public, anon, authenticated;
+
+-- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
+select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
