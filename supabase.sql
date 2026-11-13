@@ -618,8 +618,9 @@ begin
       on conflict (id) do update set cat = excluded.cat;
       insert into bnet_prof_cat (prof) values (pk) on conflict (prof) do update set at = now();
     end loop;
-    -- 2. Details, icons and item tooltips: loaded in slices by guild_recipes_fill (also every 5 minutes on its own).
-    perform guild_recipes_fill(20);
+    -- 2. Details, icons and item tooltips are loaded by guild_recipes_fill every 5 minutes. Here it gets only a few
+    --    seconds, mostly to publish the lists: a longer sync times out when run by hand from the SQL Editor.
+    perform guild_recipes_fill(5);
   exception when others then
     raise warning 'guild_sync: recipes skipped: %', sqlerrm;
   end;
