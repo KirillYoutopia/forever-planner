@@ -496,6 +496,15 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gpc small { color: var(--muted); font-size: 11px; }
 .gpr .none { color: var(--muted); font-size: 13px; }
 @media (max-width: 480px) { .gpr { grid-template-columns: minmax(0, 1fr); } }
+/* PvP tab */
+#pvp-tiles { margin-bottom: 14px; }
+.ptab { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ptab th, .ptab td { padding: 7px 10px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ptab thead th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 12px; }
+.ptab th:first-child, .ptab td:first-child { text-align: left; }
+.ptab td.hk { font: 400 20px/1 var(--font-display); }
+.ptab .up { font-weight: 700; }
+.ptab .z { color: var(--muted); }
 /* guild recipes: who can craft what */
 .rtools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
 .rtools input { flex: 1 1 240px; min-width: 0; max-width: 420px; min-height: 40px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; }
@@ -699,6 +708,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
       <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">Гильдия</button>
       <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Рецепты</button>
+      <button type="button" data-act="nav" data-nav="pvp" aria-pressed="false">PvP</button>
       <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Таверна</button>
       <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
       <button type="button" data-act="nav" data-nav="fame" aria-pressed="false">Зал славы</button>
@@ -856,6 +866,23 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off"></div>
     <div class="rchips" id="rprofs" role="group" aria-label="Профессия"></div>
     <div id="rlist"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-pvp" data-view="pvp" hidden>
+    <div class="panel-head"><h2 id="h-pvp">PvP гильдии</h2><span class="cap">Почётные убийства и не только. Данные Blizzard API, персонажи с 10 уровня</span></div>
+    <div id="pvp-tiles"></div>
+    <div class="scroll" id="pvp-table"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-pvpday" data-view="pvp" hidden>
+    <div class="panel-head"><h2 id="h-pvpday">Убийства по дням</h2><span class="cap">Сколько почётных убийств каждый сделал за день (по Центральной Европе)</span></div>
+    <div id="pvp-day"></div>
+    <details class="gtable"><summary>Таблица по дням</summary><div class="scroll" id="pvp-daytable"></div></details>
+  </section>
+
+  <section class="panel" aria-labelledby="h-pvpsum" data-view="pvp" hidden>
+    <div class="panel-head"><h2 id="h-pvpsum">Всего убийств</h2><span class="cap">Почётные убийства нарастающим итогом</span></div>
+    <div id="pvp-sum"></div>
   </section>
 
   <section class="panel online" data-view="tavern" hidden aria-label="Кто сейчас на сайте">
@@ -1061,7 +1088,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderGuild(); renderRecipes(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderGuild(); renderPvp(); renderRecipes(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -2297,6 +2324,70 @@ function renderGPCharts(g) {
   });
   el.innerHTML = gKeys(g.series.filter(s => used.has(s.slug))) + `<div class="gpm">${charts.join("")}</div>` + oneDay(days);
 }
+// PvP: honorable kills now (gchars.pvp), per day (glevels.hk) and the game's own counters (gchars.ast).
+const astOf = (c, name) => { const e = Array.isArray(c?.ast) ? c.ast.find(x => x[1] === name) : null; return e ? +e[2] || 0 : null; };
+function niceTop(max) { // a round axis top and step for values from 0 to max
+  const m = Math.max(4, max), p = 10 ** Math.floor(Math.log10(m)), step = [1, 2, 5, 10].map(k => k * p / 2).find(st => m / st <= 5) || p * 5;
+  return { hi: Math.ceil(m / step) * step, step };
+}
+function renderPvp() {
+  const g = guildData(), mem = g.mem;
+  const chars = Object.keys(gchars).filter(s => mem[s] && gchars[s].pvp && typeof gchars[s].pvp === "object");
+  if (!chars.length) {
+    const msg = got.has("guild") ? "Данных PvP пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
+    $("#pvp-tiles").innerHTML = ""; $("#pvp-table").innerHTML = `<p class="empty">${msg}</p>`;
+    $("#pvp-day").innerHTML = $("#pvp-sum").innerHTML = `<p class="empty">${msg}</p>`; $("#pvp-daytable").innerHTML = "";
+    return;
+  }
+  const days = g.days.filter(d => d.hk && typeof d.hk === "object"), last = days[days.length - 1];
+  const hkOn = (d, s) => typeof d?.hk?.[s] === "number" ? d.hk[s] : null;
+  // kills made during day i = total at the end of day i minus the total at the end of the previous recorded day
+  const gain = (s, i) => { const a = hkOn(days[i], s), b = i > 0 ? hkOn(days[i - 1], s) : null; return a == null || b == null ? null : Math.max(0, a - b); };
+  const week = s => { // growth over the last 7 days, against the oldest snapshot in that window
+    if (!last) return null;
+    const base = days.find(d => dayNum(d.id) >= dayNum(last.id) - 7 && hkOn(d, s) != null);
+    return base && base !== last ? Math.max(0, hkOn(last, s) - hkOn(base, s)) : null;
+  };
+  const rows = chars.map(s => {
+    const c = gchars[s], p = c.pvp, maps = Array.isArray(p.maps) ? p.maps : [];
+    return { s, hk: +p.hk || 0, today: days.length > 1 ? gain(s, days.length - 1) : null, week: week(s), world: astOf(c, "World Honorable Kills"), bg: astOf(c, "Battleground Honorable Kills"),
+      won: maps.reduce((n, m) => n + (+m[2] || 0), 0), lost: maps.reduce((n, m) => n + (+m[3] || 0), 0), died: astOf(c, "Total deaths from other players"),
+      duelW: astOf(c, "Duels won"), duelL: astOf(c, "Duels lost"), rank: +p.rank || 0 };
+  }).sort((a, b) => b.hk - a.hk || g.name(a.s).localeCompare(g.name(b.s)));
+  const total = rows.reduce((n, r) => n + r.hk, 0), today = rows.reduce((n, r) => n + (r.today || 0), 0), top = rows[0];
+  const best = rows.filter(r => r.today > 0).sort((a, b) => b.today - a.today)[0];
+  $("#pvp-tiles").innerHTML = `<div class="gtiles">${[["Убийств у гильдии", fmtN(total)], ["За сегодня", days.length > 1 ? fmtN(today) : "—"],
+    ["Больше всех", `${esc(g.name(top.s))} · ${fmtN(top.hk)}`], ["Герой дня", best ? `${esc(g.name(best.s))} · +${fmtN(best.today)}` : "—"]]
+    .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
+  const n = v => v == null ? `<span class="z">—</span>` : fmtN(v), plus = v => v == null ? `<span class="z">—</span>` : v > 0 ? `<span class="up">+${fmtN(v)}</span>` : `<span class="z">0</span>`;
+  $("#pvp-table").innerHTML = `<table class="ptab"><thead><tr><th>Персонаж</th><th>Убийства</th><th>Сегодня</th><th>7 дней</th><th>В мире</th><th>На полях боя</th><th>Поля боя, победы : поражения</th><th>Смерти от игроков</th><th>Дуэли, победы : поражения</th><th>Ранг</th></tr></thead><tbody>${
+    rows.map(r => `<tr data-g="${esc(r.s)}"><td><i class="gkey" style="--c:${g.color[r.s] || "transparent"}"></i><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}" aria-haspopup="dialog">${esc(g.name(r.s))}</button></td>
+      <td class="hk">${fmtN(r.hk)}</td><td>${plus(r.today)}</td><td>${plus(r.week)}</td><td>${n(r.world)}</td><td>${n(r.bg)}</td><td>${r.won + r.lost ? `${r.won} : ${r.lost}` : `<span class="z">—</span>`}</td>
+      <td>${n(r.died)}</td><td>${r.duelW == null && r.duelL == null ? `<span class="z">—</span>` : `${r.duelW || 0} : ${r.duelL || 0}`}</td><td>${r.rank || `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table>`;
+  // charts
+  const el = $("#pvp-day"), W = Math.max(280, Math.round(el.clientWidth || $("#pvp-sum").clientWidth) || 680), H = W < 480 ? 220 : 280;
+  const mk = pts => rows.map(r => ({ slug: r.s, name: g.name(r.s), color: g.color[r.s] || "var(--muted)", pts: pts(r.s) })).filter(s => s.pts.length);
+  const sum = mk(s => days.map((d, i) => ({ i, lv: hkOn(d, s) })).filter(p => p.lv != null));
+  if (!days.length || !sum.length) {
+    el.innerHTML = $("#pvp-sum").innerHTML = `<p class="empty">История убийств начнёт копиться после следующей синхронизации.</p>`; $("#pvp-daytable").innerHTML = "";
+    return;
+  }
+  const st = niceTop(Math.max(...sum.flatMap(s => s.pts.map(p => p.lv))));
+  $("#pvp-sum").innerHTML = gKeys(sum) + lineChart("pvp-sum", days, sum, { W, H, lo: 0, hi: st.hi, step: st.step, label: "Почётные убийства нарастающим итогом по дням" }) + oneDay(days);
+  const ddays = days.slice(1), daily = mk(s => ddays.map((d, i) => ({ i, lv: gain(s, i + 1) })).filter(p => p.lv != null));
+  if (!ddays.length || !daily.length) {
+    el.innerHTML = `<p class="empty">Пока есть данные только за один день. Убийства за день появятся завтра.</p>`; $("#pvp-daytable").innerHTML = "";
+    return;
+  }
+  const sd = niceTop(Math.max(...daily.flatMap(s => s.pts.map(p => p.lv))));
+  el.innerHTML = gKeys(daily) + lineChart("pvp-day", ddays, daily, { W, H, lo: 0, hi: sd.hi, step: sd.step, label: "Почётные убийства за день. Те же данные в таблице ниже." })
+    + (ddays.length < 2 ? `<p class="gnote">Пока один полный день. Линии появятся завтра.</p>` : "");
+  $("#pvp-daytable").innerHTML = `<table><thead><tr><th>День</th>${daily.map(s => `<th>${esc(s.name)}</th>`).join("")}<th>Всего</th></tr></thead><tbody>${
+    ddays.slice(-60).map((d, i, a) => ({ d, i: ddays.length - a.length + i })).reverse().map(({ d, i }) => {
+      const v = daily.map(s => s.pts.find(p => p.i === i)?.lv);
+      return `<tr><td>${dayShort(d.id)}</td>${v.map(x => `<td>${x == null ? "—" : x}</td>`).join("")}<td><b>${v.reduce((n, x) => n + (x || 0), 0)}</b></td></tr>`;
+    }).join("")}</tbody></table>`;
+}
 // Recipes: grecipes/{slug} lists what each character knows, gcat/{Profession} has the names, categories and reagents.
 let grec = {}, gcat = {}, rProf = "", rDrawn = "";
 function renderRecipes() {
@@ -2453,7 +2544,7 @@ function gHover(e) {
   M.xs.forEach((x, j) => { if (Math.abs(x - px) < Math.abs(M.xs[i] - px)) i = j; });
   const x = M.xs[i];
   xh.setAttribute("x1", x); xh.setAttribute("x2", x); xh.removeAttribute("hidden");
-  const rows = M.series.map(s => ({ s, lv: s.pts.find(p => p.i === i)?.lv || 0 })).filter(r => r.lv).sort((a, b) => b.lv - a.lv);
+  const rows = M.series.map(s => ({ s, lv: s.pts.find(p => p.i === i)?.lv })).filter(r => r.lv != null).sort((a, b) => b.lv - a.lv);
   tipEl.innerHTML = `<h4>${dayShort(M.days[i].id)}</h4>` + rows.map(r => `<div><b>${r.lv}</b><i class="gkey" style="--c:${r.s.color}"></i>${esc(r.s.name)}</div>`).join("");
   tipEl.hidden = false;
   const left = x / k + 12;
@@ -2461,18 +2552,18 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
 }
 // Pointing at a name (legend or roster) fades the other lines.
-for (const id of ["#gchart", "#gpcharts", "#groster"]) {
+for (const id of ["#gchart", "#gpcharts", "#groster", "#pvp-day", "#pvp-sum", "#pvp-table"]) {
   $(id).addEventListener("pointerover", e => { const n = e.target.closest?.("[data-g]"); gDim(n ? n.dataset.g : ""); });
   $(id).addEventListener("pointerleave", () => gDim(""));
 }
 let gResize = 0;
-window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTimeout(() => { if (view === "guild") renderGuild(); }, 150); });
+window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTimeout(() => { if (view === "guild") renderGuild(); if (view === "pvp") renderPvp(); }, 150); });
 
 /* ---------- views + countdown ---------- */
 function applyView() {
@@ -2481,8 +2572,9 @@ function applyView() {
   const seg = $(".top .seg"), cur = seg.querySelector("[aria-pressed=\"true\"]");
   if (cur && seg.scrollWidth > seg.clientWidth) seg.scrollLeft = cur.offsetLeft - seg.offsetLeft - 24; // keep the active tab visible on phones
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
+  if (view === "pvp") renderPvp();
 }
-const VIEWS = ["home", "calendar", "soon", "guild", "recipes", "tavern", "bets", "fame", "plan"];
+const VIEWS = ["home", "calendar", "soon", "guild", "recipes", "pvp", "tavern", "bets", "fame", "plan"];
 function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "home"; }
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;

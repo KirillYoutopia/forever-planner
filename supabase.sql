@@ -399,7 +399,8 @@ on conflict (coll, id) do update
 -- the server once an hour, so the API secret never reaches the page. The page only reads these rows:
 --   guild/roster          {name, at (ms), members: {slug: {name, surname, level, cls, race, rank}}}  (cls/race: Blizzard ids)
 --   glevels/{YYYY-MM-DD}  {at, lv: {slug: level}, pr: {slug: {Profession: skill}}}  one row per day (Central European time),
---                         overwritten until the day ends (pr since 2026-11-13, older rows have none)
+--                         overwritten until the day ends (pr since 2026-11-13, older rows have none);
+--                         since 2026-11-14 also hk: {slug: honorable kills}, pd: {slug: deaths from other players}
 -- Neither collection is in patch_doc's allow-list, so nobody can write them from the page.
 -- One-off setup, in the SQL Editor (NOT in this file, the repo is public):
 --   insert into public.bnet_config (k, v) values ('client_id', '...'), ('client_secret', '...')
@@ -496,7 +497,7 @@ returns jsonb language plpgsql security definer set search_path = public, extens
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
-        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb;
+        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -578,7 +579,25 @@ begin
       --   reps [[faction, standing, value, max, tier]]   highest first
       --   q    {done: completed quests, log: [quest names in progress]}
       select d.data into oldd from docs d where d.coll = 'gchars' and d.id = ch;
-      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q';
+      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q'; ast := oldd->'ast';
+      -- 2026-11-14: ast = the game's own statistics ("Total deaths", "World Honorable Kills", boss kills per dungeon, ...):
+      --   [[category, name, quantity, description], ...]; sub-categories appear as "Category / Sub-category".
+      select h.status, h.content into st, body from http(('GET', base || '/achievements/statistics' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        j := case when jsonb_typeof(body::jsonb->'categories') = 'array' then body::jsonb->'categories' else '[]'::jsonb end;
+        select coalesce(jsonb_agg(jsonb_build_array(t.cat, t.v->'name', t.v->'quantity', coalesce(t.v->'description', '""'::jsonb)) order by t.o), '[]'::jsonb)
+          into ast
+        from (
+          select c.v->>'name' cat, x.v, c.n * 1000000 + x.n o
+          from jsonb_array_elements(j) with ordinality c(v, n),
+               jsonb_array_elements(case when jsonb_typeof(c.v->'statistics') = 'array' then c.v->'statistics' else '[]'::jsonb end) with ordinality x(v, n)
+          union all
+          select (c.v->>'name') || ' / ' || (sc.v->>'name'), x.v, c.n * 1000000 + sc.n * 1000 + x.n
+          from jsonb_array_elements(j) with ordinality c(v, n),
+               jsonb_array_elements(case when jsonb_typeof(c.v->'sub_categories') = 'array' then c.v->'sub_categories' else '[]'::jsonb end) with ordinality sc(v, n),
+               jsonb_array_elements(case when jsonb_typeof(sc.v->'statistics') = 'array' then sc.v->'statistics' else '[]'::jsonb end) with ordinality x(v, n)
+        ) t where t.v->>'name' is not null;
+      end if;
       select h.status, h.content into st, body from http(('GET', base || '/statistics' || q, hdr, null, null)::http_request) h;
       if st = 200 then
         j := body::jsonb;
@@ -639,7 +658,7 @@ begin
         'avatar', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'avatar' limit 1),
                            (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
-        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs,
+        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast,
         'items', items)))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -672,6 +691,14 @@ begin
   update docs set updated_at = now(), data = data || jsonb_build_object('pr', coalesce((
     select jsonb_object_agg(d.id, (select jsonb_object_agg(e.key, e.value->'s') from jsonb_each(d.data->'profs') e))
     from docs d where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'profs') = 'object' and d.data->'profs' <> '{}'::jsonb), '{}'::jsonb))
+  where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
+  -- PvP of the day, for the "PvP" tab: glevels/{day}.hk = {slug: honorable kills so far}, .pd = {slug: deaths from other players so far}
+  update docs set updated_at = now(), data = data || jsonb_build_object(
+    'hk', coalesce((select jsonb_object_agg(d.id, d.data->'pvp'->'hk') from docs d
+                    where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'pvp'->'hk') = 'number'), '{}'::jsonb),
+    'pd', coalesce((select jsonb_object_agg(d.id, e->2) from docs d, jsonb_array_elements(d.data->'ast') e
+                    where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ast') = 'array'
+                      and e->>1 = 'Total deaths from other players' and jsonb_typeof(e->2) = 'number'), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms,
     'recipes_to_load', (select count(*) from bnet_recipes b where (b.detail is null or b.icon is null or b.item is null) and b.id in (
