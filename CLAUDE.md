@@ -46,6 +46,13 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - Таверна shows who has the site open (Supabase Realtime presence via `db.presence()` in store.js, nothing stored). Online players also get a green dot on their party frame.
   - `data-view` can list several views separated by spaces (e.g. `"tavern bets"`).
 
+- "Гильдия" tab (`#guild`): guild levels from Blizzard's WoW Forever API (undocumented so far; see the comment block in supabase.sql).
+  - `guild_sync()` (pg_cron, hourly; `http` extension) fetches the guild roster server-side. The API client id/secret live in the hidden `bnet_config` table and are never committed.
+  - `guild/roster`: `{ name, at, members: { [slug]: { name, surname, level, cls, race, rank } } }` (`cls`/`race` are Blizzard ids, mapped by `BCLS`/`BRACE`).
+  - `glevels/{YYYY-MM-DD}`: `{ at, lv: { [slug]: level } }`, one row per day (Europe/Paris), overwritten until the day ends.
+  - Both are read-only for the page (not in `patch_doc`'s allow-list) and skipped by `docs_history`.
+  - The chart shows characters from level 10. Line colours `--s1..--s8` follow the character (order of first reaching 10), never the rank.
+
 ## Login and permissions
 - A quiet "I'm kute expat" link fixed in the bottom-right corner opens the login dialog (logged in: account controls sit in the bottom-left corner on screens 900px+, in the footer below that) (pick a player, enter a password). The session token is kept in localStorage (`wf-token`) and sent with every write. Logged out, the site is read-only.
 - Server side (supabase.sql): `accounts` (bcrypt hashes, `is_admin`, `must_change`) and `sessions` are hidden tables. RPCs: `login`, `whoami`, `logout`, `change_password` (min 4 characters, not "Forever"), `admin_accounts`, `admin_reset` (back to "Forever"), `admin_set_admin`.
