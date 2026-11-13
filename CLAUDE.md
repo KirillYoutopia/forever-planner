@@ -1,6 +1,6 @@
 # WoW Forever Planner — project context
 
-You're working on a planner page for a small WoW Forever group (4 core players). The UI text is in Russian, so keep all user-facing text in Russian. It started as a claude.ai artifact and has been moved to a standalone static site backed by Supabase, so the group can use it without a Claude account. It needs no login.
+You're working on a planner page for a small WoW Forever group (5 core players). The UI text is in Russian, so keep all user-facing text in Russian. It started as a claude.ai artifact and has been moved to a standalone static site backed by Supabase, so the group can use it without a Claude account. It needs no login.
 
 ## Stack and files
 - `index.html`: the entire app. Vanilla JS and CSS in one file. No framework, no build step.
@@ -19,13 +19,15 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - `README.md`: setup and hosting steps (Supabase project, Netlify Drop / GitHub Pages).
 
 ## Data model (`data` is jsonb)
-- `players/{id}`, where core ids are `p_denis`, `p_kirill`, `p_olesya`, `p_yan` and new ids look like `p_xxxxxxxxxxxx`:
+- `players/{id}`, where core ids are `p_denis`, `p_kirill`, `p_olesya`, `p_yan`, `p_alexey` and new ids look like `p_xxxxxxxxxxxx`:
   - `name`: string
   - `createdAt`: number, used for sort order
   - `picks`: `{ [Class]: 1 | 2 | -1 (ban) | 0 }`
   - `main`: `{ cls, race, role }`. A ★ in the grid means `main.cls` is set.
   - `profs`: `{ [Profession]: boolean }`
   - `avail`: `{ "YYYY-MM-DD": "full" | "no" | a subset of "mde" (morning/day/evening) | "hA-B" (hours) | "" }`
+  - `char`: guild character slug linked to the player (set on the character sheet, "Чей персонаж"). `lvlOf(p)` and the party frames read level, class, race and avatar from that character; the old manual `level`/`xp` are only a fallback and are no longer edited.
+  - `alts`: `{ [slug]: true }`, the player's twinks in the guild (`false` = unlinked, since patches only merge). Read via `altsOf(p)`. A character belongs to one player, as main or twink.
   - `deleted`: `true` hides a (non-core) player. The database allows no deletes, so removal is a soft delete.
 - `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter types their name; it must match a player name (case-insensitive) or the vote is silently refused with no hints. The name is remembered in localStorage as `wf-name`.
 - `meta/settings`: `{ size: 5 | 10 }`
@@ -49,9 +51,10 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - "Гильдия" tab (`#guild`): guild levels from Blizzard's WoW Forever API (undocumented so far; see the comment block in supabase.sql).
   - `guild_sync()` (pg_cron, hourly; `http` extension) fetches the guild roster server-side. The API client id/secret live in the hidden `bnet_config` table and are never committed.
   - `guild/roster`: `{ name, at, members: { [slug]: { name, surname, level, cls, race, rank } } }` (`cls`/`race` are Blizzard ids, mapped by `BCLS`/`BRACE`).
-  - `glevels/{YYYY-MM-DD}`: `{ at, lv: { [slug]: level } }`, one row per day (Europe/Paris), overwritten until the day ends.
+  - `glevels/{YYYY-MM-DD}`: `{ at, lv: { [slug]: level }, pr: { [slug]: { [Profession]: skill } } }`, one row per day (Europe/Paris), overwritten until the day ends.
   - `gchars/{slug}`: `{ at, ilvl, ruleset, login, img, avatar, items: { [SLOT]: { id, name, q, lvl, icon } }, profs: { [Profession]: { s, max, n } } }`, the character sheet for level 10+ characters (opened by clicking a name in the roster). `SLOT` and `q` are Blizzard's types (`HEAD`, `FINGER_1`, `RARE`, ...). `profs` (skill, cap, known recipes; English names as in `PROFS`) also feeds the "Профессии гильдии" panel. Icon URLs are cached in the hidden `bnet_icons` table. The page only loads images from `render.worldofwarcraft.com` (`bimg()`).
   - All three are read-only for the page (not in `patch_doc`'s allow-list) and skipped by `docs_history`.
+  - Views: "Главная" (`#home`, the default) shows the guild roster and the professions overview; "Гильдия" (`#guild`) shows the roster plus the day-by-day charts (levels, and one small chart per profession, all drawn by `lineChart()`). The original planning panels live in "Планирование (старое)" (`#plan`).
   - The chart shows characters from level 10. Line colours `--s1..--s8` follow the character (order of first reaching 10), never the rank.
 
 ## Login and permissions
@@ -65,7 +68,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - `render()` re-renders every section from state. `editing()` holds off re-rendering while an input or select has focus, so keep that guard working.
 - Clicks are handled by one delegated listener that dispatches on `data-act`. Add new actions there.
 - Colors are CSS custom properties on `:root`, with a dark theme by default and a light theme. Use the tokens, never hardcoded colors.
-- Key constants: `RELEASE`, `LAUNCH_AT`, `HC_AT` (an estimated Hardcore start), `CORE` (players who can't be deleted), `CLASSES`, `RACES` and `PROFS`. The game is Classic-era, so it has 9 classes and 8 races, plus the WoW Forever race Skyborne (neutral: stored as `Skyborne-A` or `Skyborne-H` depending on the faction chosen).
+- Key constants: `RELEASE`, `LAUNCH_AT`, `RAIDS_AT` (raid unlock, the first countdown), `HC_AT` (a guessed Hardcore start, a month after raids; no official date), `CORE` (players who can't be deleted), `CLASSES`, `RACES` and `PROFS`. The game is Classic-era, so it has 9 classes and 8 races, plus the WoW Forever race Skyborne (neutral: stored as `Skyborne-A` or `Skyborne-H` depending on the faction chosen).
 - Escape all user text with `esc()`.
 
 ## Rules
