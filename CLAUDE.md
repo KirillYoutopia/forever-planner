@@ -50,7 +50,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `guild_sync()` (pg_cron, hourly; `http` extension) fetches the guild roster server-side. The API client id/secret live in the hidden `bnet_config` table and are never committed.
   - `guild/roster`: `{ name, at, members: { [slug]: { name, surname, level, cls, race, rank } } }` (`cls`/`race` are Blizzard ids, mapped by `BCLS`/`BRACE`).
   - `glevels/{YYYY-MM-DD}`: `{ at, lv: { [slug]: level } }`, one row per day (Europe/Paris), overwritten until the day ends.
-  - `gchars/{slug}`: `{ at, ilvl, ruleset, login, img, avatar, items: { [SLOT]: { id, name, q, lvl, icon } } }`, the character sheet for level 10+ characters (opened by clicking a name in the roster). `SLOT` and `q` are Blizzard's types (`HEAD`, `FINGER_1`, `RARE`, ...). Icon URLs are cached in the hidden `bnet_icons` table. The page only loads images from `render.worldofwarcraft.com` (`bimg()`).
+  - `gchars/{slug}`: `{ at, ilvl, ruleset, login, img, avatar, items: { [SLOT]: { id, name, q, lvl, icon } }, profs: { [Profession]: { s, max, n } } }`, the character sheet for level 10+ characters (opened by clicking a name in the roster). `SLOT` and `q` are Blizzard's types (`HEAD`, `FINGER_1`, `RARE`, ...). `profs` (skill, cap, known recipes; English names as in `PROFS`) also feeds the "Профессии гильдии" panel. Icon URLs are cached in the hidden `bnet_icons` table. The page only loads images from `render.worldofwarcraft.com` (`bimg()`).
   - All three are read-only for the page (not in `patch_doc`'s allow-list) and skipped by `docs_history`.
   - The chart shows characters from level 10. Line colours `--s1..--s8` follow the character (order of first reaching 10), never the rank.
 
