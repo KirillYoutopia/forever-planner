@@ -420,16 +420,24 @@ revoke all on public.bnet_icons from anon, authenticated;
 
 -- 2026-11-14: "Рецепты" tab: who in the guild can craft what.
 -- Hidden cache of every recipe seen: its profession, category (from the profession's recipe catalogue) and details.
---   detail: null = not fetched yet, {} = Blizzard has none, else {i: crafted item, q: quantity, re: [[reagent, quantity], ...]}
+--   detail: null = not fetched yet, else {v: 2, i: crafted item, iid, q: quantity, ds: description, re: [[reagent, quantity], ...]}
+--   icon:   null = not fetched yet, '' = none
 create table if not exists public.bnet_recipes (
   id bigint primary key, prof text not null, name text not null, cat text, detail jsonb, icon text);
 create table if not exists public.bnet_prof_cat (prof text primary key, at timestamptz not null default now());
+-- 2026-11-14 (later): details gain the recipe's description (ds: what an enchant does) and the crafted item's id (iid);
+-- item = the crafted item's tooltip: null = not fetched yet, {} = none, else {iq: quality, il: item level, tip: lines}.
+-- Details saved before this (no "v" marker) are fetched again once.
+alter table public.bnet_recipes add column if not exists item jsonb;
+update public.bnet_recipes set detail = null, item = null where detail is not null and not (detail ? 'v');
+update public.bnet_recipes set icon = null where icon = '' and detail is null;
 alter table public.bnet_recipes enable row level security;
 alter table public.bnet_prof_cat enable row level security;
 revoke all on public.bnet_recipes, public.bnet_prof_cat from anon, authenticated;
 -- What the page reads (written only by guild_sync):
 --   grecipes/{slug}     {at, r: {Profession: [recipe id, ...]}}   the recipes a level 10+ character knows
---   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, i, q, re, icon}}}   details of the recipes someone in the guild knows
+--   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, ok (details loaded), i, q, ds, re, icon, iq, il, tip}}}
+--                       details of the recipes someone in the guild knows
 
 -- Tooltip lines for one equipped item, in the armory's order: [[text, kind, right?], ...].
 -- kind: '' plain, 'g' green (bonuses, enchants, use effects), 'y' gold (set name, flavour text), 'm' muted (inactive, sell price).
@@ -442,6 +450,7 @@ returns jsonb language sql immutable as $$
     union all select 3, jsonb_build_array(i->'inventory_type'->>'name', '',
         case when coalesce((i->>'is_subclass_hidden')::boolean, false) then '' else coalesce(i->'item_subclass'->>'name', '') end)
       where i->'inventory_type'->>'name' is not null
+    union all select 3.5, jsonb_build_array(i->'container_slots'->>'display_string', '') where i->'container_slots'->>'display_string' is not null
     union all select 4, jsonb_build_array(i->'weapon'->'damage'->>'display_string', '', coalesce(i->'weapon'->'attack_speed'->>'display_string', ''))
       where i->'weapon'->'damage'->>'display_string' is not null
     union all select 5, jsonb_build_array(i->'weapon'->'dps'->>'display_string', '') where i->'weapon'->'dps'->>'display_string' is not null
@@ -609,33 +618,8 @@ begin
       on conflict (id) do update set cat = excluded.cat;
       insert into bnet_prof_cat (prof) values (pk) on conflict (prof) do update set at = now();
     end loop;
-    -- 2. Details (crafted item, reagents, icon) of the recipes guild members know: two requests each, so only for ~25 seconds per run.
-    t0 := clock_timestamp();
-    for rid in select b.id from bnet_recipes b where b.detail is null and b.id in (
-                 select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
-                 where d.coll = 'grecipes' and members ? d.id) order by b.id loop
-      exit when clock_timestamp() - t0 > interval '25 seconds';
-      select h.status, h.content into st, body from http(('GET',
-        format('https://%s.api.blizzard.com/data/wow/recipe/%s?namespace=static-forever-%s&locale=en_US', region, rid, region), hdr, null, null)::http_request) h;
-      continue when st not in (200, 404);
-      rd := case when st = 200 then body::jsonb else '{}'::jsonb end;
-      rd := jsonb_strip_nulls(jsonb_build_object('i', rd->'crafted_item'->'name', 'q', rd->'crafted_quantity'->'value',
-        're', (select jsonb_agg(jsonb_build_array(g->'reagent'->'name', g->'quantity')) from jsonb_array_elements(coalesce(rd->'reagents', '[]'::jsonb)) g)));
-      select h.status, h.content into st, body from http(('GET',
-        format('https://%s.api.blizzard.com/data/wow/media/recipe/%s?namespace=static-forever-%s', region, rid, region), hdr, null, null)::http_request) h;
-      update bnet_recipes set detail = rd, icon = case when st = 200 then coalesce((
-        select a->>'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'icon' limit 1), '') else '' end
-      where id = rid;
-    end loop;
-    -- 3. Publish one row per profession with everything the guild can craft.
-    insert into docs (coll, id, data)
-    select 'gcat', b.prof, jsonb_build_object('at', now_ms, 'r', jsonb_object_agg(b.id::text,
-      jsonb_strip_nulls(jsonb_build_object('n', b.name, 'c', b.cat, 'icon', nullif(b.icon, '')) || coalesce(b.detail, '{}'::jsonb))))
-    from bnet_recipes b where b.id in (
-      select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
-      where d.coll = 'grecipes' and members ? d.id)
-    group by b.prof
-    on conflict (coll, id) do update set data = excluded.data, updated_at = now();
+    -- 2. Details, icons and item tooltips: loaded in slices by guild_recipes_fill (also every 5 minutes on its own).
+    perform guild_recipes_fill(20);
   exception when others then
     raise warning 'guild_sync: recipes skipped: %', sqlerrm;
   end;
@@ -645,11 +629,90 @@ begin
     from docs d where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'profs') = 'object' and d.data->'profs' <> '{}'::jsonb), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms,
-    'recipes_to_load', (select count(*) from bnet_recipes b where b.detail is null and b.id in (
+    'recipes_to_load', (select count(*) from bnet_recipes b where (b.detail is null or b.icon is null or b.item is null) and b.id in (
       select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
       where d.coll = 'grecipes' and members ? d.id)));
 end $$;
 revoke execute on function public.guild_sync() from public, anon, authenticated;
+
+-- Loads what is still missing for the recipes guild members know, for at most p_seconds, then publishes gcat/{Profession}.
+-- Three kinds of request, in this order: recipe details (reagents, description), recipe icons, crafted item tooltips.
+-- Does nothing (and makes no request) when everything is loaded. Returns how many recipes still miss something.
+create or replace function public.guild_recipes_fill(p_seconds int default 40)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare cid text; sec text; region text; st int; body text; hdr http_header[]; members jsonb; known bigint[]; rid bigint; iid bigint;
+        rd jsonb; t0 timestamptz := clock_timestamp(); lim interval := make_interval(secs => greatest(1, least(coalesce(p_seconds, 40), 50)));
+        now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000); todo int;
+begin
+  if not pg_try_advisory_xact_lock(4273001) then return jsonb_build_object('busy', true); end if;  -- one loader at a time
+  select data->'members' into members from docs where coll = 'guild' and id = 'roster';
+  select array_agg(distinct (e.value #>> '{}')::bigint) into known
+  from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
+  where d.coll = 'grecipes' and members ? d.id;
+  select count(*) into todo from bnet_recipes b where b.id = any(known) and (b.detail is null or b.icon is null or b.item is null);
+  if coalesce(todo, 0) > 0 then
+    select v into cid from bnet_config where k = 'client_id';
+    select v into sec from bnet_config where k = 'client_secret';
+    if coalesce(cid, '') = '' or coalesce(sec, '') = '' then raise exception 'bnet_config: client_id / client_secret are not set'; end if;
+    region := coalesce((select v from bnet_config where k = 'region'), 'eu');
+    if region !~ '^[a-z]{2}$' then raise exception 'bnet_config: bad region'; end if;
+    perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+    select h.status, h.content into st, body from http(('POST', 'https://oauth.battle.net/token',
+      array[http_header('Authorization', 'Basic ' || replace(encode(convert_to(cid || ':' || sec, 'utf8'), 'base64'), E'\n', ''))],
+      'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
+    if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
+    hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
+    -- 1. recipe details
+    for rid in select b.id from bnet_recipes b where b.id = any(known) and b.detail is null order by b.id loop
+      exit when clock_timestamp() - t0 > lim;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/recipe/%s?namespace=static-forever-%s&locale=en_US', region, rid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      rd := case when st = 200 then body::jsonb else '{}'::jsonb end;
+      update bnet_recipes set
+        detail = jsonb_strip_nulls(jsonb_build_object('v', 2, 'i', rd->'crafted_item'->'name', 'iid', rd->'crafted_item'->'id',
+          'q', rd->'crafted_quantity'->'value', 'ds', nullif(rd->>'description', ''),
+          're', (select jsonb_agg(jsonb_build_array(g->'reagent'->'name', g->'quantity')) from jsonb_array_elements(coalesce(rd->'reagents', '[]'::jsonb)) g))),
+        item = case when rd->'crafted_item'->>'id' ~ '^[0-9]+$' then item else '{}'::jsonb end  -- nothing crafted (an enchant): no item tooltip to fetch
+      where id = rid;
+    end loop;
+    -- 2. recipe icons
+    for rid in select b.id from bnet_recipes b where b.id = any(known) and b.icon is null order by b.id loop
+      exit when clock_timestamp() - t0 > lim;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/media/recipe/%s?namespace=static-forever-%s', region, rid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      update bnet_recipes set icon = case when st = 200 then coalesce((
+        select a->>'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'icon' limit 1), '') else '' end
+      where id = rid;
+    end loop;
+    -- 3. tooltip of the crafted item (the same lines as on the character sheet)
+    for rid, iid in select b.id, (b.detail->>'iid')::bigint from bnet_recipes b
+                    where b.id = any(known) and b.item is null and b.detail->>'iid' ~ '^[0-9]+$' order by b.id loop
+      exit when clock_timestamp() - t0 > lim;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/item/%s?namespace=static-forever-%s&locale=en_US', region, iid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      rd := case when st = 200 then body::jsonb->'preview_item' else null end;
+      update bnet_recipes set item = case when jsonb_typeof(rd) = 'object' then jsonb_strip_nulls(jsonb_build_object(
+        'iq', rd->'quality'->'type', 'il', coalesce(rd->'level'->'value', body::jsonb->'level'), 'tip', bnet_item_tip(rd))) else '{}'::jsonb end
+      where id = rid;
+    end loop;
+  end if;
+  -- publish one row per profession with everything the guild can craft
+  insert into docs (coll, id, data)
+  select 'gcat', b.prof, jsonb_build_object('at', now_ms, 'r', jsonb_object_agg(b.id::text,
+    jsonb_strip_nulls(jsonb_build_object('n', b.name, 'c', b.cat, 'icon', nullif(b.icon, ''), 'ok', case when b.detail is not null then true end))
+      || (coalesce(b.detail, '{}'::jsonb) - 'v' - 'iid') || coalesce(b.item, '{}'::jsonb)))
+  from bnet_recipes b where b.id = any(known)
+  group by b.prof
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+  where docs.data->'r' is distinct from excluded.data->'r';  -- an idle run rewrites nothing
+  return jsonb_build_object('recipes_to_load', (select count(*) from bnet_recipes b
+    where b.id = any(known) and (b.detail is null or b.icon is null or b.item is null)));
+end $$;
+revoke execute on function public.guild_recipes_fill(int) from public, anon, authenticated;
+select cron.schedule('guild-recipes', '*/5 * * * *', 'select public.guild_recipes_fill(40)');
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
