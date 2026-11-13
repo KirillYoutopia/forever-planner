@@ -248,7 +248,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels', 'gchars'))  -- hourly Blizzard sync rows: nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat'))  -- hourly Blizzard sync rows: nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -418,6 +418,19 @@ create table if not exists public.bnet_icons (id bigint primary key, icon text n
 alter table public.bnet_icons enable row level security;
 revoke all on public.bnet_icons from anon, authenticated;
 
+-- 2026-11-14: "Рецепты" tab: who in the guild can craft what.
+-- Hidden cache of every recipe seen: its profession, category (from the profession's recipe catalogue) and details.
+--   detail: null = not fetched yet, {} = Blizzard has none, else {i: crafted item, q: quantity, re: [[reagent, quantity], ...]}
+create table if not exists public.bnet_recipes (
+  id bigint primary key, prof text not null, name text not null, cat text, detail jsonb, icon text);
+create table if not exists public.bnet_prof_cat (prof text primary key, at timestamptz not null default now());
+alter table public.bnet_recipes enable row level security;
+alter table public.bnet_prof_cat enable row level security;
+revoke all on public.bnet_recipes, public.bnet_prof_cat from anon, authenticated;
+-- What the page reads (written only by guild_sync):
+--   grecipes/{slug}     {at, r: {Profession: [recipe id, ...]}}   the recipes a level 10+ character knows
+--   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, i, q, re, icon}}}   details of the recipes someone in the guild knows
+
 -- Tooltip lines for one equipped item, in the armory's order: [[text, kind, right?], ...].
 -- kind: '' plain, 'g' green (bonuses, enchants, use effects), 'y' gold (set name, flavour text), 'm' muted (inactive, sell price).
 -- "right" is the right-aligned half of a two-part line (Head | Mail, 39 - 74 Damage | Speed 1.90).
@@ -473,6 +486,7 @@ create or replace function public.guild_sync()
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
+        pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -531,6 +545,22 @@ begin
           into profs
         from jsonb_array_elements(coalesce(body::jsonb->'primaries', '[]'::jsonb) || coalesce(body::jsonb->'secondaries', '[]'::jsonb)) x
         where x->'profession'->>'name' is not null;
+        -- Known recipes: remember each one (name, profession) and store the character's list for the "Рецепты" tab.
+        pf := coalesce(body::jsonb->'primaries', '[]'::jsonb) || coalesce(body::jsonb->'secondaries', '[]'::jsonb);
+        insert into bnet_recipes (id, prof, name)
+        select distinct on ((k->>'id')::bigint) (k->>'id')::bigint, x->'profession'->>'name', k->>'name'
+        from jsonb_array_elements(pf) x, jsonb_array_elements(coalesce(x->'tiers'->0->'known_recipes', '[]'::jsonb)) k
+        where x->'profession'->>'name' is not null and k->>'id' ~ '^[0-9]+$' and coalesce(k->>'name', '') <> ''
+        on conflict (id) do nothing;
+        insert into docs (coll, id, data) values ('grecipes', ch, jsonb_build_object('at', now_ms, 'r', (
+          select coalesce(jsonb_object_agg(x->'profession'->>'name', (
+                   select coalesce(jsonb_agg((k->>'id')::bigint), '[]'::jsonb)
+                   from jsonb_array_elements(coalesce(x->'tiers'->0->'known_recipes', '[]'::jsonb)) k where k->>'id' ~ '^[0-9]+$')), '{}'::jsonb)
+          from jsonb_array_elements(pf) x where x->'profession'->>'name' is not null)))
+        on conflict (coll, id) do update set data = excluded.data, updated_at = now();
+        ptiers := ptiers || coalesce((select jsonb_object_agg(x->'profession'->>'name', jsonb_build_array(x->'profession'->'id', x->'tiers'->0->'tier'->'id'))
+          from jsonb_array_elements(pf) x
+          where x->'profession'->>'name' is not null and x->'profession'->>'id' ~ '^[0-9]+$' and x->'tiers'->0->'tier'->>'id' ~ '^[0-9]+$'), '{}'::jsonb);
       end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
@@ -564,12 +594,60 @@ begin
       raise warning 'guild_sync: % skipped: %', ch, sqlerrm;
     end;
   end loop;
+  -- Recipes. Never allowed to break the rest of the sync.
+  begin
+    -- 1. Categories: one catalogue request per profession, once.
+    for pk in select e.key from jsonb_each(ptiers) e where not exists (select 1 from bnet_prof_cat c where c.prof = e.key) loop
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/profession/%s/skill-tier/%s?namespace=static-forever-%s&locale=en_US', region, ptiers->pk->>0, ptiers->pk->>1, region),
+        hdr, null, null)::http_request) h;
+      continue when st <> 200;
+      insert into bnet_recipes (id, prof, name, cat)
+      select distinct on ((x->>'id')::bigint) (x->>'id')::bigint, pk, x->>'name', c->>'name'
+      from jsonb_array_elements(coalesce(body::jsonb->'categories', '[]'::jsonb)) c, jsonb_array_elements(coalesce(c->'recipes', '[]'::jsonb)) x
+      where x->>'id' ~ '^[0-9]+$' and coalesce(x->>'name', '') <> ''
+      on conflict (id) do update set cat = excluded.cat;
+      insert into bnet_prof_cat (prof) values (pk) on conflict (prof) do update set at = now();
+    end loop;
+    -- 2. Details (crafted item, reagents, icon) of the recipes guild members know: two requests each, so only for ~25 seconds per run.
+    t0 := clock_timestamp();
+    for rid in select b.id from bnet_recipes b where b.detail is null and b.id in (
+                 select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
+                 where d.coll = 'grecipes' and members ? d.id) order by b.id loop
+      exit when clock_timestamp() - t0 > interval '25 seconds';
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/recipe/%s?namespace=static-forever-%s&locale=en_US', region, rid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      rd := case when st = 200 then body::jsonb else '{}'::jsonb end;
+      rd := jsonb_strip_nulls(jsonb_build_object('i', rd->'crafted_item'->'name', 'q', rd->'crafted_quantity'->'value',
+        're', (select jsonb_agg(jsonb_build_array(g->'reagent'->'name', g->'quantity')) from jsonb_array_elements(coalesce(rd->'reagents', '[]'::jsonb)) g)));
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/media/recipe/%s?namespace=static-forever-%s', region, rid, region), hdr, null, null)::http_request) h;
+      update bnet_recipes set detail = rd, icon = case when st = 200 then coalesce((
+        select a->>'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'icon' limit 1), '') else '' end
+      where id = rid;
+    end loop;
+    -- 3. Publish one row per profession with everything the guild can craft.
+    insert into docs (coll, id, data)
+    select 'gcat', b.prof, jsonb_build_object('at', now_ms, 'r', jsonb_object_agg(b.id::text,
+      jsonb_strip_nulls(jsonb_build_object('n', b.name, 'c', b.cat, 'icon', nullif(b.icon, '')) || coalesce(b.detail, '{}'::jsonb))))
+    from bnet_recipes b where b.id in (
+      select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
+      where d.coll = 'grecipes' and members ? d.id)
+    group by b.prof
+    on conflict (coll, id) do update set data = excluded.data, updated_at = now();
+  exception when others then
+    raise warning 'guild_sync: recipes skipped: %', sqlerrm;
+  end;
   -- Profession skills of the day, for the "Профессии по дням" charts: glevels/{day}.pr = {slug: {Profession: skill}}
   update docs set updated_at = now(), data = data || jsonb_build_object('pr', coalesce((
     select jsonb_object_agg(d.id, (select jsonb_object_agg(e.key, e.value->'s') from jsonb_each(d.data->'profs') e))
     from docs d where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'profs') = 'object' and d.data->'profs' <> '{}'::jsonb), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
-  return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms);
+  return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms,
+    'recipes_to_load', (select count(*) from bnet_recipes b where b.detail is null and b.id in (
+      select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
+      where d.coll = 'grecipes' and members ? d.id)));
 end $$;
 revoke execute on function public.guild_sync() from public, anon, authenticated;
 

@@ -482,6 +482,20 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gpc small { color: var(--muted); font-size: 11px; }
 .gpr .none { color: var(--muted); font-size: 13px; }
 @media (max-width: 480px) { .gpr { grid-template-columns: minmax(0, 1fr); } }
+/* guild recipes: who can craft what */
+.rtools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.rtools input { flex: 1 1 240px; min-width: 0; max-width: 420px; min-height: 40px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; }
+.rchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.rchips button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 13px; }
+.rchips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.rchips small { opacity: .7; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.rrow { display: grid; grid-template-columns: 36px minmax(0, 1.4fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+.rrow .ri { width: 36px; height: 36px; border-radius: 4px; border: 1px solid var(--line); background: var(--cell); overflow: hidden; }
+.rrow .ri img { display: block; width: 100%; height: 100%; }
+.rrow b { font-weight: 600; }
+.rrow small { display: block; color: var(--muted); font-size: 12px; }
+.rrow .rw { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+@media (max-width: 560px) { .rrow { grid-template-columns: 36px minmax(0, 1fr); } .rrow .rw { grid-column: 2; justify-content: flex-start; } }
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
 .rules summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; cursor: pointer; list-style: none; }
@@ -668,6 +682,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
       <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
       <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">Гильдия</button>
+      <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Рецепты</button>
       <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Таверна</button>
       <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
       <button type="button" data-act="nav" data-nav="fame" aria-pressed="false">Зал славы</button>
@@ -818,6 +833,13 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="panel" aria-labelledby="h-gpchart" data-view="guild" hidden>
     <div class="panel-head"><h2 id="h-gpchart">Профессии по дням</h2><span class="cap">Навык на конец дня, по одной линии на персонажа</span></div>
     <div id="gpcharts"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-recipes" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-recipes">Рецепты гильдии</h2><span class="cap" id="recipes-cap"></span></div>
+    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off"></div>
+    <div class="rchips" id="rprofs" role="group" aria-label="Профессия"></div>
+    <div id="rlist"></div>
   </section>
 
   <section class="panel online" data-view="tavern" hidden aria-label="Кто сейчас на сайте">
@@ -1023,7 +1045,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderGuild(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderGuild(); renderRecipes(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -1997,6 +2019,7 @@ document.addEventListener("click", e => {
   else if (act === "authclose") closeAuth();
   else if (act === "gchar") { gOpen = id; gDrawn = ""; renderGSheet(); $("#gc-box").scrollTop = 0; $("#gc-box").focus(); }
   else if (act === "gcclose") closeG();
+  else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
   else if ((act === "gown" || act === "galt") && p && gOpen) { // link or unlink the open character as a player's main or twink; one player per character
     const slug = gOpen, main = act === "gown", on = main ? p.char === slug : altsOf(p).includes(slug);
     if (!on) for (const x of players) { // take it away from whoever had it, in either role
@@ -2258,6 +2281,49 @@ function renderGPCharts(g) {
   });
   el.innerHTML = gKeys(g.series.filter(s => used.has(s.slug))) + `<div class="gpm">${charts.join("")}</div>` + oneDay(days);
 }
+// Recipes: grecipes/{slug} lists what each character knows, gcat/{Profession} has the names, categories and reagents.
+let grec = {}, gcat = {}, rProf = "", rDrawn = "";
+function renderRecipes() {
+  const mem = guild?.members || {}, q = $("#rq").value.trim().toLowerCase();
+  const key = [q, rProf, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at), players.map(p => p.char).join()].join("|");
+  if (key === rDrawn) return; // the list can be long: redraw only when the data or the filter changed
+  rDrawn = key;
+  // profession -> recipe id -> [character slug]
+  const by = {};
+  for (const [slug, d] of Object.entries(grec)) if (mem[slug])
+    for (const [prof, ids] of Object.entries(d.r || {})) for (const id of Array.isArray(ids) ? ids : []) ((by[prof] ||= {})[id] ||= []).push(slug);
+  const name = s => `${mem[s].name}${mem[s].surname ? " " + mem[s].surname : ""}`;
+  const info = (prof, id) => gcat[prof]?.r?.[id] || {};
+  for (const prof of Object.keys(by)) for (const id of Object.keys(by[prof])) if ((info(prof, id).n || "") === prof) delete by[prof][id]; // the profession's own "skill" entry
+  const profs = [...PROFS.map(p => p.id), ...Object.keys(by).filter(n => !PROF_ID.has(n)).sort()].filter(n => by[n] && Object.keys(by[n]).length);
+  const total = profs.reduce((n, pr) => n + Object.keys(by[pr]).length, 0);
+  $("#recipes-cap").textContent = total ? `${total} ${plural(total, "рецепт", "рецепта", "рецептов")} у гильдии · данные Blizzard API, персонажи с ${G_MIN} уровня` : "";
+  if (!profs.length) {
+    $("#rprofs").innerHTML = "";
+    $("#rlist").innerHTML = `<p class="empty">${got.has("grecipes") ? "Рецептов пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…"}</p>`;
+    return;
+  }
+  if (!profs.includes(rProf)) rProf = profs[0];
+  $("#rprofs").innerHTML = profs.map(pr => `<button type="button" data-act="rprof" data-prof="${esc(pr)}" aria-pressed="${!q && pr === rProf}">${esc(pr)}<small>${Object.keys(by[pr]).length}</small></button>`).join("");
+  const rows = [];
+  for (const pr of q ? profs : [rProf]) for (const [id, who] of Object.entries(by[pr])) {
+    const r = info(pr, id), re = Array.isArray(r.re) ? r.re : [];
+    if (q && ![r.n, r.i, ...re.map(x => x[0])].some(t => String(t || "").toLowerCase().includes(q))) continue;
+    rows.push({ pr, id, r, re, who, cat: r.c || "Другое", n: r.n || `Рецепт ${id}` });
+  }
+  rows.sort((a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n));
+  let html = "", head = "";
+  for (const x of rows.slice(0, 300)) {
+    const h = q ? `${x.pr} · ${x.cat}` : x.cat;
+    if (h !== head) { head = h; html += `<div class="gpg">${esc(h)}</div>`; }
+    html += `<div class="rrow"><span class="ri">${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
+      <div><b>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.n && !("re" in x.r) && !("i" in x.r) && !("icon" in x.r) ? "детали ещё загружаются" : ""}</small></div>
+      <div class="rw">${x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}" aria-haspopup="dialog">${esc(name(sl))}</button>`).join("")}</div></div>`;
+  }
+  $("#rlist").innerHTML = rows.length ? html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос.</p>` : "")
+    : `<p class="empty">Ничего не нашлось. Никто в гильдии пока не умеет делать «${esc(q)}».</p>`;
+}
+$("#rq").addEventListener("input", renderRecipes);
 // Character sheet: full-body render with the gear around it, like the official armory.
 const G_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
 const G_RIGHT = ["HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2"];
@@ -2277,7 +2343,7 @@ function renderGSheet() {
   const slot = t => {
     const it = items[t];
     if (!it) return `<span class="gslot e" data-tip="${G_SLOT[t]}: пусто"></span>`;
-    return `<span class="gslot ${qc(it)}" data-slot="${t}" tabindex="0" aria-label="${esc(`${it.name}, уровень предмета ${+it.lvl || "?"}`)}">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="${esc(it.name)}" loading="lazy">` : ""}</span>`;
+    return `<span class="gslot ${qc(it)}" data-slot="${t}" tabindex="0" aria-label="${esc(`${it.name}, уровень предмета ${+it.lvl || "?"}`)}">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="${esc(it.name)}" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>`;
   };
   let login = "";
   try { if (c.login) login = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(c.login)); } catch {}
@@ -2362,7 +2428,7 @@ function applyView() {
   if (cur && seg.scrollWidth > seg.clientWidth) seg.scrollLeft = cur.offsetLeft - seg.offsetLeft - 24; // keep the active tab visible on phones
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
 }
-const VIEWS = ["home", "calendar", "soon", "guild", "tavern", "bets", "fame", "plan"];
+const VIEWS = ["home", "calendar", "soon", "guild", "recipes", "tavern", "bets", "fame", "plan"];
 function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "home"; }
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
@@ -2422,6 +2488,8 @@ async function boot() {
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
   db.collection("fame").onSnapshot(snap => { fameAll = snap.docs.map(d => ({ id: d.id, ...d.data() })); got.add("fame"); render(); }, () => {});
   db.doc("guild/roster").onSnapshot(s => { guild = s.exists ? s.data() : null; got.add("guild"); render(); }, () => {});
+  db.collection("grecipes").onSnapshot(snap => { grec = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); got.add("grecipes"); render(); }, () => {});
+  db.collection("gcat").onSnapshot(snap => { gcat = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
