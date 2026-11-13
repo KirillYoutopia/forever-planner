@@ -51,6 +51,8 @@
   --frame-muted: #b7b0a2;
   --frame-shade: #00000040;
   --gold: #c9a24a;
+  --doll-1: #6a3418;  /* character sheet backdrop, same in both themes */
+  --doll-2: #170c08;
   --mana: #2f6fd0;
   --rage: #c8352d;
   --energy: #e3c234;
@@ -431,6 +433,30 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   .gr .n { grid-row: 1 / span 2; grid-column: 2; }
   .gr .gd { grid-row: 1 / span 2; grid-column: 3; }
 }
+/* guild character sheet: paper doll with gear around the render */
+.glink { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.glink:hover { text-decoration-color: var(--accent); }
+.sheet.gcs { width: min(560px, calc(100vw - 16px)); }
+.gcs .sheet-head { margin-bottom: 4px; }
+.gcs .sheet-head h3 { font-size: 22px; }
+.gsub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.gsub b { color: var(--fg); }
+.gdoll { --gs: 46px; display: grid; grid-template-columns: var(--gs) minmax(0, 1fr) var(--gs); gap: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--frame-line); background: radial-gradient(ellipse at 50% 55%, var(--doll-1), var(--doll-2) 78%); }
+.gcol { display: flex; flex-direction: column; gap: 6px; }
+.gfig { position: relative; min-height: 0; overflow: hidden; }
+.gfig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.55); transform-origin: 50% 48%; } /* the render has wide empty margins */
+.gfig p { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--frame-muted); font-size: 13px; text-align: center; }
+.gbot { grid-column: 1 / -1; display: flex; justify-content: center; gap: 6px; }
+.gslot { width: var(--gs); height: var(--gs); flex: none; box-sizing: border-box; border: 2px solid var(--q, var(--frame-line)); border-radius: 4px; background: var(--frame-bg); overflow: hidden; display: block; }
+.gslot img { display: block; width: 100%; height: 100%; }
+.gslot.e { border-width: 1px; opacity: .7; }
+.gq-POOR { --q: var(--q-poor); } .gq-COMMON { --q: var(--frame-fg); } .gq-UNCOMMON { --q: var(--q-unc); } .gq-RARE { --q: var(--q-rare); } .gq-EPIC { --q: var(--q-epic); } .gq-LEGENDARY { --q: var(--q-leg); }
+.glist { margin-top: 14px; font-size: 13px; }
+.glist div { display: grid; grid-template-columns: 86px minmax(0, 1fr) 28px; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.glist span:first-child { color: var(--muted); }
+.glist i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--q, var(--muted)); margin-right: 7px; }
+.glist b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+@media (max-width: 480px) { .gdoll { --gs: 38px; gap: 8px; padding: 8px; } }
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
 .rules summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; cursor: pointer; list-style: none; }
@@ -603,7 +629,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   .nx .dots { grid-column: 1 / -1; grid-row: 2; }
 }
 
-#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--fg); color: var(--bg); padding: 4px 9px; border-radius: 5px; font-size: 12px; font-weight: 600; max-width: 260px; }
+#tip { position: fixed; z-index: 90; pointer-events: none; background: var(--fg); color: var(--bg); padding: 4px 9px; border-radius: 5px; font-size: 12px; font-weight: 600; max-width: 260px; }
 
 @media (max-width: 560px) {
   h1 { font-size: 28px; }
@@ -865,6 +891,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1" hidden></div>
 <div id="tip" hidden></div>
 <div class="toast" id="toast" role="alert" hidden></div>
+<div class="sheet-bd" id="gc-bd" data-act="gcclose" hidden></div>
+<div class="sheet gcs" id="gc-box" role="dialog" aria-modal="true" aria-labelledby="gc-title" tabindex="-1" hidden></div>
 <div class="sheet-bd" id="auth-bd" data-act="authclose" hidden></div>
 <div class="sheet" id="auth-box" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1" hidden></div>
 
@@ -1961,6 +1989,8 @@ document.addEventListener("click", e => {
   else if (act === "login") openAuth("pick");
   else if (act === "authpick") openAuth("pass", { player: id });
   else if (act === "authclose") closeAuth();
+  else if (act === "gchar") { gOpen = id; gDrawn = ""; renderGSheet(); $("#gc-box").scrollTop = 0; $("#gc-box").focus(); }
+  else if (act === "gcclose") closeG();
   else if (act === "pwd") openAuth("change");
   else if (act === "admin") openAdmin();
   else if (act === "logout") { const t = auth?.token; setAuth(null); if (t) dbRef?.call("logout", { p_token: t }).catch(() => {}); }
@@ -2001,7 +2031,7 @@ document.addEventListener("change", e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.matches?.("input.nm")) e.target.blur();
-  if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); if (authUI) closeAuth(); }
+  if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); if (authUI) closeAuth(); if (gOpen) closeG(); }
 });
 document.addEventListener("focusout", () => setTimeout(() => { if (dirty && !editing()) render(); }, 0));
 
@@ -2092,7 +2122,7 @@ document.addEventListener("pointerleave", () => { tip.hidden = true; });
 const BCLS = { 1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage", 9: "Warlock", 11: "Druid" };
 const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "Skyborne", 96: "Skyborne" };
 const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, later characters are grey
-let guild = null, glevels = [], gModel = null;
+let guild = null, glevels = [], gModel = null, gchars = {}, gOpen = "", gDrawn = "";
 const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
 const dayShort = k => `${+k.slice(8, 10)} ${MON[+k.slice(5, 7) - 1]}`;
 function guildData() {
@@ -2109,6 +2139,7 @@ function guildData() {
   return { days, mem, color, name, series };
 }
 function renderGuild() {
+  renderGSheet();
   const g = guildData(), list = Object.entries(g.mem).map(([slug, m]) => ({ slug, ...m })).sort((a, b) => b.level - a.level || g.name(a.slug).localeCompare(g.name(b.slug)));
   if (!list.length) {
     const msg = got.has("guild") ? "Данных пока нет: синхронизация с Blizzard ещё не настроена." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
@@ -2128,12 +2159,12 @@ function renderGuild() {
   };
   $("#groster").innerHTML = list.map(m => {
     const c = CLS[BCLS[m.cls]], d = delta(m);
-    return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${esc(g.name(m.slug))}</b>
+    return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}" aria-haspopup="dialog">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
       <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}</span>
       <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
       <span class="n">${+m.level || "—"}</span>
       <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
-  }).join("") + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры.</p>`;
+  }).join("") + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
   renderGChart(g);
 }
 function renderGChart(g) {
@@ -2166,6 +2197,39 @@ function renderGChart(g) {
   $("#gtable").innerHTML = `<table><thead><tr><th>День</th>${series.map(s => `<th>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${
     rows.map(d => `<tr><td>${dayShort(d.id)}</td>${series.map(s => `<td>${+d.lv[s.slug] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
+// Character sheet: full-body render with the gear around it, like the official armory.
+const G_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
+const G_RIGHT = ["HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2"];
+const G_BOTTOM = ["MAIN_HAND", "OFF_HAND", "RANGED"];
+const G_SLOT = { HEAD: "Голова", NECK: "Шея", SHOULDER: "Плечи", BACK: "Спина", CHEST: "Грудь", SHIRT: "Рубашка", TABARD: "Накидка", WRIST: "Запястья",
+  HANDS: "Руки", WAIST: "Пояс", LEGS: "Ноги", FEET: "Ступни", FINGER_1: "Кольцо 1", FINGER_2: "Кольцо 2", TRINKET_1: "Аксессуар 1", TRINKET_2: "Аксессуар 2",
+  MAIN_HAND: "Правая рука", OFF_HAND: "Левая рука", RANGED: "Дальний бой" };
+const G_Q = ["POOR", "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"];
+const bimg = u => /^https:\/\/render\.worldofwarcraft\.com\/[\w./-]+$/.test(u || "") ? u : ""; // only Blizzard's image server
+function renderGSheet() {
+  const box = $("#gc-box"), bd = $("#gc-bd"), c = gchars[gOpen], m = guild?.members?.[gOpen];
+  if (!gOpen || !c || !m) { gOpen = gDrawn = ""; box.hidden = bd.hidden = true; return; }
+  const key = `${gOpen}:${c.at}:${m.level}`;
+  if (key === gDrawn) return; // presence and other re-renders must not reload the images
+  gDrawn = key;
+  const items = c.items || {}, qc = it => G_Q.includes(it.q) ? "gq-" + it.q : "";
+  const slot = t => {
+    const it = items[t];
+    if (!it) return `<span class="gslot e" data-tip="${G_SLOT[t]}: пусто"></span>`;
+    return `<span class="gslot ${qc(it)}" data-tip="${esc(`${it.name} · ур. предмета ${+it.lvl || "?"}`)}">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="${esc(it.name)}" loading="lazy">` : ""}</span>`;
+  };
+  let login = "";
+  try { if (c.login) login = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(c.login)); } catch {}
+  const name = `${m.name}${m.surname ? " " + m.surname : ""}`;
+  box.innerHTML = `<div class="sheet-head"><h3 id="gc-title">${esc(name)}</h3><button type="button" class="x" data-act="gcclose" aria-label="Закрыть">✕</button></div>
+    <p class="gsub"><b>${+m.level || "?"}</b> ${esc(BRACE[m.race] || "")} ${esc(BCLS[m.cls] || "")}${c.ilvl ? ` · уровень предметов <b>${+c.ilvl}</b>` : ""}${c.ruleset ? ` · ${esc(c.ruleset)}` : ""}${login ? ` · в игре: ${login}` : ""}</p>
+    <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
+      <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
+      <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
+    <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
+  box.hidden = bd.hidden = false;
+}
+function closeG() { gOpen = ""; renderGSheet(); }
 // Crosshair: snaps to the nearest day and lists every charted character for it.
 function gHover(e) {
   const plot = e.target.closest?.("#gplot"), tipEl = $("#gtip"), xh = $("#gxh");
@@ -2262,6 +2326,7 @@ async function boot() {
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
   db.collection("fame").onSnapshot(snap => { fameAll = snap.docs.map(d => ({ id: d.id, ...d.data() })); got.add("fame"); render(); }, () => {});
   db.doc("guild/roster").onSnapshot(s => { guild = s.exists ? s.data() : null; got.add("guild"); render(); }, () => {});
+  db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
     settings = { size: s.exists && s.data().size === 10 ? 10 : 5 };

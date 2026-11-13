@@ -248,7 +248,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels'))  -- hourly Blizzard sync rows: nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars'))  -- hourly Blizzard sync rows: nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -412,9 +412,20 @@ create table if not exists public.bnet_config (k text primary key, v text not nu
 alter table public.bnet_config enable row level security;
 revoke all on public.bnet_config from anon, authenticated;
 
+-- Item icon URLs, looked up once per item (Blizzard media ids). '' = Blizzard has no icon for it.
+create table if not exists public.bnet_icons (id bigint primary key, icon text not null);
+alter table public.bnet_icons enable row level security;
+revoke all on public.bnet_icons from anon, authenticated;
+
+-- 2026-11-13: character sheets. For every guild character of level 10+ (Blizzard has no profile below that):
+--   gchars/{slug}  {at, ilvl, ruleset, login (ms), img (full-body render), avatar,
+--                   items: {SLOT: {id, name, q (POOR..LEGENDARY), lvl, icon}}}   SLOT is Blizzard's slot type (HEAD, FINGER_1, ...)
+-- A character that fails to load keeps its previous sheet. At most 60 new icons are fetched per run, the rest next hour.
 create or replace function public.guild_sync()
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
+        hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint;
+        icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
   select v into cid from bnet_config where k = 'client_id';
@@ -430,9 +441,10 @@ begin
     'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
   if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
   tok := body::jsonb->>'access_token';
+  hdr := array[http_header('Authorization', 'Bearer ' || tok)];
   select h.status, h.content into st, body from http(('GET',
     format('https://%s.api.blizzard.com/data/wow/guild/%s/roster?namespace=profile-forever-%s&locale=en_US', region, slug, region),
-    array[http_header('Authorization', 'Bearer ' || tok)], null, null)::http_request) h;
+    hdr, null, null)::http_request) h;
   if st <> 200 then raise exception 'guild roster: HTTP %', st; end if;
   r := body::jsonb;
   select jsonb_object_agg(m->'character'->>'slug', jsonb_build_object(
@@ -448,7 +460,52 @@ begin
     ('guild', 'roster', jsonb_build_object('name', coalesce(r->'guild'->>'name', slug), 'at', now_ms, 'members', members)),
     ('glevels', to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD'), jsonb_build_object('at', now_ms, 'lv', lv))
   on conflict (coll, id) do update set data = excluded.data, updated_at = now();
-  return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'at', now_ms);
+
+  -- Character sheets: profile, equipment and renders. One character failing must not stop the rest.
+  q := format('?namespace=profile-forever-%s&locale=en_US', region);
+  for ch in select e.key from jsonb_each(members) e where (e.value->>'level')::int >= 10 order by e.key loop
+    begin
+      base := format('https://%s.api.blizzard.com/profile/wow/character/%s', region, urlencode(ch));
+      select h.status, h.content into st, body from http(('GET', base || q, hdr, null, null)::http_request) h;
+      if st <> 200 then continue; end if;
+      pr := body::jsonb;
+      select h.status, h.content into st, body from http(('GET', base || '/equipment' || q, hdr, null, null)::http_request) h;
+      if st <> 200 then continue; end if;
+      eq := body::jsonb;
+      select h.status, h.content into st, body from http(('GET', base || '/character-media' || q, hdr, null, null)::http_request) h;
+      md := case when st = 200 then body::jsonb else null end;  -- renders can lag the profile by hours
+      for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
+                 where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
+        exit when icons_left <= 0;
+        icons_left := icons_left - 1;
+        select h.status, h.content into st, body from http(('GET',
+          format('https://%s.api.blizzard.com/data/wow/media/item/%s?namespace=static-forever-%s', region, mid, region), hdr, null, null)::http_request) h;
+        if st in (200, 404) then
+          insert into bnet_icons (id, icon) values (mid, coalesce((select a->>'value' from jsonb_array_elements(
+            case when st = 200 then body::jsonb->'assets' else '[]'::jsonb end) a where a->>'key' = 'icon' limit 1), ''))
+          on conflict (id) do nothing;
+        end if;
+      end loop;
+      select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object(
+               'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, '')))), '{}'::jsonb)
+        into items
+      from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
+      left join bnet_icons b on b.id = (i->'media'->>'id')::bigint
+      where i->'slot'->>'type' is not null;
+      insert into docs (coll, id, data) values ('gchars', ch, jsonb_strip_nulls(jsonb_build_object(
+        'at', now_ms, 'ilvl', pr->'equipped_item_level', 'ruleset', pr->'ruleset'->'name', 'login', pr->'last_login_timestamp',
+        'img', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'main-raw' limit 1),
+                        (select d.data->'img' from docs d where d.coll = 'gchars' and d.id = ch)),
+        'avatar', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'avatar' limit 1),
+                           (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
+        'items', items)))
+      on conflict (coll, id) do update set data = excluded.data, updated_at = now();
+      sheets := sheets + 1;
+    exception when others then
+      raise warning 'guild_sync: % skipped: %', ch, sqlerrm;
+    end;
+  end loop;
+  return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms);
 end $$;
 revoke execute on function public.guild_sync() from public, anon, authenticated;
 
