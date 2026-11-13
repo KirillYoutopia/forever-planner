@@ -496,6 +496,7 @@ returns jsonb language plpgsql security definer set search_path = public, extens
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
+        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -571,6 +572,48 @@ begin
           from jsonb_array_elements(pf) x
           where x->'profession'->>'name' is not null and x->'profession'->>'id' ~ '^[0-9]+$' and x->'tiers'->0->'tier'->>'id' ~ '^[0-9]+$'), '{}'::jsonb);
       end if;
+      -- 2026-11-14: more of the character sheet. Each part keeps its previous value when its request fails.
+      --   st   {hp, pw, pt (power type), str, agi, sta, int, spi, arm, ap, sp, mc, sc, dg}   attributes (crit and dodge in %)
+      --   pvp  {hk, rank, maps: [[battleground, played, won, lost]]}
+      --   reps [[faction, standing, value, max, tier]]   highest first
+      --   q    {done: completed quests, log: [quest names in progress]}
+      select d.data into oldd from docs d where d.coll = 'gchars' and d.id = ch;
+      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q';
+      select h.status, h.content into st, body from http(('GET', base || '/statistics' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        j := body::jsonb;
+        stt := jsonb_strip_nulls(jsonb_build_object('hp', j->'health', 'pw', j->'power', 'pt', j->'power_type'->'name',
+          'str', j->'strength'->'effective', 'agi', j->'agility'->'effective', 'sta', j->'stamina'->'effective',
+          'int', j->'intellect'->'effective', 'spi', j->'spirit'->'effective', 'arm', j->'armor'->'effective',
+          'ap', j->'attack_power', 'sp', j->'spell_power', 'mc', round((j->'melee_crit'->>'value')::numeric, 2),
+          'sc', round((j->'spell_crit'->>'value')::numeric, 2), 'dg', round((j->'dodge'->>'value')::numeric, 2)));
+      end if;
+      select h.status, h.content into st, body from http(('GET', base || '/pvp-summary' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        j := body::jsonb;
+        pvp := jsonb_strip_nulls(jsonb_build_object('hk', j->'honorable_kills', 'rank', j->'pvp_rank', 'maps', (
+          select jsonb_agg(jsonb_build_array(m->'world_map'->'name', m->'match_statistics'->'played', m->'match_statistics'->'won', m->'match_statistics'->'lost'))
+          from jsonb_array_elements(case when jsonb_typeof(j->'pvp_map_statistics') = 'array' then j->'pvp_map_statistics' else '[]'::jsonb end) m)));
+      end if;
+      select h.status, h.content into st, body from http(('GET', base || '/reputations' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        select coalesce(jsonb_agg(jsonb_build_array(x->'faction'->'name', x->'standing'->'name', x->'standing'->'value', x->'standing'->'max', x->'standing'->'tier')
+                 order by (x->'standing'->>'raw')::numeric desc nulls last, x->'faction'->>'name'), '[]'::jsonb)
+          into reps
+        from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'reputations') = 'array' then body::jsonb->'reputations' else '[]'::jsonb end) x
+        where x->'faction'->>'name' is not null;
+      end if;
+      select h.status, h.content into st, body from http(('GET', base || '/quests' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        qs := coalesce(qs, '{}'::jsonb) || jsonb_build_object('log', coalesce((
+          select jsonb_agg(x->'name') from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'in_progress') = 'array' then body::jsonb->'in_progress' else '[]'::jsonb end) x
+          where x->>'name' is not null), '[]'::jsonb));
+      end if;
+      select h.status, h.content into st, body from http(('GET', base || '/quests/completed' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        qs := coalesce(qs, '{}'::jsonb) || jsonb_build_object('done',
+          jsonb_array_length(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end));
+      end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
         exit when icons_left <= 0;
@@ -596,6 +639,7 @@ begin
         'avatar', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'avatar' limit 1),
                            (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
+        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs,
         'items', items)))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -618,8 +662,9 @@ begin
       on conflict (id) do update set cat = excluded.cat;
       insert into bnet_prof_cat (prof) values (pk) on conflict (prof) do update set at = now();
     end loop;
-    -- 2. Details, icons and item tooltips: loaded in slices by guild_recipes_fill (also every 5 minutes on its own).
-    perform guild_recipes_fill(20);
+    -- 2. Details, icons and item tooltips are loaded by guild_recipes_fill every 5 minutes. Here it gets only a few
+    --    seconds, mostly to publish the lists: a longer sync times out when run by hand from the SQL Editor.
+    perform guild_recipes_fill(5);
   exception when others then
     raise warning 'guild_sync: recipes skipped: %', sqlerrm;
   end;

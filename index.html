@@ -462,9 +462,23 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gown button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 4px 10px; font: inherit; }
 .gown button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
 .gown button:disabled { opacity: .55; }
+/* character sheet: attributes, PvP, reputations, quests */
+.gsec { margin: 18px 0 8px; font: 400 16px/1.2 var(--font-display); color: var(--fg); letter-spacing: .02em; text-transform: none; }
+.gtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.gtiles div { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
+.gtiles span { display: block; font-size: 12px; color: var(--muted); }
+.gtiles b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.greps { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 20px; }
+.grep > div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.grep small { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grep small b { color: var(--fg); font-weight: 600; margin-right: 4px; }
+.grep i { display: block; height: 5px; margin-top: 4px; border-radius: 0 3px 3px 0; background: var(--track); overflow: hidden; }
+.grep i::after { content: ""; display: block; height: 100%; width: var(--w); min-width: 2px; background: var(--c); border-radius: 0 3px 3px 0; }
+.gql { margin: 8px 0 0; padding: 0; list-style: none; columns: 2 200px; column-gap: 20px; font-size: 13px; }
+.gql li { padding: 2px 0; break-inside: avoid; }
 .gpm { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
 .gpm h3 { margin: 0 0 4px; font: 600 13px var(--font-body); color: var(--fg); letter-spacing: 0; text-transform: none; }
-.glist { margin-top: 14px; font-size: 13px; }
+.glist { font-size: 13px; }
 .glist div { display: grid; grid-template-columns: 86px minmax(0, 1fr) 28px; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); align-items: baseline; }
 .glist span:first-child { color: var(--muted); }
 .glist i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--q, var(--muted)); margin-right: 7px; }
@@ -694,7 +708,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
   <div id="note"></div>
 
-  <section class="band" aria-label="Обратный отсчёт и дорожная карта">
+  <section class="band" aria-label="Обратный отсчёт и дорожная карта" data-view="home">
     <div class="cds">
       <div class="cd">
         <h3>До открытия рейдов</h3>
@@ -2362,8 +2376,38 @@ function renderGSheet() {
         const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
         return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
       }).join("")}</div>`).join("")}
+    ${gSheetMore(c)}
+    <h4 class="gsec">Экипировка</h4>
     <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div data-slot="${t}"><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
   box.hidden = bd.hidden = false;
+}
+// Attributes, PvP, reputations and quests of the open character (gchars: st, pvp, reps, q).
+const G_POWER = { Mana: "Мана", Rage: "Ярость", Energy: "Энергия", Focus: "Концентрация" };
+const fmtN = n => (+n || 0).toLocaleString("ru-RU");
+function gSheetMore(c) {
+  const tiles = rows => `<div class="gtiles">${rows.filter(r => r[1] != null).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
+  const pct = v => v == null ? null : (+v || 0).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + "%";
+  const num = v => v == null ? null : fmtN(v);
+  let html = "";
+  const s = c.st;
+  if (s && typeof s === "object") html += `<h4 class="gsec">Характеристики</h4>` + tiles([["Здоровье", num(s.hp)], [G_POWER[s.pt] || esc(s.pt || "Ресурс"), num(s.pw)],
+    ["Сила", num(s.str)], ["Ловкость", num(s.agi)], ["Выносливость", num(s.sta)], ["Интеллект", num(s.int)], ["Дух", num(s.spi)], ["Броня", num(s.arm)],
+    ["Сила атаки", num(s.ap)], ["Сила заклинаний", num(s.sp)], ["Крит в ближнем бою", pct(s.mc)], ["Крит заклинаний", pct(s.sc)], ["Уклонение", pct(s.dg)]]);
+  const p = c.pvp;
+  if (p && typeof p === "object") html += `<h4 class="gsec">PvP</h4>` + tiles([["Почётные убийства", num(p.hk ?? 0)], ["Ранг", num(p.rank ?? 0)],
+    ...(Array.isArray(p.maps) ? p.maps : []).map(m => [esc(m[0]), `${+m[2] || 0} : ${+m[3] || 0}`])]);
+  const reps = Array.isArray(c.reps) ? c.reps : [];
+  if (reps.length) html += `<h4 class="gsec">Репутация</h4><div class="greps">${reps.map(([name, st, v, max, tier]) => {
+    const col = tier >= 5 ? "var(--healer)" : tier === 4 ? "var(--second-bg)" : tier === 3 ? "var(--gold)" : "var(--ban-bg)";
+    return `<div class="grep"><div><span>${esc(name)}</span><small><b>${esc(st || "")}</b>${fmtN(v)} / ${fmtN(max)}</small></div><i style="--c:${col};--w:${max > 0 ? Math.min(100, Math.max(0, v / max * 100)) : 0}%"></i></div>`;
+  }).join("")}</div>`;
+  const q = c.q;
+  if (q && typeof q === "object") {
+    const log = Array.isArray(q.log) ? q.log : [];
+    html += `<h4 class="gsec">Задания</h4>` + tiles([["Выполнено", num(q.done)], ["В журнале", num(log.length)]])
+      + (log.length ? `<ul class="gql">${log.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
+  }
+  return html;
 }
 function closeG() { gOpen = ""; gTipHide(); renderGSheet(); }
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
