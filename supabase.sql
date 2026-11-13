@@ -418,9 +418,55 @@ create table if not exists public.bnet_icons (id bigint primary key, icon text n
 alter table public.bnet_icons enable row level security;
 revoke all on public.bnet_icons from anon, authenticated;
 
+-- Tooltip lines for one equipped item, in the armory's order: [[text, kind, right?], ...].
+-- kind: '' plain, 'g' green (bonuses, enchants, use effects), 'y' gold (set name, flavour text), 'm' muted (inactive, sell price).
+-- "right" is the right-aligned half of a two-part line (Head | Mail, 39 - 74 Damage | Speed 1.90).
+create or replace function public.bnet_item_tip(i jsonb)
+returns jsonb language sql immutable as $$
+  select coalesce(jsonb_agg(l order by ord), '[]'::jsonb) from (
+    select 1::numeric ord, jsonb_build_array(i->'binding'->>'name', '') l where i->'binding'->>'name' is not null
+    union all select 2, jsonb_build_array(i->>'unique_equipped', '') where jsonb_typeof(i->'unique_equipped') = 'string'
+    union all select 3, jsonb_build_array(i->'inventory_type'->>'name', '',
+        case when coalesce((i->>'is_subclass_hidden')::boolean, false) then '' else coalesce(i->'item_subclass'->>'name', '') end)
+      where i->'inventory_type'->>'name' is not null
+    union all select 4, jsonb_build_array(i->'weapon'->'damage'->>'display_string', '', coalesce(i->'weapon'->'attack_speed'->>'display_string', ''))
+      where i->'weapon'->'damage'->>'display_string' is not null
+    union all select 5, jsonb_build_array(i->'weapon'->'dps'->>'display_string', '') where i->'weapon'->'dps'->>'display_string' is not null
+    union all select 6, jsonb_build_array(i->'armor'->'display'->>'display_string', '') where i->'armor'->'display'->>'display_string' is not null
+    union all select 7, jsonb_build_array(i->'shield_block'->'display'->>'display_string', '') where i->'shield_block'->'display'->>'display_string' is not null
+    union all select 8 + case when coalesce((s.v->>'is_equip_bonus')::boolean, false) then 0.5 else 0 end + s.n / 1000.0,
+        jsonb_build_array(s.v->'display'->>'display_string', case when coalesce((s.v->>'is_equip_bonus')::boolean, false) then 'g' else '' end)
+      from jsonb_array_elements(case when jsonb_typeof(i->'stats') = 'array' then i->'stats' else '[]'::jsonb end) with ordinality s(v, n)
+      where s.v->'display'->>'display_string' is not null
+    union all select 10 + e.n / 1000.0, jsonb_build_array(e.v->>'display_string', 'g')
+      from jsonb_array_elements(case when jsonb_typeof(i->'enchantments') = 'array' then i->'enchantments' else '[]'::jsonb end) with ordinality e(v, n)
+      where e.v->>'display_string' is not null
+    union all select 11, jsonb_build_array(i->'durability'->>'display_string', '') where i->'durability'->>'display_string' is not null
+    union all select 12, jsonb_build_array(i->'requirements'->'level'->>'display_string', '') where i->'requirements'->'level'->>'display_string' is not null
+    union all select 13 + p.n / 1000.0, jsonb_build_array(p.v->>'description', 'g')
+      from jsonb_array_elements(case when jsonb_typeof(i->'spells') = 'array' then i->'spells' else '[]'::jsonb end) with ordinality p(v, n)
+      where coalesce(p.v->>'description', '') <> ''
+    union all select 14, jsonb_build_array(coalesce(i->'set'->>'display_string', i->'set'->'item_set'->>'name'), 'y')
+      where coalesce(i->'set'->>'display_string', i->'set'->'item_set'->>'name') is not null
+    union all select 14.1 + t.n / 1000.0, jsonb_build_array(t.v->'item'->>'name', case when coalesce((t.v->>'is_equipped')::boolean, false) then 'y' else 'm' end)
+      from jsonb_array_elements(case when jsonb_typeof(i->'set'->'items') = 'array' then i->'set'->'items' else '[]'::jsonb end) with ordinality t(v, n)
+      where t.v->'item'->>'name' is not null
+    union all select 14.5 + f.n / 1000.0, jsonb_build_array(f.v->>'display_string', case when coalesce((f.v->>'is_active')::boolean, false) then 'g' else 'm' end)
+      from jsonb_array_elements(case when jsonb_typeof(i->'set'->'effects') = 'array' then i->'set'->'effects' else '[]'::jsonb end) with ordinality f(v, n)
+      where f.v->>'display_string' is not null
+    union all select 15, jsonb_build_array('"' || (i->>'description') || '"', 'y') where jsonb_typeof(i->'description') = 'string' and i->>'description' <> ''
+    union all select 16, jsonb_build_array(concat_ws(' ', coalesce(i->'sell_price'->'display_strings'->>'header', 'Sell Price:'),
+        nullif(i->'sell_price'->'display_strings'->>'gold', '0') || 'g', nullif(i->'sell_price'->'display_strings'->>'silver', '0') || 's',
+        nullif(i->'sell_price'->'display_strings'->>'copper', '0') || 'c'), 'm')
+      where coalesce((i->'sell_price'->>'value')::numeric, 0) > 0
+  ) x
+$$;
+revoke execute on function public.bnet_item_tip(jsonb) from public, anon, authenticated;
+
 -- 2026-11-13: character sheets. For every guild character of level 10+ (Blizzard has no profile below that):
 --   gchars/{slug}  {at, ilvl, ruleset, login (ms), img (full-body render), avatar,
---                   items: {SLOT: {id, name, q (POOR..LEGENDARY), lvl, icon}},   SLOT is Blizzard's slot type (HEAD, FINGER_1, ...)
+--                   items: {SLOT: {id, name, q (POOR..LEGENDARY), lvl, icon, tip}},   SLOT is Blizzard's slot type (HEAD, FINGER_1, ...);
+--                          tip = tooltip lines from bnet_item_tip() above
 --                   profs: {Profession: {s (skill), max, n (known recipes)}}}    English names, as in the page's PROFS
 -- A character that fails to load keeps its previous sheet. At most 60 new icons are fetched per run, the rest next hour.
 create or replace function public.guild_sync()
@@ -499,7 +545,7 @@ begin
         end if;
       end loop;
       select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object(
-               'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, '')))), '{}'::jsonb)
+               'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, ''), 'tip', bnet_item_tip(i)))), '{}'::jsonb)
         into items
       from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
       left join bnet_icons b on b.id = (i->'media'->>'id')::bigint
