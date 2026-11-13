@@ -397,7 +397,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 /* guild tab: roster + day-by-day level chart */
 .gr { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(110px, .9fr) minmax(80px, 2fr) 40px 84px; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 6px; }
 .gr + .gr { border-top: 1px solid var(--line); }
-.gr b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr .gc b { color: var(--fg); font-weight: 600; }
+.gr > b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr .gc { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gr .n { font: 400 22px/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
 .gr .gd { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -419,7 +420,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gtip { position: absolute; z-index: 5; top: 0; pointer-events: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); white-space: nowrap; }
 .gtip h4 { margin: 0 0 4px; font: 600 12px var(--font-body); color: var(--muted); }
 .gtip div { display: flex; align-items: center; gap: 2px; }
-.gtip b { min-width: 22px; font-variant-numeric: tabular-nums; }
+.gtip b { min-width: 28px; font-variant-numeric: tabular-nums; }
 .gtable { margin-top: 14px; }
 .gtable summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .gtable table { border-collapse: collapse; font-size: 13px; margin-top: 10px; font-variant-numeric: tabular-nums; }
@@ -451,6 +452,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gslot img { display: block; width: 100%; height: 100%; }
 .gslot.e { border-width: 1px; opacity: .7; }
 .gq-POOR { --q: var(--q-poor); } .gq-COMMON { --q: var(--frame-fg); } .gq-UNCOMMON { --q: var(--q-unc); } .gq-RARE { --q: var(--q-rare); } .gq-EPIC { --q: var(--q-epic); } .gq-LEGENDARY { --q: var(--q-leg); }
+.gown { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.gown button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 4px 10px; font: inherit; }
+.gown button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.gown button:disabled { opacity: .55; }
+.gpm { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
+.gpm h3 { margin: 0 0 4px; font: 600 13px var(--font-body); color: var(--fg); letter-spacing: 0; text-transform: none; }
 .glist { margin-top: 14px; font-size: 13px; }
 .glist div { display: grid; grid-template-columns: 86px minmax(0, 1fr) 28px; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); align-items: baseline; }
 .glist span:first-child { color: var(--muted); }
@@ -595,13 +602,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .box[aria-pressed="true"] { background: var(--first-bg); border-color: var(--first-bg); }
 .tk.done .tt { color: var(--muted); text-decoration: line-through; }
 .tk .due { font-size: 12px; color: var(--accent); white-space: nowrap; }
-.lv { display: grid; grid-template-columns: minmax(80px, 130px) 44px 1fr 66px; gap: 10px; align-items: center; padding: 6px 0; }
-.lv .n { font: 400 24px/1 var(--font-display); text-align: center; font-variant-numeric: tabular-nums; }
-.lv .pm { display: flex; gap: 4px; justify-content: flex-end; }
-.lv .pm button { width: 30px; height: 28px; border-radius: 5px; border: 1px solid var(--line); background: var(--cell); font-weight: 700; }
-.xp { position: relative; height: 14px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--track); overflow: hidden; }
-.xp span { position: absolute; inset: 0 auto 0 0; background: var(--xp); }
-.lv-warn { margin-top: 10px; padding: 8px 12px; border-radius: 6px; background: var(--panel-2); font-size: 13px; }
 .dg { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
 .dgc { padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--cell); font-size: 13px; min-width: 0; }
 .dgc b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -635,8 +635,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .pframe .lvl { position: absolute; left: 44px; top: 44px; min-width: 22px; height: 22px; border-radius: 11px; padding: 0 4px; background: var(--frame-bg); border: 2px solid var(--gold); color: var(--frame-fg); font: 700 11px/18px var(--font-body); text-align: center; }
 @media (min-width: 1800px) { .pframe .lvl { left: 58px; top: 58px; min-width: 26px; height: 26px; font-size: 12px; line-height: 22px; } }
 @media (max-width: 560px) {
-  .lv { grid-template-columns: minmax(70px, 1fr) 36px 66px; }
-  .lv .xp { grid-column: 1 / -1; order: 1; }
   .nx { grid-template-columns: 1fr auto; }
   .nx .dots { grid-column: 1 / -1; grid-row: 2; }
 }
@@ -660,13 +658,14 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <h1>WoW Forever</h1>
     </div>
     <div class="seg" role="group" aria-label="Раздел">
-      <button type="button" data-act="nav" data-nav="plan" aria-pressed="true">Планировщик</button>
+      <button type="button" data-act="nav" data-nav="home" aria-pressed="true">Главная</button>
       <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
       <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
       <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">Гильдия</button>
       <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Таверна</button>
       <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
       <button type="button" data-act="nav" data-nav="fame" aria-pressed="false">Зал славы</button>
+      <button type="button" data-act="nav" data-nav="plan" aria-pressed="false">Планирование (старое)</button>
     </div>
   </header>
 
@@ -675,17 +674,17 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="band" aria-label="Обратный отсчёт и дорожная карта">
     <div class="cds">
       <div class="cd">
-        <h3>До старта игры</h3>
+        <h3>До открытия рейдов</h3>
         <div class="cd-num" id="cd-num">
           <span><b id="cd-d">--</b>дн</span><span><b id="cd-h">--</b>ч</span><span><b id="cd-m">--</b>мин</span><span><b id="cd-s">--</b>сек</span>
         </div>
-        <div class="cd-done" id="cd-done" hidden>Игра стартовала</div>
+        <div class="cd-done" id="cd-done" hidden>Рейды открыты</div>
         <p class="cd-sub" id="cd-launch-sub"></p>
       </div>
       <div class="cd">
-        <h3>До старта Hardcore, примерно</h3>
+        <h3>До старта Hardcore, очень примерно</h3>
         <div class="cd-hc"><b id="cd-hc-n">--</b><span id="cd-hc-u">дней</span></div>
-        <p class="cd-sub" id="cd-hc-sub">Официально известно только «Winter 2026». Ориентир: начало зимнего блока на карте, 9 декабря.</p>
+        <p class="cd-sub" id="cd-hc-sub">Официальной даты нет: Blizzard назвал только «Winter 2026». Вряд ли Hardcore выйдет в один день с рейдами, поэтому наш ориентир: не раньше 9 января 2027. Это догадка, а не анонс.</p>
       </div>
     </div>
     <figure class="road">
@@ -694,7 +693,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </figure>
   </section>
 
-  <div class="row" data-view="plan">
+  <div class="row" data-view="plan" hidden>
     <section class="panel" aria-labelledby="h-comp">
       <div class="panel-head"><h2 id="h-comp">Состав группы</h2><div class="sizebox"><span class="cap" id="comp-cap"></span><div class="seg" role="group" aria-label="Размер группы" id="size"></div></div></div>
       <div class="tiles" id="comp"></div>
@@ -707,7 +706,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </section>
   </div>
 
-  <section class="panel" aria-labelledby="h-grid" data-view="plan">
+  <section class="panel" aria-labelledby="h-grid" data-view="plan" hidden>
     <div class="panel-head"><h2 id="h-grid">Приоритеты по классам</h2><span class="cap">Клик по ячейке: 1 → 2 → бан → ★ → пусто</span></div>
     <div class="scroll" id="grid"></div>
     <div class="legend">
@@ -722,7 +721,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <section class="panel" aria-labelledby="h-chars" data-view="plan">
+  <section class="panel" aria-labelledby="h-chars" data-view="plan" hidden>
     <div class="panel-head"><h2 id="h-chars">Персонажи</h2><span class="cap">Класс берётся из ★ в таблице приоритетов</span></div>
     <div class="scroll" id="chars"></div>
   </section>
@@ -764,11 +763,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </section>
   </div>
 
-  <section class="panel" aria-labelledby="h-levels" data-view="soon" hidden>
-    <div class="panel-head"><h2 id="h-levels">Уровни</h2><span class="cap">− / + меняют уровень, клик по полоске отмечает опыт</span></div>
-    <div id="levels"></div>
-  </section>
-
   <section class="panel" aria-labelledby="h-dung" data-view="soon" hidden>
     <div class="panel-head"><h2 id="h-dung">Подземелья</h2><span class="cap" id="dung-cap"></span></div>
     <div id="dung"></div>
@@ -799,12 +793,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <section class="panel" aria-labelledby="h-guild" data-view="guild" hidden>
+  <section class="panel" aria-labelledby="h-guild" data-view="home guild">
     <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span></div>
     <div id="groster"></div>
   </section>
 
-  <section class="panel" aria-labelledby="h-gprofs" data-view="guild" hidden>
+  <section class="panel" aria-labelledby="h-gprofs" data-view="home">
     <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
     <div id="gprofs"></div>
   </section>
@@ -813,6 +807,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div class="panel-head"><h2 id="h-gchart">Прогресс по дням</h2><span class="cap">Уровень на конец дня по Центральной Европе, персонажи с 10 уровня</span></div>
     <div id="gchart"></div>
     <details class="gtable"><summary>Таблица по дням</summary><div class="scroll" id="gtable"></div></details>
+  </section>
+
+  <section class="panel" aria-labelledby="h-gpchart" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-gpchart">Профессии по дням</h2><span class="cap">Навык на конец дня, по одной линии на персонажа</span></div>
+    <div id="gpcharts"></div>
   </section>
 
   <section class="panel online" data-view="tavern" hidden aria-label="Кто сейчас на сайте">
@@ -892,12 +891,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <section class="panel" aria-labelledby="h-split" data-view="plan">
+  <section class="panel" aria-labelledby="h-split" data-view="plan" hidden>
     <div class="panel-head"><h2 id="h-split">Разбивка</h2><span class="cap">Роли, классы и расы по финальному выбору</span></div>
     <div class="charts" id="charts"></div>
   </section>
 
-  <section class="panel" aria-labelledby="h-prof" data-view="plan">
+  <section class="panel" aria-labelledby="h-prof" data-view="plan" hidden>
     <div class="panel-head"><h2 id="h-prof">Профессии</h2><span class="cap">Основных профессий не больше двух на игрока</span></div>
     <div class="scroll" id="profs"></div>
   </section>
@@ -978,8 +977,9 @@ const BLOCKS = [
 let calWeeks = 4, sheet = null, sheetNote = "", hFrom = 18, hTo = 23;
 
 const LAUNCH_AT = Date.UTC(2026, 10, 4, 23, 0); // 5 ноября 2026, 00:00 CET (UTC+1)
-const HC_AT = Date.UTC(2026, 11, 9, 0, 0);      // ориентир: Winter 2026, точная дата не объявлена
-let view = "plan";
+const RAIDS_AT = Date.UTC(2026, 11, 9, 23, 0); // рейды: 9 декабря по карте, в тот же час, что и запуск = 10 декабря, 00:00 CET
+const HC_AT = Date.UTC(2027, 0, 9, 0, 0);       // догадка: месяц после рейдов. Официально только «Winter 2026»
+let view = "home";
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1088,11 +1088,12 @@ function portrait(p) {
 }
 function renderSquad() {
   $("#squad").innerHTML = players.map(p => {
-    const c = CLS[p.main?.cls];
-    if (!c) return `<div class="pframe e"><div class="por">${portrait(p)}</div><div class="meta"><div class="nm"><span>${esc(p.name)}</span></div><div class="bar"></div><div class="sub">ещё не выбрал(а) ★</div></div></div>`;
-    const r = RACE[p.main.race], role = p.main.role === "pie" && effRole(p) ? "pie" : effRole(p);
-    const sub = [r && (r.name || r.id), c.id].filter(Boolean).join(" ") + (role ? " · " + roleLabel(role) : "");
-    return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${portrait(p)}</div>${lvlOf(p) ? `<span class="lvl">${lvlOf(p)}</span>` : ""}<div class="meta">
+    const ch = charOf(p), av = ch ? bimg(gchars[p.char]?.avatar) : "";
+    const c = CLS[ch ? BCLS[ch.cls] : p.main?.cls], por = av ? `<img src="${av}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : portrait(p);
+    if (!c) return `<div class="pframe e"><div class="por">${por}</div><div class="meta"><div class="nm"><span>${esc(p.name)}</span></div><div class="bar"></div><div class="sub">персонаж не привязан</div></div></div>`;
+    const r = RACE[p.main?.race], role = c.id === p.main?.cls ? (p.main.role === "pie" && effRole(p) ? "pie" : effRole(p)) : "";
+    const sub = [ch ? BRACE[ch.race] : r && (r.name || r.id), c.id].filter(Boolean).join(" ") + (role ? " · " + roleLabel(role) : "");
+    return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${por}</div>${lvlOf(p) ? `<span class="lvl">${lvlOf(p)}</span>` : ""}<div class="meta">
       <div class="nm"><span>${online.some(m => m.player === p.id) ? `<i class="on-dot" title="на сайте"></i>` : ""}${esc(p.name)}</span><img src="${ICON("classicon_" + c.id.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
       <div class="bar"></div><div class="bar res"></div><div class="sub">${esc(sub)}</div></div></div>`;
   }).join("");
@@ -1379,7 +1380,9 @@ const RAIDS = [ // WoW Forever, открываются 9 декабря
 ];
 let wants = [], deaths = [], tasks = [], goals = [];
 const live = docs => docs.map(d => ({ id: d.id, ...d.data() })).filter(x => !x.deleted);
-const lvlOf = p => Math.min(60, Math.max(0, Math.round(+p.level || 0)));
+// A player's level comes from their linked guild character (players.char = character slug); the old manual level is the fallback.
+const charOf = p => (p?.char && guild?.members?.[p.char]) || null;
+const lvlOf = p => Math.min(60, Math.max(0, Math.round(+(charOf(p)?.level ?? p.level) || 0)));
 const short = n => esc(String(n).slice(0, 2));
 const delBtn = (act, id, label) => `<button type="button" class="x" data-act="${act}" data-id="${esc(id)}" aria-label="${esc(label)}" ${readOnly || offline ? "disabled" : ""}>✕</button>`;
 function fillWho(sel) {
@@ -1388,7 +1391,7 @@ function fillWho(sel) {
   if (players.some(p => p.id === cur)) sel.value = cur;
 }
 function renderSoon() {
-  renderNext(); renderTasks(); renderLevels(); renderDung(); renderWants(); renderGoals(); renderRip();
+  renderNext(); renderTasks(); renderDung(); renderWants(); renderGoals(); renderRip();
 }
 function renderNext() {
   if (!loaded || !players.length) { $("#next").innerHTML = `<p class="empty">${loaded ? "Добавь игроков." : "Загружаю…"}</p>`; return; }
@@ -1417,30 +1420,13 @@ function renderTasks() {
     : `<p class="empty">${loaded ? "Пока пусто. Добавь первое дело." : "Загружаю…"}</p>`;
   $("#task-form").querySelectorAll("input, button").forEach(el => { el.disabled = ro; });
 }
-function renderLevels() {
-  const ro = readOnly || offline;
-  if (!players.length) { $("#levels").innerHTML = `<p class="empty">${loaded ? "Добавь игроков." : "Загружаю…"}</p>`; return; }
-  const rows = players.map(p => {
-    const lv = lvlOf(p), xp = Math.min(100, Math.max(0, +p.xp || 0)), c = CLS[p.main?.cls];
-    return `<div class="lv"><b>${c ? cdot(c) : ""}${esc(p.name)}</b><span class="n">${lv || "—"}</span>
-      <button type="button" class="xp" data-act="xp" data-id="${esc(p.id)}" data-tip="${esc(`${p.name}: ${xp}% опыта до ${Math.min(60, (lv || 1) + 1)}`)}" aria-label="${esc(`Опыт ${p.name}: ${xp}%`)}" ${ro || !mine(p.id) || !lv || lv >= 60 ? "disabled" : ""}><span style="width:${lv >= 60 ? 100 : xp}%"></span></button>
-      <span class="pm"><button type="button" data-act="lvl" data-d="-1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень −1" ${ro || !mine(p.id) || lv <= 1 ? "disabled" : ""}>−</button><button type="button" data-act="lvl" data-d="1" data-id="${esc(p.id)}" aria-label="${esc(p.name)}: уровень +1" ${ro || !mine(p.id) || lv >= 60 ? "disabled" : ""}>+</button></span></div>`;
-  }).join("");
-  const set = players.filter(p => lvlOf(p) > 0);
-  let warn = "";
-  if (set.length >= 2) {
-    const hi = set.reduce((a, b) => lvlOf(b) > lvlOf(a) ? b : a), lo = set.reduce((a, b) => lvlOf(b) < lvlOf(a) ? b : a), d = lvlOf(hi) - lvlOf(lo);
-    if (d >= 5) warn = `<div class="lv-warn">⚠ ${esc(hi.name)} на ${d} ${plural(d, "уровень", "уровня", "уровней")} выше, чем ${esc(lo.name)}. В подземелья вместе будет тяжело.</div>`;
-  }
-  $("#levels").innerHTML = rows + warn;
-}
 function groupLevel() {
   const set = players.map(lvlOf).filter(Boolean);
   return set.length ? Math.round(set.reduce((a, b) => a + b, 0) / set.length) : 0;
 }
 function renderDung() {
   const ro = readOnly || offline, avg = groupLevel();
-  $("#dung-cap").textContent = avg ? `Средний уровень группы: ${avg}` : "Отметь уровни выше, и подсветятся подземелья по силам";
+  $("#dung-cap").textContent = avg ? `Средний уровень группы: ${avg}` : "Привяжи персонажей к игрокам (открой персонажа на главной), и подсветятся подземелья по силам";
   const who = d => `<div class="who">${players.map(p => `<button type="button" data-act="dg" data-id="${esc(p.id)}" data-dg="${d.id}" aria-pressed="${!!p.dungeons?.[d.id]}" data-tip="${esc(p.name + (p.dungeons?.[d.id] ? ": был(а)" : ": ещё не был(а)"))}" aria-label="${esc(`${p.name}, ${d.name}`)}" ${ro || !mine(p.id) ? "disabled" : ""}>${short(p.name)}</button>`).join("")}</div>`;
   const card = d => {
     const all = players.length && players.every(p => p.dungeons?.[d.id]);
@@ -1961,7 +1947,7 @@ document.addEventListener("click", e => {
   }
   else if (act === "close") closeSheet();
   else if (act === "nav") {
-    view = VIEWS.includes(b.dataset.nav) ? b.dataset.nav : "plan";
+    view = VIEWS.includes(b.dataset.nav) ? b.dataset.nav : "home";
     try { history.replaceState(null, "", "#" + view); } catch {}
     applyView();
   }
@@ -1991,11 +1977,6 @@ document.addEventListener("click", e => {
   else if (act === "vote" && dbRef) castVote(b.dataset.v);
   else if (act === "unvote" && myId) { pollNote = ""; voteChain = voteChain.then(() => dbRef.doc("votes/" + myId).set({ vote: "", at: Date.now() })).catch(onWriteError); }
   else if (act === "size") { const n = +b.dataset.n; settings = { size: n }; render(); dbRef?.doc("meta/settings").set({ size: n }).catch(onWriteError); }
-  else if (act === "lvl" && p) { const lv = Math.min(60, Math.max(1, (lvlOf(p) || 1) + +b.dataset.d)); save(id, { level: lv, xp: 0 }); }
-  else if (act === "xp" && p) {
-    const r = b.getBoundingClientRect();
-    save(id, { xp: Math.min(100, Math.max(0, Math.round((e.clientX - r.left) / r.width * 20) * 5)) });
-  }
   else if (act === "dg" && p) save(id, { dungeons: { [b.dataset.dg]: !p.dungeons?.[b.dataset.dg] } });
   else if (act === "task") { const t = tasks.find(x => x.id === id); if (t) setDoc("tasks", id, { done: !t.done }); }
   else if (act === "goal") { const g = goals.find(x => x.id === id); if (g) setDoc("goals", id, { done: { [b.dataset.p]: !g.done?.[b.dataset.p] } }); }
@@ -2008,6 +1989,11 @@ document.addEventListener("click", e => {
   else if (act === "authclose") closeAuth();
   else if (act === "gchar") { gOpen = id; gDrawn = ""; renderGSheet(); $("#gc-box").scrollTop = 0; $("#gc-box").focus(); }
   else if (act === "gcclose") closeG();
+  else if (act === "gown" && p && gOpen) { // link or unlink a player and the open character; one player per character
+    const slug = gOpen, on = p.char === slug;
+    if (!on) players.filter(x => x.char === slug && x.id !== id).forEach(x => save(x.id, { char: "" }));
+    save(id, { char: on ? "" : slug });
+  }
   else if (act === "pwd") openAuth("change");
   else if (act === "admin") openAdmin();
   else if (act === "logout") { const t = auth?.token; setAuth(null); if (t) dbRef?.call("logout", { p_token: t }).catch(() => {}); }
@@ -2136,10 +2122,11 @@ document.addEventListener("pointermove", e => {
 document.addEventListener("pointerleave", () => { tip.hidden = true; });
 
 /* ---------- guild: levels from Blizzard's API, synced hourly on the server (guild_sync in supabase.sql) ---------- */
+const PROF_ID = new Set(PROFS.map(p => p.id));
 const BCLS = { 1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage", 9: "Warlock", 11: "Druid" };
 const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "Skyborne", 96: "Skyborne" };
 const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, later characters are grey
-let guild = null, glevels = [], gModel = null, gchars = {}, gOpen = "", gDrawn = "";
+let guild = null, glevels = [], gchars = {}, gOpen = "", gDrawn = "";
 const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
 const dayShort = k => `${+k.slice(8, 10)} ${MON[+k.slice(5, 7) - 1]}`;
 function guildData() {
@@ -2162,7 +2149,7 @@ function renderGuild() {
     const msg = got.has("guild") ? "Данных пока нет: синхронизация с Blizzard ещё не настроена." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
     $("#guild-cap").textContent = "";
     $("#groster").innerHTML = `<p class="empty">${msg}</p>`;
-    $("#gchart").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; gModel = null;
+    $("#gchart").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; $("#gpcharts").innerHTML = "";
     $("#gprofs").innerHTML = `<p class="empty">${msg}</p>`;
     return;
   }
@@ -2176,10 +2163,11 @@ function renderGuild() {
     const base = g.days.find(d => dayNum(d.id) >= from && d.lv[m.slug] > 0);
     return base && base !== lastDay ? m.level - base.lv[m.slug] : null;
   };
+  const owner = Object.fromEntries(players.filter(p => p.char).map(p => [p.char, p.name]));
   $("#groster").innerHTML = list.map(m => {
     const c = CLS[BCLS[m.cls]], d = delta(m);
     return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}" aria-haspopup="dialog">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
-      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}</span>
+      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}${owner[m.slug] ? ` · <b>${esc(owner[m.slug])}</b>` : ""}</span>
       <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
       <span class="n">${+m.level || "—"}</span>
       <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
@@ -2203,35 +2191,58 @@ function renderGProfs(g) {
     `<div class="gpg">${PROF_TYPES[t]}</div>` + PROFS.filter(p => p.type === t).map(p => row(p.id, t !== "second")).join("")).join("")
     + (extra.length ? `<div class="gpg">Другое</div>` + extra.map(n => row(n, false)).join("") : "");
 }
-function renderGChart(g) {
-  const el = $("#gchart"), { days, series } = g;
-  if (!days.length || !series.length) {
-    el.innerHTML = `<p class="empty">Пока нет ни одного персонажа ${G_MIN}+ уровня с историей.</p>`; $("#gtable").innerHTML = ""; gModel = null;
-    return;
-  }
-  const W = Math.max(280, Math.round(el.clientWidth) || 680), H = W < 480 ? 220 : 300, m = { l: 30, r: 24, t: 10, b: 24 };
-  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+// One line chart: days on x, a value per series per day. Returns the HTML and remembers the scales for the hover readout.
+const gModels = {};
+function lineChart(id, days, series, o) {
+  const W = o.W, H = o.H, m = { l: 30, r: 24, t: 10, b: 24 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
   const t0 = dayNum(days[0].id), span = dayNum(days[days.length - 1].id) - t0;
   const xs = days.map(d => span ? m.l + (dayNum(d.id) - t0) / span * pw : m.l + pw / 2);
-  const all = series.flatMap(s => s.pts.map(p => p.lv));
-  const lo = Math.max(0, Math.floor((Math.min(...all) - 1) / 5) * 5), hi = Math.max(lo + 5, Math.min(60, Math.ceil((Math.max(...all) + 1) / 5) * 5));
-  const y = v => m.t + (hi - v) / (hi - lo) * ph, step = hi - lo > 30 ? 10 : 5;
+  const y = v => m.t + (o.hi - v) / (o.hi - o.lo) * ph;
   let svg = "";
-  for (let v = lo; v <= hi; v += step) svg += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
-  const every = Math.max(1, Math.ceil((span + 1) / (W < 480 ? 4 : 8)));
+  for (let v = o.lo; v <= o.hi; v += o.step) svg += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  const every = Math.max(1, Math.ceil((span + 1) / Math.max(2, Math.floor(pw / 80))));
   days.forEach((d, i) => { if ((dayNum(d.id) - t0) % every === 0) svg += `<text x="${xs[i]}" y="${H - 6}" text-anchor="middle">${dayShort(d.id)}</text>`; });
-  svg += `<line class="xh" id="gxh" y1="${m.t}" y2="${m.t + ph}" hidden/>`;
+  svg += `<line class="xh" y1="${m.t}" y2="${m.t + ph}" hidden/>`;
   for (const s of series) {
     const last = s.pts[s.pts.length - 1];
     svg += `<g data-s="${esc(s.slug)}" style="--c:${s.color}">${s.pts.length > 1 ? `<path class="ln" d="${s.pts.map((p, k) => `${k ? "L" : "M"}${xs[p.i].toFixed(1)} ${y(p.lv).toFixed(1)}`).join("")}"/>` : ""}<circle class="pt" cx="${xs[last.i].toFixed(1)}" cy="${y(last.lv).toFixed(1)}" r="4"/></g>`;
   }
-  el.innerHTML = `<div class="gkeys">${series.map(s => `<span data-g="${esc(s.slug)}"><i class="gkey" style="--c:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>
-    <div class="gplot" id="gplot"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Уровни персонажей гильдии по дням. Те же данные в таблице ниже.">${svg}</svg><div class="gtip" id="gtip" hidden></div></div>
-    ${days.length < 2 ? `<p class="gnote">Пока есть данные только за один день. Линии появятся завтра.</p>` : ""}`;
-  gModel = { days, series, xs, W };
-  const rows = days.slice(-60).reverse();
-  $("#gtable").innerHTML = `<table><thead><tr><th>День</th>${series.map(s => `<th>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${
-    rows.map(d => `<tr><td>${dayShort(d.id)}</td>${series.map(s => `<td>${+d.lv[s.slug] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  gModels[id] = { days, series, xs, W };
+  return `<div class="gplot" data-chart="${esc(id)}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label)}">${svg}</svg><div class="gtip" hidden></div></div>`;
+}
+const gKeys = series => `<div class="gkeys">${series.map(s => `<span data-g="${esc(s.slug)}"><i class="gkey" style="--c:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`;
+const oneDay = days => days.length < 2 ? `<p class="gnote">Пока есть данные только за один день. Линии появятся завтра.</p>` : "";
+function renderGChart(g) {
+  const el = $("#gchart"), { days, series } = g;
+  if (!days.length || !series.length) {
+    el.innerHTML = `<p class="empty">Пока нет ни одного персонажа ${G_MIN}+ уровня с историей.</p>`; $("#gtable").innerHTML = "";
+  } else {
+    const W = Math.max(280, Math.round(el.clientWidth) || 680), all = series.flatMap(s => s.pts.map(p => p.lv));
+    const lo = Math.max(0, Math.floor((Math.min(...all) - 1) / 5) * 5), hi = Math.max(lo + 5, Math.min(60, Math.ceil((Math.max(...all) + 1) / 5) * 5));
+    el.innerHTML = gKeys(series) + lineChart("levels", days, series, { W, H: W < 480 ? 220 : 300, lo, hi, step: hi - lo > 30 ? 10 : 5, label: "Уровни персонажей гильдии по дням. Те же данные в таблице ниже." }) + oneDay(days);
+    const rows = days.slice(-60).reverse();
+    $("#gtable").innerHTML = `<table><thead><tr><th>День</th>${series.map(s => `<th>${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${
+      rows.map(d => `<tr><td>${dayShort(d.id)}</td>${series.map(s => `<td>${+d.lv[s.slug] || "—"}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  }
+  renderGPCharts(g);
+}
+// Professions day by day: one small chart per profession, same colour per character as in the level chart.
+function renderGPCharts(g) {
+  const el = $("#gpcharts"), days = g.days.filter(d => d.pr && typeof d.pr === "object");
+  const profs = {};
+  days.forEach((d, i) => { for (const [slug, ps] of Object.entries(d.pr)) if (g.mem[slug]) for (const [name, v] of Object.entries(ps || {}))
+    if (+v > 0) ((profs[name] ||= {})[slug] ||= []).push({ i, lv: +v }); });
+  const names = [...PROFS.map(p => p.id).filter(n => profs[n]), ...Object.keys(profs).filter(n => !PROF_ID.has(n)).sort()];
+  if (!names.length) { el.innerHTML = `<p class="empty">История профессий начнёт копиться после следующей синхронизации.</p>`; return; }
+  const gw = Math.max(280, Math.round(el.clientWidth) || 680), cols = Math.max(1, Math.floor((gw + 24) / 324)), W = Math.round((gw - (cols - 1) * 24) / cols);
+  const used = new Set(), charts = names.map(n => {
+    const series = Object.entries(profs[n]).map(([slug, pts]) => ({ slug, name: g.name(slug), color: g.color[slug] || "var(--muted)", pts }))
+      .sort((a, b) => b.pts[b.pts.length - 1].lv - a.pts[a.pts.length - 1].lv);
+    series.forEach(s => used.add(s.slug));
+    const hi = Math.max(300, Math.ceil(Math.max(...series.flatMap(s => s.pts.map(p => p.lv))) / 100) * 100);
+    return `<div><h3>${esc(n)}</h3>${lineChart("prof:" + n, days, series, { W, H: 170, lo: 0, hi, step: 100, label: `${n}: навык по дням` })}</div>`;
+  });
+  el.innerHTML = gKeys(g.series.filter(s => used.has(s.slug))) + `<div class="gpm">${charts.join("")}</div>` + oneDay(days);
 }
 // Character sheet: full-body render with the gear around it, like the official armory.
 const G_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
@@ -2245,7 +2256,7 @@ const bimg = u => /^https:\/\/render\.worldofwarcraft\.com\/[\w./-]+$/.test(u ||
 function renderGSheet() {
   const box = $("#gc-box"), bd = $("#gc-bd"), c = gchars[gOpen], m = guild?.members?.[gOpen];
   if (!gOpen || !c || !m) { gOpen = gDrawn = ""; box.hidden = bd.hidden = true; return; }
-  const key = `${gOpen}:${c.at}:${m.level}`;
+  const key = `${gOpen}:${c.at}:${m.level}:${players.map(p => p.char || "").join()}:${auth?.player}:${auth?.admin}:${readOnly}`;
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
   gDrawn = key;
   const items = c.items || {}, qc = it => G_Q.includes(it.q) ? "gq-" + it.q : "";
@@ -2263,32 +2274,39 @@ function renderGSheet() {
     <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
       <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
       <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
+    <div class="gown"><span>Чей персонаж:</span>${players.map(p => {
+      const on = p.char === gOpen, taken = !on && players.some(x => x.char === gOpen);
+      return `<button type="button" data-act="gown" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
+    }).join("")}</div>
     <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
   box.hidden = bd.hidden = false;
 }
 function closeG() { gOpen = ""; renderGSheet(); }
-// Crosshair: snaps to the nearest day and lists every charted character for it.
+// Crosshair: snaps to the nearest day and lists every line of that chart for it.
 function gHover(e) {
-  const plot = e.target.closest?.("#gplot"), tipEl = $("#gtip"), xh = $("#gxh");
-  if (!plot || !gModel || !tipEl || !xh) return;
-  const box = plot.getBoundingClientRect(), k = gModel.W / box.width, px = (e.clientX - box.left) * k;
+  const plot = e.target.closest?.(".gplot"), M = plot && gModels[plot.dataset.chart];
+  if (!M) return;
+  const tipEl = plot.querySelector(".gtip"), xh = plot.querySelector(".xh");
+  const box = plot.getBoundingClientRect(), k = M.W / box.width, px = (e.clientX - box.left) * k;
   let i = 0;
-  gModel.xs.forEach((x, j) => { if (Math.abs(x - px) < Math.abs(gModel.xs[i] - px)) i = j; });
-  const d = gModel.days[i], x = gModel.xs[i];
+  M.xs.forEach((x, j) => { if (Math.abs(x - px) < Math.abs(M.xs[i] - px)) i = j; });
+  const x = M.xs[i];
   xh.setAttribute("x1", x); xh.setAttribute("x2", x); xh.removeAttribute("hidden");
-  const rows = gModel.series.map(s => ({ s, lv: +d.lv[s.slug] || 0 })).filter(r => r.lv).sort((a, b) => b.lv - a.lv);
-  tipEl.innerHTML = `<h4>${dayShort(d.id)}</h4>` + rows.map(r => `<div><b>${r.lv}</b><i class="gkey" style="--c:${r.s.color}"></i>${esc(r.s.name)}</div>`).join("");
+  const rows = M.series.map(s => ({ s, lv: s.pts.find(p => p.i === i)?.lv || 0 })).filter(r => r.lv).sort((a, b) => b.lv - a.lv);
+  tipEl.innerHTML = `<h4>${dayShort(M.days[i].id)}</h4>` + rows.map(r => `<div><b>${r.lv}</b><i class="gkey" style="--c:${r.s.color}"></i>${esc(r.s.name)}</div>`).join("");
   tipEl.hidden = false;
   const left = x / k + 12;
   tipEl.style.left = (left + tipEl.offsetWidth > box.width ? Math.max(0, x / k - 12 - tipEl.offsetWidth) : left) + "px";
 }
-function gLeave() { const t = $("#gtip"), xh = $("#gxh"); if (t) t.hidden = true; if (xh) xh.setAttribute("hidden", ""); }
-function gDim(slug) { document.querySelectorAll("#gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-$("#gchart").addEventListener("pointermove", gHover);
-$("#gchart").addEventListener("pointerdown", gHover);
-$("#gchart").addEventListener("pointerleave", gLeave);
+function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
+function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
+for (const id of ["#gchart", "#gpcharts"]) {
+  $(id).addEventListener("pointermove", gHover);
+  $(id).addEventListener("pointerdown", gHover);
+  $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
+}
 // Pointing at a name (legend or roster) fades the other lines.
-for (const id of ["#gchart", "#groster"]) {
+for (const id of ["#gchart", "#gpcharts", "#groster"]) {
   $(id).addEventListener("pointerover", e => { const n = e.target.closest?.("[data-g]"); gDim(n ? n.dataset.g : ""); });
   $(id).addEventListener("pointerleave", () => gDim(""));
 }
@@ -2303,12 +2321,12 @@ function applyView() {
   if (cur && seg.scrollWidth > seg.clientWidth) seg.scrollLeft = cur.offsetLeft - seg.offsetLeft - 24; // keep the active tab visible on phones
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
 }
-const VIEWS = ["plan", "calendar", "soon", "guild", "tavern", "bets", "fame"];
-function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "plan"; }
+const VIEWS = ["home", "calendar", "soon", "guild", "tavern", "bets", "fame", "plan"];
+function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "home"; }
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
 function tick() {
-  const left = LAUNCH_AT - Date.now();
+  const left = RAIDS_AT - Date.now();
   $("#cd-num").hidden = left <= 0;
   $("#cd-done").hidden = left > 0;
   if (left > 0) {
@@ -2330,8 +2348,8 @@ function tick() {
 }
 function setLaunchNote() {
   let local = "";
-  try { local = " У тебя: " + new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(LAUNCH_AT)) + "."; } catch {}
-  $("#cd-launch-sub").textContent = "5 ноября, 00:00 по Центральной Европе (CET)." + local;
+  try { local = " У тебя: " + new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(RAIDS_AT)) + "."; } catch {}
+  $("#cd-launch-sub").textContent = "Barrow Deeps, Hyjal Summit, Onyxia's Lair. По карте 9 декабря; если в тот же час, что и запуск игры, то это 10 декабря, 00:00 по Центральной Европе (CET)." + local;
 }
 
 /* ---------- boot ---------- */

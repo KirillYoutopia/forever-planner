@@ -398,7 +398,8 @@ on conflict (coll, id) do update
 -- 2026-11-13: "Гильдия" tab. Guild levels come from Blizzard's WoW Forever API (undocumented so far), fetched here on
 -- the server once an hour, so the API secret never reaches the page. The page only reads these rows:
 --   guild/roster          {name, at (ms), members: {slug: {name, surname, level, cls, race, rank}}}  (cls/race: Blizzard ids)
---   glevels/{YYYY-MM-DD}  {at, lv: {slug: level}}  one row per day (Central European time), overwritten until the day ends
+--   glevels/{YYYY-MM-DD}  {at, lv: {slug: level}, pr: {slug: {Profession: skill}}}  one row per day (Central European time),
+--                         overwritten until the day ends (pr since 2026-11-13, older rows have none)
 -- Neither collection is in patch_doc's allow-list, so nobody can write them from the page.
 -- One-off setup, in the SQL Editor (NOT in this file, the repo is public):
 --   insert into public.bnet_config (k, v) values ('client_id', '...'), ('client_secret', '...')
@@ -517,9 +518,22 @@ begin
       raise warning 'guild_sync: % skipped: %', ch, sqlerrm;
     end;
   end loop;
+  -- Profession skills of the day, for the "Профессии по дням" charts: glevels/{day}.pr = {slug: {Profession: skill}}
+  update docs set updated_at = now(), data = data || jsonb_build_object('pr', coalesce((
+    select jsonb_object_agg(d.id, (select jsonb_object_agg(e.key, e.value->'s') from jsonb_each(d.data->'profs') e))
+    from docs d where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'profs') = 'object' and d.data->'profs' <> '{}'::jsonb), '{}'::jsonb))
+  where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms);
 end $$;
 revoke execute on function public.guild_sync() from public, anon, authenticated;
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
+
+-- 2026-11-13: players get an optional "char" (guild character slug). The page reads the player's level, class and
+-- avatar from that character; the manual level/xp fields stay as a fallback and are no longer edited.
+-- Known links, set once and only if the player has none yet (players can change theirs on the character sheet).
+update public.docs set data = data || '{"char": "swift-erasborn"}'::jsonb
+  where coll = 'players' and id = 'p_kirill' and not (data ? 'char');
+update public.docs set data = data || '{"char": "hele-pirozochek"}'::jsonb
+  where coll = 'players' and id = 'p_denis' and not (data ? 'char');
