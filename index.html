@@ -457,6 +457,18 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .glist i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--q, var(--muted)); margin-right: 7px; }
 .glist b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 @media (max-width: 480px) { .gdoll { --gs: 38px; gap: 8px; padding: 8px; } }
+/* guild professions: who has what, with skill */
+.gpg { margin: 14px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.gpg:first-child { margin-top: 0; }
+.gpr { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+.gpr > b { font-weight: 600; }
+.gpr > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.gpc { display: inline-flex; align-items: baseline; gap: 6px; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; }
+.gpc:hover { border-color: var(--accent); }
+.gpc b { font-variant-numeric: tabular-nums; }
+.gpc small { color: var(--muted); font-size: 11px; }
+.gpr .none { color: var(--muted); font-size: 13px; }
+@media (max-width: 480px) { .gpr { grid-template-columns: minmax(0, 1fr); } }
 /* tavern, bets, hall of fame */
 @media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
 .rules summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; cursor: pointer; list-style: none; }
@@ -790,6 +802,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="panel" aria-labelledby="h-guild" data-view="guild" hidden>
     <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span></div>
     <div id="groster"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-gprofs" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
+    <div id="gprofs"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-gchart" data-view="guild" hidden>
@@ -2146,8 +2163,10 @@ function renderGuild() {
     $("#guild-cap").textContent = "";
     $("#groster").innerHTML = `<p class="empty">${msg}</p>`;
     $("#gchart").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; gModel = null;
+    $("#gprofs").innerHTML = `<p class="empty">${msg}</p>`;
     return;
   }
+  renderGProfs(g);
   let when = "";
   try { when = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(guild.at)); } catch {}
   $("#guild-cap").textContent = `${guild.name || "Гильдия"} · ${list.length} ${plural(list.length, "персонаж", "персонажа", "персонажей")}${when ? " · обновлено " + when : ""}`;
@@ -2166,6 +2185,23 @@ function renderGuild() {
       <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
   }).join("") + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
   renderGChart(g);
+}
+function renderGProfs(g) {
+  // profession -> [{slug, s, max}], best first
+  const by = {};
+  for (const [slug, c] of Object.entries(gchars)) if (g.mem[slug])
+    for (const [name, v] of Object.entries(c.profs || {})) (by[name] ||= []).push({ slug, s: +v.s || 0, max: +v.max || 0 });
+  if (!Object.keys(by).length) { $("#gprofs").innerHTML = `<p class="empty">Профессий пока нет: данные появятся после следующей синхронизации.</p>`; return; }
+  const row = (name, gap) => {
+    const who = (by[name] || []).sort((a, b) => b.s - a.s || g.name(a.slug).localeCompare(g.name(b.slug)));
+    return `<div class="gpr"><b>${esc(name)}</b><div>${who.length ? who.map(w =>
+      `<button type="button" class="gpc" data-act="gchar" data-id="${esc(w.slug)}" aria-haspopup="dialog"><b>${w.s}</b><small>/ ${w.max}</small>${esc(g.name(w.slug))}</button>`).join("")
+      : `<span class="none">${gap ? "никого" : "—"}</span>`}</div></div>`;
+  };
+  const known = new Set(PROFS.map(p => p.id)), extra = Object.keys(by).filter(n => !known.has(n)).sort();
+  $("#gprofs").innerHTML = Object.keys(PROF_TYPES).map(t =>
+    `<div class="gpg">${PROF_TYPES[t]}</div>` + PROFS.filter(p => p.type === t).map(p => row(p.id, t !== "second")).join("")).join("")
+    + (extra.length ? `<div class="gpg">Другое</div>` + extra.map(n => row(n, false)).join("") : "");
 }
 function renderGChart(g) {
   const el = $("#gchart"), { days, series } = g;
@@ -2222,7 +2258,8 @@ function renderGSheet() {
   try { if (c.login) login = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(c.login)); } catch {}
   const name = `${m.name}${m.surname ? " " + m.surname : ""}`;
   box.innerHTML = `<div class="sheet-head"><h3 id="gc-title">${esc(name)}</h3><button type="button" class="x" data-act="gcclose" aria-label="Закрыть">✕</button></div>
-    <p class="gsub"><b>${+m.level || "?"}</b> ${esc(BRACE[m.race] || "")} ${esc(BCLS[m.cls] || "")}${c.ilvl ? ` · уровень предметов <b>${+c.ilvl}</b>` : ""}${c.ruleset ? ` · ${esc(c.ruleset)}` : ""}${login ? ` · в игре: ${login}` : ""}</p>
+    <p class="gsub"><b>${+m.level || "?"}</b> ${esc(BRACE[m.race] || "")} ${esc(BCLS[m.cls] || "")}${c.ilvl ? ` · уровень предметов <b>${+c.ilvl}</b>` : ""}${c.ruleset ? ` · ${esc(c.ruleset)}` : ""}${login ? ` · в игре: ${login}` : ""}${
+      Object.keys(c.profs || {}).length ? `<br>${Object.entries(c.profs).sort((a, b) => b[1].s - a[1].s).map(([n, v]) => `${esc(n)} <b>${+v.s || 0}</b>`).join(" · ")}` : ""}</p>
     <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
       <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
       <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>

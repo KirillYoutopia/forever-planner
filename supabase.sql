@@ -419,12 +419,13 @@ revoke all on public.bnet_icons from anon, authenticated;
 
 -- 2026-11-13: character sheets. For every guild character of level 10+ (Blizzard has no profile below that):
 --   gchars/{slug}  {at, ilvl, ruleset, login (ms), img (full-body render), avatar,
---                   items: {SLOT: {id, name, q (POOR..LEGENDARY), lvl, icon}}}   SLOT is Blizzard's slot type (HEAD, FINGER_1, ...)
+--                   items: {SLOT: {id, name, q (POOR..LEGENDARY), lvl, icon}},   SLOT is Blizzard's slot type (HEAD, FINGER_1, ...)
+--                   profs: {Profession: {s (skill), max, n (known recipes)}}}    English names, as in the page's PROFS
 -- A character that fails to load keeps its previous sheet. At most 60 new icons are fetched per run, the rest next hour.
 create or replace function public.guild_sync()
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
-        hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint;
+        hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -474,6 +475,16 @@ begin
       eq := body::jsonb;
       select h.status, h.content into st, body from http(('GET', base || '/character-media' || q, hdr, null, null)::http_request) h;
       md := case when st = 200 then body::jsonb else null end;  -- renders can lag the profile by hours
+      select h.status, h.content into st, body from http(('GET', base || '/professions' || q, hdr, null, null)::http_request) h;
+      profs := null;
+      if st = 200 then
+        select coalesce(jsonb_object_agg(x->'profession'->>'name', jsonb_build_object(
+                 's', coalesce(x->'tiers'->0->'skill_points', '0'::jsonb), 'max', coalesce(x->'tiers'->0->'max_skill_points', '0'::jsonb),
+                 'n', jsonb_array_length(coalesce(x->'tiers'->0->'known_recipes', '[]'::jsonb)))), '{}'::jsonb)
+          into profs
+        from jsonb_array_elements(coalesce(body::jsonb->'primaries', '[]'::jsonb) || coalesce(body::jsonb->'secondaries', '[]'::jsonb)) x
+        where x->'profession'->>'name' is not null;
+      end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
         exit when icons_left <= 0;
@@ -498,6 +509,7 @@ begin
                         (select d.data->'img' from docs d where d.coll = 'gchars' and d.id = ch)),
         'avatar', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'avatar' limit 1),
                            (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
+        'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
         'items', items)))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
