@@ -1,6 +1,6 @@
 # WoW Forever Planner — project context
 
-You're working on a planner page for a small WoW Forever group (4 core players). The UI text is in Russian, so keep all user-facing text in Russian. It started as a claude.ai artifact and has been moved to a standalone static site backed by Supabase, so the group can use it without a Claude account. It needs no login.
+You're working on a planner page for a small WoW Forever group (5 core players). The UI text is in Russian, so keep all user-facing text in Russian. It started as a claude.ai artifact and has been moved to a standalone static site backed by Supabase, so the group can use it without a Claude account. It needs no login.
 
 ## Stack and files
 - `index.html`: the entire app. Vanilla JS and CSS in one file. No framework, no build step.
@@ -19,7 +19,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
 - `README.md`: setup and hosting steps (Supabase project, Netlify Drop / GitHub Pages).
 
 ## Data model (`data` is jsonb)
-- `players/{id}`, where core ids are `p_denis`, `p_kirill`, `p_olesya`, `p_yan` and new ids look like `p_xxxxxxxxxxxx`:
+- `players/{id}`, where core ids are `p_denis`, `p_kirill`, `p_olesya`, `p_yan`, `p_alexey` and new ids look like `p_xxxxxxxxxxxx`:
   - `name`: string
   - `createdAt`: number, used for sort order
   - `picks`: `{ [Class]: 1 | 2 | -1 (ban) | 0 }`
@@ -27,6 +27,7 @@ You're working on a planner page for a small WoW Forever group (4 core players).
   - `profs`: `{ [Profession]: boolean }`
   - `avail`: `{ "YYYY-MM-DD": "full" | "no" | a subset of "mde" (morning/day/evening) | "hA-B" (hours) | "" }`
   - `char`: guild character slug linked to the player (set on the character sheet, "Чей персонаж"). `lvlOf(p)` and the party frames read level, class, race and avatar from that character; the old manual `level`/`xp` are only a fallback and are no longer edited.
+  - `alts`: `{ [slug]: true }`, the player's twinks in the guild (`false` = unlinked, since patches only merge). Read via `altsOf(p)`. A character belongs to one player, as main or twink.
   - `deleted`: `true` hides a (non-core) player. The database allows no deletes, so removal is a soft delete.
 - `votes/{playerId}`: `{ vote: "pve" | "pvp" | "", at }`. One vote per group player; `""` means the vote was withdrawn. The voter types their name; it must match a player name (case-insensitive) or the vote is silently refused with no hints. The name is remembered in localStorage as `wf-name`.
 - `meta/settings`: `{ size: 5 | 10 }`

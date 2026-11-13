@@ -537,3 +537,15 @@ update public.docs set data = data || '{"char": "swift-erasborn"}'::jsonb
   where coll = 'players' and id = 'p_kirill' and not (data ? 'char');
 update public.docs set data = data || '{"char": "hele-pirozochek"}'::jsonb
   where coll = 'players' and id = 'p_denis' and not (data ? 'char');
+update public.docs set data = data || '{"char": "hoof-poof"}'::jsonb
+  where coll = 'players' and id = 'p_olesya' and not (data ? 'char');
+update public.docs set data = data || '{"char": "searing-steak"}'::jsonb
+  where coll = 'players' and id = 'p_yan' and not (data ? 'char');
+-- Fifth core player, with a login like the others (password "Forever", must be changed on first login).
+insert into public.docs (coll, id, data) values
+  ('players', 'p_alexey', $j${"name": "Alexey", "createdAt": 5, "main": {"cls": "", "race": "", "role": ""}, "picks": {}, "profs": {}, "char": "druido-eltorro"}$j$::jsonb)
+on conflict (coll, id) do nothing;
+insert into public.accounts (player_id, pass_hash, must_change)
+values ('p_alexey', extensions.crypt('Forever', extensions.gen_salt('bf')), true)
+on conflict (player_id) do nothing;
+-- Twinks: players also get an optional "alts" {slug: true} (false = unlinked), set on the character sheet.

@@ -682,9 +682,9 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
         <p class="cd-sub" id="cd-launch-sub"></p>
       </div>
       <div class="cd">
-        <h3>До старта Hardcore, очень примерно</h3>
+        <h3>До старта Hardcore, примерно</h3>
         <div class="cd-hc"><b id="cd-hc-n">--</b><span id="cd-hc-u">дней</span></div>
-        <p class="cd-sub" id="cd-hc-sub">Официальной даты нет: Blizzard назвал только «Winter 2026». Вряд ли Hardcore выйдет в один день с рейдами, поэтому наш ориентир: не раньше 9 января 2027. Это догадка, а не анонс.</p>
+        <p class="cd-sub" id="cd-hc-sub">Точной даты пока нет. Ориентир: 9 января 2027.</p>
       </div>
     </div>
     <figure class="road">
@@ -953,7 +953,7 @@ const TARGETS = { 5: { tank: 1, healer: 1, dps: 3 }, 10: { tank: 2, healer: 3, d
 const CYCLE = ["none", "first", "second", "ban", "final"];
 const GLYPH = { none: "", first: "1", second: "2", ban: "✕", final: "★" };
 const STATE_TEXT = { none: "не выбрано", first: "1-й приоритет", second: "2-й приоритет", ban: "бан", final: "финальный выбор" };
-const CORE = new Set(["p_denis", "p_kirill", "p_olesya", "p_yan"]); // основной состав: удалить нельзя
+const CORE = new Set(["p_denis", "p_kirill", "p_olesya", "p_yan", "p_alexey"]); // основной состав: удалить нельзя
 const CLS = Object.fromEntries(CLASSES.map(c => [c.id, c]));
 const RACE = Object.fromEntries(RACES.map(r => [r.id, r]));
 const ROLE = Object.fromEntries(ROLES.map(r => [r.id, r]));
@@ -1381,6 +1381,7 @@ const RAIDS = [ // WoW Forever, открываются 9 декабря
 let wants = [], deaths = [], tasks = [], goals = [];
 const live = docs => docs.map(d => ({ id: d.id, ...d.data() })).filter(x => !x.deleted);
 // A player's level comes from their linked guild character (players.char = character slug); the old manual level is the fallback.
+const altsOf = p => Object.keys(p?.alts || {}).filter(s => p.alts[s] && s !== p.char); // twinks: players.alts = { slug: true }
 const charOf = p => (p?.char && guild?.members?.[p.char]) || null;
 const lvlOf = p => Math.min(60, Math.max(0, Math.round(+(charOf(p)?.level ?? p.level) || 0)));
 const short = n => esc(String(n).slice(0, 2));
@@ -1989,10 +1990,15 @@ document.addEventListener("click", e => {
   else if (act === "authclose") closeAuth();
   else if (act === "gchar") { gOpen = id; gDrawn = ""; renderGSheet(); $("#gc-box").scrollTop = 0; $("#gc-box").focus(); }
   else if (act === "gcclose") closeG();
-  else if (act === "gown" && p && gOpen) { // link or unlink a player and the open character; one player per character
-    const slug = gOpen, on = p.char === slug;
-    if (!on) players.filter(x => x.char === slug && x.id !== id).forEach(x => save(x.id, { char: "" }));
-    save(id, { char: on ? "" : slug });
+  else if ((act === "gown" || act === "galt") && p && gOpen) { // link or unlink the open character as a player's main or twink; one player per character
+    const slug = gOpen, main = act === "gown", on = main ? p.char === slug : altsOf(p).includes(slug);
+    if (!on) for (const x of players) { // take it away from whoever had it, in either role
+      const patch = {};
+      if (x.char === slug && !(main && x.id === id)) patch.char = "";
+      if (x.alts?.[slug]) patch.alts = { [slug]: false };
+      if (Object.keys(patch).length) save(x.id, patch);
+    }
+    save(id, main ? { char: on ? "" : slug } : { alts: { [slug]: !on } });
   }
   else if (act === "pwd") openAuth("change");
   else if (act === "admin") openAdmin();
@@ -2163,7 +2169,8 @@ function renderGuild() {
     const base = g.days.find(d => dayNum(d.id) >= from && d.lv[m.slug] > 0);
     return base && base !== lastDay ? m.level - base.lv[m.slug] : null;
   };
-  const owner = Object.fromEntries(players.filter(p => p.char).map(p => [p.char, p.name]));
+  const owner = {}; // character slug -> player name; twinks are marked
+  for (const p of players) { if (p.char) owner[p.char] = p.name; for (const s of altsOf(p)) owner[s] ||= `${p.name}, твинк`; }
   $("#groster").innerHTML = list.map(m => {
     const c = CLS[BCLS[m.cls]], d = delta(m);
     return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}" aria-haspopup="dialog">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
@@ -2256,7 +2263,7 @@ const bimg = u => /^https:\/\/render\.worldofwarcraft\.com\/[\w./-]+$/.test(u ||
 function renderGSheet() {
   const box = $("#gc-box"), bd = $("#gc-bd"), c = gchars[gOpen], m = guild?.members?.[gOpen];
   if (!gOpen || !c || !m) { gOpen = gDrawn = ""; box.hidden = bd.hidden = true; return; }
-  const key = `${gOpen}:${c.at}:${m.level}:${players.map(p => p.char || "").join()}:${auth?.player}:${auth?.admin}:${readOnly}`;
+  const key = `${gOpen}:${c.at}:${m.level}:${players.map(p => (p.char || "") + "+" + altsOf(p).join("+")).join()}:${auth?.player}:${auth?.admin}:${readOnly}`;
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
   gDrawn = key;
   const items = c.items || {}, qc = it => G_Q.includes(it.q) ? "gq-" + it.q : "";
@@ -2274,10 +2281,11 @@ function renderGSheet() {
     <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
       <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
       <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
-    <div class="gown"><span>Чей персонаж:</span>${players.map(p => {
-      const on = p.char === gOpen, taken = !on && players.some(x => x.char === gOpen);
-      return `<button type="button" data-act="gown" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
-    }).join("")}</div>
+    ${[["gown", "Основной персонаж:", p => p.char === gOpen], ["galt", "Твинк игрока:", p => altsOf(p).includes(gOpen)]].map(([act, label, has]) =>
+      `<div class="gown"><span>${label}</span>${players.map(p => {
+        const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
+        return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
+      }).join("")}</div>`).join("")}
     <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
   box.hidden = bd.hidden = false;
 }
@@ -2349,7 +2357,7 @@ function tick() {
 function setLaunchNote() {
   let local = "";
   try { local = " У тебя: " + new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(RAIDS_AT)) + "."; } catch {}
-  $("#cd-launch-sub").textContent = "Barrow Deeps, Hyjal Summit, Onyxia's Lair. По карте 9 декабря; если в тот же час, что и запуск игры, то это 10 декабря, 00:00 по Центральной Европе (CET)." + local;
+  $("#cd-launch-sub").textContent = "10 декабря, 00:00 по Центральной Европе (CET)." + local;
 }
 
 /* ---------- boot ---------- */
