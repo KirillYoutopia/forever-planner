@@ -452,6 +452,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gslot img { display: block; width: 100%; height: 100%; }
 .gslot.e { border-width: 1px; opacity: .7; }
 .gq-POOR { --q: var(--q-poor); } .gq-COMMON { --q: var(--frame-fg); } .gq-UNCOMMON { --q: var(--q-unc); } .gq-RARE { --q: var(--q-rare); } .gq-EPIC { --q: var(--q-epic); } .gq-LEGENDARY { --q: var(--q-leg); }
+/* item tooltip on the character sheet, game-style in both themes */
+#gtt { position: fixed; z-index: 95; pointer-events: none; width: max-content; max-width: min(320px, calc(100vw - 16px)); background: var(--frame-bg); border: 1px solid var(--frame-line); border-radius: 6px; padding: 9px 11px; font-size: 13px; line-height: 1.35; color: var(--frame-fg); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+#gtt h4 { margin: 0; font: 600 15px/1.25 var(--font-body); color: var(--q, var(--frame-fg)); letter-spacing: 0; text-transform: none; }
+#gtt .il { color: var(--gold); }
+#gtt p { margin: 0; display: flex; justify-content: space-between; gap: 16px; }
+#gtt .g { color: var(--q-unc); } #gtt .y { color: var(--gold); } #gtt .m { color: var(--frame-muted); }
 .gown { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--muted); }
 .gown button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 4px 10px; font: inherit; }
 .gown button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
@@ -906,6 +912,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 <div class="sheet-bd" id="sheet-bd" data-act="close" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1" hidden></div>
 <div id="tip" hidden></div>
+<div id="gtt" role="tooltip" hidden></div>
 <div class="toast" id="toast" role="alert" hidden></div>
 <div class="sheet-bd" id="gc-bd" data-act="gcclose" hidden></div>
 <div class="sheet gcs" id="gc-box" role="dialog" aria-modal="true" aria-labelledby="gc-title" tabindex="-1" hidden></div>
@@ -2270,7 +2277,7 @@ function renderGSheet() {
   const slot = t => {
     const it = items[t];
     if (!it) return `<span class="gslot e" data-tip="${G_SLOT[t]}: пусто"></span>`;
-    return `<span class="gslot ${qc(it)}" data-tip="${esc(`${it.name} · ур. предмета ${+it.lvl || "?"}`)}">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="${esc(it.name)}" loading="lazy">` : ""}</span>`;
+    return `<span class="gslot ${qc(it)}" data-slot="${t}" tabindex="0" aria-label="${esc(`${it.name}, уровень предмета ${+it.lvl || "?"}`)}">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="${esc(it.name)}" loading="lazy">` : ""}</span>`;
   };
   let login = "";
   try { if (c.login) login = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(c.login)); } catch {}
@@ -2286,10 +2293,36 @@ function renderGSheet() {
         const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
         return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
       }).join("")}</div>`).join("")}
-    <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
+    <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div data-slot="${t}"><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
   box.hidden = bd.hidden = false;
 }
-function closeG() { gOpen = ""; renderGSheet(); }
+function closeG() { gOpen = ""; gTipHide(); renderGSheet(); }
+// Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
+function gTipShow(el) {
+  const it = gchars[gOpen]?.items?.[el.dataset.slot], tt = $("#gtt");
+  if (!it) return gTipHide();
+  const lines = Array.isArray(it.tip) ? it.tip : [];
+  tt.className = G_Q.includes(it.q) ? "gq-" + it.q : "";
+  tt.innerHTML = `<h4>${esc(it.name)}</h4>${+it.lvl ? `<p class="il">Item Level ${+it.lvl}</p>` : ""}` + lines.filter(l => Array.isArray(l) && l[0]).map(l =>
+    `<p class="${["g", "y", "m"].includes(l[1]) ? l[1] : ""}"><span>${esc(l[0])}</span>${l[2] ? `<span>${esc(l[2])}</span>` : ""}</p>`).join("");
+  tt.hidden = false;
+  const r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight, icon = el.classList.contains("gslot");
+  let x = icon ? r.right + 8 : r.left + 90, y = icon ? r.top : r.bottom + 4;
+  if (x + w > innerWidth - 8) x = icon ? r.left - 8 - w : innerWidth - 8 - w;
+  if (x < 8) { x = Math.max(8, Math.min(r.left, innerWidth - 8 - w)); y = r.bottom + 6; } // phone: no room at the sides, go below
+  if (y + h > innerHeight - 8) y = Math.max(8, (icon && x >= r.right || x + w <= r.left ? innerHeight - 8 : r.top - 6) - h);
+  tt.style.left = x + "px"; tt.style.top = y + "px";
+}
+function gTipHide() { $("#gtt").hidden = true; }
+{
+  const box = $("#gc-box"), at = e => e.target.closest?.("[data-slot]");
+  box.addEventListener("pointerover", e => { const el = at(e); el ? gTipShow(el) : gTipHide(); });
+  box.addEventListener("pointerleave", gTipHide);
+  box.addEventListener("focusin", e => { const el = at(e); if (el) gTipShow(el); });
+  box.addEventListener("focusout", gTipHide);
+  box.addEventListener("scroll", gTipHide);
+  document.addEventListener("pointerdown", e => { const el = e.target.closest?.("#gc-box [data-slot]"); el ? gTipShow(el) : gTipHide(); }); // tap on phones
+}
 // Crosshair: snaps to the nearest day and lists every line of that chart for it.
 function gHover(e) {
   const plot = e.target.closest?.(".gplot"), M = plot && gModels[plot.dataset.chart];
