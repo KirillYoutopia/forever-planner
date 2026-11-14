@@ -248,7 +248,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat'))  -- hourly Blizzard sync rows: nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones'))  -- hourly Blizzard sync rows: nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -448,6 +448,83 @@ alter table public.bnet_ach enable row level security;
 revoke all on public.bnet_ach from anon, authenticated;
 -- What the page reads: guild/dungeons {at, list: [[dungeon, achievement name], ...]}  every dungeon the game tracks, in order;
 --   gchars/{slug}.dg  [[dungeon, times completed, done], ...]   and   gchars/{slug}.ach  [[achievement, completed at (ms)], ...]
+
+-- 2026-11-14: quest progress per zone. Hidden caches: the game's zones with their quests, and each character's completed quests.
+create table if not exists public.bnet_quest_areas (id bigint primary key, name text not null, total int not null default 0, loaded boolean not null default false);
+create table if not exists public.bnet_quests (id bigint primary key, area_id bigint not null);
+create table if not exists public.bnet_char_quests (char_slug text primary key, ids jsonb not null);
+alter table public.bnet_quest_areas enable row level security;
+alter table public.bnet_quests enable row level security;
+alter table public.bnet_char_quests enable row level security;
+revoke all on public.bnet_quest_areas, public.bnet_quests, public.bnet_char_quests from anon, authenticated;
+-- What the page reads: gzones/{slug} {at, z: [[zone, completed, quests in the zone], ...], other: completed quests outside any zone}
+--   (zones with at least one completed quest, most completed first).
+create or replace function public.guild_zones_publish()
+returns void language plpgsql security definer set search_path = public as $$
+declare members jsonb; now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
+begin
+  if not exists (select 1 from bnet_quest_areas where loaded) then return; end if;  -- nothing to count against yet
+  select data->'members' into members from docs where coll = 'guild' and id = 'roster';
+  insert into docs (coll, id, data)
+  select 'gzones', c.char_slug, jsonb_build_object('at', now_ms,
+    'z', coalesce((select jsonb_agg(jsonb_build_array(t.name, t.done, t.total) order by t.done desc, t.name)
+                   from (select a.name, count(*) done, a.total from jsonb_array_elements(c.ids) e
+                         join bnet_quests q on q.id = (e #>> '{}')::bigint join bnet_quest_areas a on a.id = q.area_id
+                         group by a.id, a.name, a.total) t), '[]'::jsonb),
+    'other', (select count(*) from jsonb_array_elements(c.ids) e where not exists (select 1 from bnet_quests q where q.id = (e #>> '{}')::bigint)))
+  from bnet_char_quests c where members ? c.char_slug
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+  where docs.data->'z' is distinct from excluded.data->'z' or docs.data->'other' is distinct from excluded.data->'other';
+end $$;
+revoke execute on function public.guild_zones_publish() from public, anon, authenticated;
+
+-- Loads the zones and their quest lists, one request per zone, for at most p_seconds; makes no request once all are loaded.
+create or replace function public.guild_zones_fill(p_seconds int default 30)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare cid text; sec text; region text; st int; body text; hdr http_header[]; aid bigint; did boolean := false;
+        t0 timestamptz := clock_timestamp(); lim interval := make_interval(secs => greatest(1, least(coalesce(p_seconds, 30), 50)));
+begin
+  if not pg_try_advisory_xact_lock(4273002) then return jsonb_build_object('busy', true); end if;
+  if exists (select 1 from bnet_quest_areas) and not exists (select 1 from bnet_quest_areas where not loaded) then
+    return jsonb_build_object('zones_to_load', 0);
+  end if;
+  select v into cid from bnet_config where k = 'client_id';
+  select v into sec from bnet_config where k = 'client_secret';
+  if coalesce(cid, '') = '' or coalesce(sec, '') = '' then raise exception 'bnet_config: client_id / client_secret are not set'; end if;
+  region := coalesce((select v from bnet_config where k = 'region'), 'eu');
+  if region !~ '^[a-z]{2}$' then raise exception 'bnet_config: bad region'; end if;
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  select h.status, h.content into st, body from http(('POST', 'https://oauth.battle.net/token',
+    array[http_header('Authorization', 'Basic ' || replace(encode(convert_to(cid || ':' || sec, 'utf8'), 'base64'), E'\n', ''))],
+    'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
+  if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
+  hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
+  if not exists (select 1 from bnet_quest_areas) then
+    select h.status, h.content into st, body from http(('GET',
+      format('https://%s.api.blizzard.com/data/wow/quest/area/index?namespace=static-forever-%s&locale=en_US', region, region), hdr, null, null)::http_request) h;
+    if st <> 200 then raise exception 'quest areas: HTTP %', st; end if;
+    insert into bnet_quest_areas (id, name)
+    select distinct on ((a->>'id')::bigint) (a->>'id')::bigint, a->>'name' from jsonb_array_elements(coalesce(body::jsonb->'areas', '[]'::jsonb)) a
+    where a->>'id' ~ '^[0-9]+$' and coalesce(a->>'name', '') <> ''
+    on conflict (id) do nothing;
+  end if;
+  for aid in select a.id from bnet_quest_areas a where not a.loaded order by a.id loop
+    exit when clock_timestamp() - t0 > lim;
+    select h.status, h.content into st, body from http(('GET',
+      format('https://%s.api.blizzard.com/data/wow/quest/area/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+    continue when st not in (200, 404);
+    if st = 200 then
+      insert into bnet_quests (id, area_id)
+      select distinct on ((x->>'id')::bigint) (x->>'id')::bigint, aid from jsonb_array_elements(coalesce(body::jsonb->'quests', '[]'::jsonb)) x where x->>'id' ~ '^[0-9]+$'
+      on conflict (id) do nothing;
+    end if;
+    update bnet_quest_areas set loaded = true, total = (select count(*) from bnet_quests q where q.area_id = aid) where id = aid;
+    did := true;
+  end loop;
+  if did then perform guild_zones_publish(); end if;
+  return jsonb_build_object('zones_to_load', (select count(*) from bnet_quest_areas where not loaded));
+end $$;
+revoke execute on function public.guild_zones_fill(int) from public, anon, authenticated;
 
 -- Tooltip lines for one equipped item, in the armory's order: [[text, kind, right?], ...].
 -- kind: '' plain, 'g' green (bonuses, enchants, use effects), 'y' gold (set name, flavour text), 'm' muted (inactive, sell price).
@@ -669,6 +746,10 @@ begin
       if st = 200 then
         qs := coalesce(qs, '{}'::jsonb) || jsonb_build_object('done',
           jsonb_array_length(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end));
+        insert into bnet_char_quests (char_slug, ids) values (ch, coalesce((
+          select jsonb_agg((x->>'id')::bigint) from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end) x
+          where x->>'id' ~ '^[0-9]+$'), '[]'::jsonb))
+        on conflict (char_slug) do update set ids = excluded.ids;
       end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
@@ -742,6 +823,12 @@ begin
     where docs.data->'list' is distinct from excluded.data->'list';
   exception when others then
     raise warning 'guild_sync: dungeon list skipped: %', sqlerrm;
+  end;
+  -- Quest progress per zone (the zone lists themselves are loaded by guild_zones_fill every 5 minutes until complete).
+  begin
+    perform guild_zones_publish();
+  exception when others then
+    raise warning 'guild_sync: zones skipped: %', sqlerrm;
   end;
   -- Recipes. Never allowed to break the rest of the sync.
   begin
@@ -862,6 +949,8 @@ begin
 end $$;
 revoke execute on function public.guild_recipes_fill(int) from public, anon, authenticated;
 select cron.schedule('guild-recipes', '*/5 * * * *', 'select public.guild_recipes_fill(40)');
+
+select cron.schedule('guild-zones', '*/5 * * * *', 'select public.guild_zones_fill(30)');
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');

@@ -475,6 +475,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .grep small b { color: var(--fg); font-weight: 600; margin-right: 4px; }
 .grep i { display: block; height: 5px; margin-top: 4px; border-radius: 0 3px 3px 0; background: var(--track); overflow: hidden; }
 .grep i::after { content: ""; display: block; height: 100%; width: var(--w); min-width: 2px; background: var(--c); border-radius: 0 3px 3px 0; }
+.gmore { margin-top: 10px; }
 .gql { margin: 8px 0 0; padding: 0; list-style: none; columns: 2 200px; column-gap: 20px; font-size: 13px; }
 .gql li { padding: 2px 0; break-inside: avoid; }
 .gql small { color: var(--muted); }
@@ -532,6 +533,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .cq:first-child { border-top: 0; }
 .cq > div { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
 @media (max-width: 560px) { .cq { grid-template-columns: minmax(0, 1fr); } .cq > div { justify-content: flex-start; } }
+.ztab .zb { display: inline-block; min-width: 44px; text-align: right; padding: 1px 6px; border-radius: 3px; background: linear-gradient(to right, color-mix(in srgb, var(--healer) 45%, transparent) var(--w), transparent var(--w)); box-shadow: inset 0 0 0 1px var(--line); }
 /* guild recipes: who can craft what */
 .rtools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
 .rtools input { flex: 1 1 240px; min-width: 0; max-width: 420px; min-height: 40px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; }
@@ -934,6 +936,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="panel" aria-labelledby="h-cq" data-view="stats" hidden>
     <div class="panel-head"><h2 id="h-cq">Общие задания</h2><span class="cap" id="cq-cap"></span></div>
     <div id="cq-list"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-zones" data-view="stats" hidden>
+    <div class="panel-head"><h2 id="h-zones">Задания по зонам</h2><span class="cap">Сколько заданий каждой зоны выполнил каждый персонаж</span></div>
+    <div class="scroll" id="zones-table"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-allst" data-view="stats" hidden>
@@ -2452,7 +2459,7 @@ const gChip = (s, extra = "") => `<button type="button" class="gpc" data-act="gc
 // is the source wherever such a counter exists. The Spelunker achievements (gchars.dg, full list in guild/dungeons) cover
 // every dungeon and wing, but they are account-wide: a twink shows its main's numbers. They supply the list of dungeons
 // and, for dungeons without a boss counter, a count per account, labelled as such. Level ranges come from DUNGEONS.
-let gdung = null;
+let gdung = null, gzones = {}; // gzones/{slug}: quest progress per zone, { z: [[zone, completed, total]], other }
 const DG_ALIAS = { "Ragefire Chasm or Hall of Thanes": "rfc", "Scarlet Monastery: Graveyard": "smgy", "Scarlet Monastery: Library": "smlib", "Scarlet Monastery: Armory": "smarm",
   "Scarlet Monastery: Cathedral": "smcath", "Scarlet Monastery": "smcath", "The Temple of Atal'Hakkar": "st", "Lower Blackrock Spire": "lbrs", "Upper Blackrock Spire": "ubrs",
   "Maraudon": "mara_wg", "Stratholme: Live": "strat", "Stratholme: Dead": "strat", "Dire Maul: East": "dmaul", "Dire Maul: North": "dmaul", "Dire Maul: West": "dmaul", "The Shaper's Terrace": "shapers" };
@@ -2542,7 +2549,7 @@ const FUN = [ // [counter name in the game data, title, what is counted]
 let statsDrawn = "";
 function renderStats() {
   const chars = astChars(), mem = guild?.members || {};
-  const key = [guild?.at, ...Object.keys(gchars).map(s => gchars[s].at)].join("|");
+  const key = [guild?.at, ...Object.keys(gchars).map(s => gchars[s].at), ...Object.keys(gzones).map(s => gzones[s].at)].join("|");
   if (key === statsDrawn) return; // long lists: redraw only when the data changed
   statsDrawn = key;
   const wait = got.has("guild") ? "Данных пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
@@ -2560,6 +2567,16 @@ function renderStats() {
   $("#cq-cap").textContent = shared.length ? `${shared.length} ${plural(shared.length, "задание", "задания", "заданий")} сейчас в журнале сразу у нескольких` : "Задания, которые сейчас в журнале сразу у нескольких";
   $("#cq-list").innerHTML = shared.length ? shared.map(([n, w]) => `<div class="cq"><b>${esc(n)}</b><div>${[...w].sort((a, b) => gName(a).localeCompare(gName(b))).map(s => gChip(s)).join("")}</div></div>`).join("")
     : `<p class="empty">${Object.keys(byQ).length ? "Сейчас ни одного общего задания в журналах." : wait}</p>`;
+  // quests per zone: zones down, characters across, the zone's size in the last column
+  const zc = Object.keys(gzones).filter(s => mem[s] && Array.isArray(gzones[s].z) && gzones[s].z.length).sort((a, b) => gName(a).localeCompare(gName(b)));
+  const zmap = {}; // zone -> { total, by: { slug: done } }
+  for (const s of zc) for (const [n, d, t] of gzones[s].z) { const z = zmap[n] ||= { total: +t || 0, by: {} }; z.by[s] = +d || 0; }
+  const zrows = Object.entries(zmap).map(([n, z]) => ({ n, ...z, sum: Object.values(z.by).reduce((a, b) => a + b, 0) })).sort((a, b) => b.sum - a.sum || a.n.localeCompare(b.n));
+  $("#zones-table").innerHTML = zrows.length ? `<table class="ptab ztab"><thead><tr><th>Зона</th>${zc.map(s => `<th>${esc(gName(s))}</th>`).join("")}<th>Заданий в зоне</th></tr></thead><tbody>${zrows.map(z =>
+    `<tr><td>${esc(z.n)}</td>${zc.map(s => { const d = z.by[s] || 0; return `<td>${d ? `<span class="zb" style="--w:${z.total > 0 ? Math.min(100, d / z.total * 100) : 0}%">${fmtN(d)}</span>` : `<span class="z">—</span>`}</td>`; }).join("")}<td>${fmtN(z.total)}</td></tr>`).join("")}
+    <tr><td><b>Вне зон</b></td>${zc.map(s => `<td>${+gzones[s].other ? fmtN(gzones[s].other) : `<span class="z">—</span>`}</td>`).join("")}<td></td></tr></tbody></table>
+    <p class="gnote">«Заданий в зоне» считает все задания зоны в данных игры, включая задания другой фракции, поэтому 100% обычно недостижимо.</p>`
+    : `<p class="empty">${Object.keys(gzones).length ? wait : got.has("guild") ? "Зоны ещё загружаются: данные появятся в течение часа после синхронизации." : wait}</p>`;
   // every counter
   const rows = [], seen = new Set();
   for (const s of chars) for (const [cat, name] of gchars[s].ast) if (!seen.has(cat + "|" + name)) { seen.add(cat + "|" + name); rows.push([cat, name]); }
@@ -2625,7 +2642,7 @@ const bimg = u => /^https:\/\/render\.worldofwarcraft\.com\/[\w./-]+$/.test(u ||
 function renderGSheet() {
   const box = $("#gc-box"), bd = $("#gc-bd"), c = gchars[gOpen], m = guild?.members?.[gOpen];
   if (!gOpen || !c || !m) { gOpen = gDrawn = ""; box.hidden = bd.hidden = true; return; }
-  const key = `${gOpen}:${c.at}:${m.level}:${players.map(p => (p.char || "") + "+" + altsOf(p).join("+")).join()}:${auth?.player}:${auth?.admin}:${readOnly}`;
+  const key = `${gOpen}:${c.at}:${gzones[gOpen]?.at}:${m.level}:${players.map(p => (p.char || "") + "+" + altsOf(p).join("+")).join()}:${auth?.player}:${auth?.admin}:${readOnly}`;
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
   gDrawn = key;
   const items = c.items || {}, qc = it => G_Q.includes(it.q) ? "gq-" + it.q : "";
@@ -2678,6 +2695,13 @@ function gSheetMore(c) {
     const log = Array.isArray(q.log) ? q.log : [];
     html += `<h4 class="gsec">Задания</h4>` + tiles([["Выполнено", num(q.done)], ["В журнале", num(log.length)]])
       + (log.length ? `<ul class="gql">${log.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
+    const zones = Array.isArray(gzones[gOpen]?.z) ? gzones[gOpen].z : [];
+    if (zones.length) {
+      const bar = ([n, d, t]) => `<div class="grep"><div><span>${esc(n)}</span><small><b>${fmtN(d)}</b>/ ${fmtN(t)}</small></div><i style="--c:var(--healer);--w:${t > 0 ? Math.min(100, d / t * 100) : 0}%"></i></div>`;
+      html += `<h4 class="gsec">Задания по зонам</h4><div class="greps">${zones.slice(0, 10).map(bar).join("")}</div>`
+        + (zones.length > 10 ? `<details class="gtable"><summary>Ещё ${zones.length - 10} ${plural(zones.length - 10, "зона", "зоны", "зон")}</summary><div class="greps gmore">${zones.slice(10).map(bar).join("")}</div></details>` : "")
+        + (+gzones[gOpen].other ? `<p class="gnote">Ещё ${fmtN(gzones[gOpen].other)} ${plural(+gzones[gOpen].other, "задание", "задания", "заданий")} вне зон: классовые, профессии, события.</p>` : "");
+    }
   }
   const ach = Array.isArray(c.ach) ? c.ach : [];
   if (ach.length) html += `<h4 class="gsec">Достижения <small>общие на аккаунт</small></h4><ul class="gql">${[...ach].reverse().map(([n, at]) => {
@@ -2822,6 +2846,7 @@ async function boot() {
   db.collection("grecipes").onSnapshot(snap => { grec = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); got.add("grecipes"); render(); }, () => {});
   db.collection("gcat").onSnapshot(snap => { gcat = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.doc("guild/dungeons").onSnapshot(sn => { gdung = sn.exists ? sn.data() : null; render(); }, () => {});
+  db.collection("gzones").onSnapshot(snap => { gzones = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
