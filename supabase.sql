@@ -628,6 +628,11 @@ begin
       select h.status, h.content into st, body from http(('GET', base || q, hdr, null, null)::http_request) h;
       if st <> 200 then continue; end if;
       pr := body::jsonb;
+      -- The roster and the profile are cached separately by Blizzard and either can lag after a level-up: keep the higher level.
+      if pr->>'level' ~ '^[0-9]+$' and (pr->>'level')::int > coalesce((members->ch->>'level')::int, 0) then
+        members := jsonb_set(members, array[ch, 'level'], pr->'level');
+        lv := jsonb_set(lv, array[ch], pr->'level');
+      end if;
       select h.status, h.content into st, body from http(('GET', base || '/equipment' || q, hdr, null, null)::http_request) h;
       if st <> 200 then continue; end if;
       eq := body::jsonb;
@@ -824,6 +829,11 @@ begin
   exception when others then
     raise warning 'guild_sync: dungeon list skipped: %', sqlerrm;
   end;
+  -- Levels corrected from the profiles above
+  update docs set data = jsonb_set(data, '{members}', members), updated_at = now()
+  where coll = 'guild' and id = 'roster' and data->'members' is distinct from members;
+  update docs set data = jsonb_set(data, '{lv}', lv), updated_at = now()
+  where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD') and data->'lv' is distinct from lv;
   -- Quest progress per zone (the zone lists themselves are loaded by guild_zones_fill every 5 minutes until complete).
   begin
     perform guild_zones_publish();
