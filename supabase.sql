@@ -440,6 +440,15 @@ revoke all on public.bnet_recipes, public.bnet_prof_cat from anon, authenticated
 --   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, ok (details loaded), i, q, ds, re, icon, iq, il, tip}}}
 --                       details of the recipes someone in the guild knows
 
+-- 2026-11-14: dungeons per character come from the "Spelunker" achievements, whose criteria are the dungeons themselves
+-- (Excavation Site: Wetlands, each Scarlet Monastery wing, ...) with a completion count.
+-- Hidden cache of those achievement definitions: crit = {criterion id: dungeon name}, ord = the order of its dungeons.
+create table if not exists public.bnet_ach (id bigint primary key, name text not null, crit jsonb not null, ord jsonb not null);
+alter table public.bnet_ach enable row level security;
+revoke all on public.bnet_ach from anon, authenticated;
+-- What the page reads: guild/dungeons {at, list: [[dungeon, achievement name], ...]}  every dungeon the game tracks, in order;
+--   gchars/{slug}.dg  [[dungeon, times completed, done], ...]   and   gchars/{slug}.ach  [[achievement, completed at (ms)], ...]
+
 -- Tooltip lines for one equipped item, in the armory's order: [[text, kind, right?], ...].
 -- kind: '' plain, 'g' green (bonuses, enchants, use effects), 'y' gold (set name, flavour text), 'm' muted (inactive, sell price).
 -- "right" is the right-aligned half of a two-part line (Head | Mail, 39 - 74 Damage | Speed 1.90).
@@ -497,7 +506,7 @@ returns jsonb language plpgsql security definer set search_path = public, extens
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
-        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb;
+        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb; ach jsonb; dgs jsonb; aid bigint;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -579,7 +588,35 @@ begin
       --   reps [[faction, standing, value, max, tier]]   highest first
       --   q    {done: completed quests, log: [quest names in progress]}
       select d.data into oldd from docs d where d.coll = 'gchars' and d.id = ch;
-      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q'; ast := oldd->'ast';
+      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q'; ast := oldd->'ast'; ach := oldd->'ach'; dgs := oldd->'dg';
+      select h.status, h.content into st, body from http(('GET', base || '/achievements' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        j := case when jsonb_typeof(body::jsonb->'achievements') = 'array' then body::jsonb->'achievements' else '[]'::jsonb end;
+        select coalesce(jsonb_agg(jsonb_build_array(x->'achievement'->'name', x->'completed_timestamp') order by (x->>'completed_timestamp')::numeric), '[]'::jsonb)
+          into ach
+        from jsonb_array_elements(j) x where jsonb_typeof(x->'completed_timestamp') = 'number' and x->'achievement'->>'name' is not null;
+        -- definitions of the Spelunker achievements this character has, fetched once each
+        for aid in select (x->'achievement'->>'id')::bigint from jsonb_array_elements(j) x
+                   where x->'achievement'->>'name' like '%Spelunker' and x->'achievement'->>'id' ~ '^[0-9]+$'
+                     and not exists (select 1 from bnet_ach b where b.id = (x->'achievement'->>'id')::bigint) loop
+          select h.status, h.content into st, body from http(('GET',
+            format('https://%s.api.blizzard.com/data/wow/achievement/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+          continue when st <> 200;
+          insert into bnet_ach (id, name, crit, ord)
+          select aid, body::jsonb->>'name', coalesce(jsonb_object_agg(c.v->>'id', c.v->'description'), '{}'::jsonb), coalesce(jsonb_agg(c.v->'description' order by c.n), '[]'::jsonb)
+          from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'criteria'->'child_criteria') = 'array' then body::jsonb->'criteria'->'child_criteria' else '[]'::jsonb end)
+               with ordinality c(v, n)
+          where c.v->>'id' is not null and coalesce(c.v->>'description', '') <> ''
+          having body::jsonb->>'name' is not null
+          on conflict (id) do nothing;
+        end loop;
+        select coalesce(jsonb_agg(jsonb_build_array(b.crit->(cc->>'id'), coalesce(cc->'amount', '0'::jsonb), coalesce(cc->'is_completed', 'false'::jsonb)) order by b.id), '[]'::jsonb)
+          into dgs
+        from jsonb_array_elements(j) x
+        join bnet_ach b on b.id = (x->'achievement'->>'id')::bigint,
+             jsonb_array_elements(case when jsonb_typeof(x->'criteria'->'child_criteria') = 'array' then x->'criteria'->'child_criteria' else '[]'::jsonb end) cc
+        where x->'achievement'->>'id' ~ '^[0-9]+$' and b.crit ? (cc->>'id');
+      end if;
       -- 2026-11-14: ast = the game's own statistics ("Total deaths", "World Honorable Kills", boss kills per dungeon, ...):
       --   [[category, name, quantity, description], ...]; sub-categories appear as "Category / Sub-category".
       select h.status, h.content into st, body from http(('GET', base || '/achievements/statistics' || q, hdr, null, null)::http_request) h;
@@ -658,7 +695,7 @@ begin
         'avatar', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'avatar' limit 1),
                            (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
-        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast,
+        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast, 'ach', ach, 'dg', dgs,
         'items', items)))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -666,6 +703,46 @@ begin
       raise warning 'guild_sync: % skipped: %', ch, sqlerrm;
     end;
   end loop;
+  -- Every dungeon the game tracks, for the "Подземелья" tab. The full list needs all Spelunker definitions, also the ones
+  -- nobody has started, so they are read from the "Dungeons" achievement category once. Never allowed to break the sync.
+  begin
+    if not exists (select 1 from bnet_ach where name like 'Master%') then
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/achievement-category/index?namespace=static-forever-%s&locale=en_US', region, region), hdr, null, null)::http_request) h;
+      if st = 200 then
+        select (c->>'id')::bigint into aid from jsonb_array_elements(coalesce(body::jsonb->'categories', '[]'::jsonb)) c where c->>'name' = 'Dungeons' and c->>'id' ~ '^[0-9]+$' limit 1;
+        if aid is not null then
+          select h.status, h.content into st, body from http(('GET',
+            format('https://%s.api.blizzard.com/data/wow/achievement-category/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+          if st = 200 then
+            j := coalesce(body::jsonb->'achievements', '[]'::jsonb);
+            for aid in select (x->>'id')::bigint from jsonb_array_elements(j) x
+                       where x->>'name' like '%Spelunker' and x->>'id' ~ '^[0-9]+$' and not exists (select 1 from bnet_ach b where b.id = (x->>'id')::bigint) loop
+              select h.status, h.content into st, body from http(('GET',
+                format('https://%s.api.blizzard.com/data/wow/achievement/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+              continue when st <> 200;
+              insert into bnet_ach (id, name, crit, ord)
+              select aid, body::jsonb->>'name', coalesce(jsonb_object_agg(c.v->>'id', c.v->'description'), '{}'::jsonb), coalesce(jsonb_agg(c.v->'description' order by c.n), '[]'::jsonb)
+              from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'criteria'->'child_criteria') = 'array' then body::jsonb->'criteria'->'child_criteria' else '[]'::jsonb end)
+                   with ordinality c(v, n)
+              where c.v->>'id' is not null and coalesce(c.v->>'description', '') <> ''
+              having body::jsonb->>'name' is not null
+              on conflict (id) do nothing;
+            end loop;
+          end if;
+        end if;
+      end if;
+    end if;
+    -- the same achievement exists in several copies with the same dungeons: keep the first copy of each name
+    insert into docs (coll, id, data)
+    select 'guild', 'dungeons', jsonb_build_object('at', now_ms, 'list', coalesce(jsonb_agg(jsonb_build_array(d.v, f.name) order by f.id, d.n), '[]'::jsonb))
+    from (select distinct on (name) id, name, ord from bnet_ach order by name, id) f, jsonb_array_elements(f.ord) with ordinality d(v, n)
+    having count(*) > 0
+    on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+    where docs.data->'list' is distinct from excluded.data->'list';
+  exception when others then
+    raise warning 'guild_sync: dungeon list skipped: %', sqlerrm;
+  end;
   -- Recipes. Never allowed to break the rest of the sync.
   begin
     -- 1. Categories: one catalogue request per profession, once.

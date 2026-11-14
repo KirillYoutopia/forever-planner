@@ -476,6 +476,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .grep i::after { content: ""; display: block; height: 100%; width: var(--w); min-width: 2px; background: var(--c); border-radius: 0 3px 3px 0; }
 .gql { margin: 8px 0 0; padding: 0; list-style: none; columns: 2 200px; column-gap: 20px; font-size: 13px; }
 .gql li { padding: 2px 0; break-inside: avoid; }
+.gql small { color: var(--muted); }
 .gpm { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
 .gpm h3 { margin: 0 0 4px; font: 600 13px var(--font-body); color: var(--fg); letter-spacing: 0; text-transform: none; }
 .glist { font-size: 13px; }
@@ -511,6 +512,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .dcard { border: 1px solid var(--line); background: var(--cell); border-radius: 8px; padding: 12px 14px; min-width: 0; }
 .dcard h3 { margin: 0; font: 400 17px/1.25 var(--font-display); color: var(--fg); letter-spacing: .01em; text-transform: none; }
 .dcard .lr { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
+.dcard.no { opacity: .55; }
+.dcard.no .lr { margin-bottom: 0; }
 .dcard .new { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 1px 4px; margin-left: 6px; vertical-align: 3px; }
 .dcard .big { display: flex; gap: 16px; margin-bottom: 8px; }
 .dcard .big div { font-size: 12px; color: var(--muted); }
@@ -909,7 +912,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   </section>
 
   <section class="panel" aria-labelledby="h-dgs" data-view="dungeons" hidden>
-    <div class="panel-head"><h2 id="h-dgs">Подземелья гильдии</h2><span class="cap">Игра считает убийства последних боссов. Данные Blizzard API, персонажи с 10 уровня</span></div>
+    <div class="panel-head"><h2 id="h-dgs">Подземелья гильдии</h2><span class="cap">Сколько раз каждый прошёл каждое подземелье. Данные Blizzard API, персонажи с 10 уровня</span></div>
     <div id="dgs-tiles"></div>
     <div class="dcards" id="dgs-cards"></div>
   </section>
@@ -2441,47 +2444,64 @@ function renderPvp() {
 const astChars = () => Object.keys(gchars).filter(s => guild?.members?.[s] && Array.isArray(gchars[s].ast) && gchars[s].ast.length);
 const gName = s => { const m = guild?.members?.[s]; return m ? `${m.name}${m.surname ? " " + m.surname : ""}` : s; };
 const gChip = (s, extra = "") => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(s)}" aria-haspopup="dialog">${extra}${esc(gName(s))}</button>`;
-// "Edwin VanCleef Kills (Deadmines)" -> boss and dungeon; the level range comes from DUNGEONS when the name matches
-const DG_ALIAS = { "Scarlet Monastery": "smcath" };
+// Dungeons. Completions per dungeon come from the Spelunker achievements (gchars.dg; the full list is guild/dungeons).
+// Boss kills ("Edwin VanCleef Kills (Deadmines)" in gchars.ast) add detail to the matching card, and are the fallback
+// source for data saved before dg existed. Level ranges come from DUNGEONS.
+let gdung = null;
+const DG_ALIAS = { "Ragefire Chasm or Hall of Thanes": "rfc", "Scarlet Monastery: Graveyard": "smgy", "Scarlet Monastery: Library": "smlib", "Scarlet Monastery: Armory": "smarm",
+  "Scarlet Monastery: Cathedral": "smcath", "Scarlet Monastery": "smcath", "The Temple of Atal'Hakkar": "st", "Lower Blackrock Spire": "lbrs", "Upper Blackrock Spire": "ubrs",
+  "Maraudon": "mara_wg", "Stratholme: Live": "strat", "Stratholme: Dead": "strat", "Dire Maul: East": "dmaul", "Dire Maul: North": "dmaul", "Dire Maul: West": "dmaul", "The Shaper's Terrace": "shapers" };
+const BOSS_DG = { "Deadmines": "The Deadmines", "Scarlet Monastery": "Scarlet Monastery: Cathedral", "Ragefire Chasm": "Ragefire Chasm or Hall of Thanes", "Hall of Thanes": "Ragefire Chasm or Hall of Thanes" };
 function dgInfo(name) {
   const norm = t => t.toLowerCase().replace(/^the /, "");
   return DUNGEONS.find(d => d.id === DG_ALIAS[name]) || DUNGEONS.find(d => norm(d.name) === norm(name)) || DUNGEONS.find(d => norm(d.name).startsWith(norm(name))) || null;
 }
 function renderDgs() {
-  const chars = astChars();
+  const mem = guild?.members || {};
+  const dgChars = Object.keys(gchars).filter(s => mem[s] && Array.isArray(gchars[s].dg) && gchars[s].dg.length), byAch = dgChars.length > 0;
+  const chars = byAch ? dgChars : astChars();
   if (!chars.length) {
     const msg = got.has("guild") ? "Данных пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
     $("#dgs-tiles").innerHTML = ""; $("#dgs-cards").innerHTML = `<p class="empty">${msg}</p>`; $("#dgs-table").innerHTML = "";
     return;
   }
-  const dg = {}; // dungeon -> boss -> { slug: kills }
-  for (const s of chars) for (const [cat, name, qty] of gchars[s].ast) {
+  const bossOf = {}; // card name -> boss -> { slug: kills }
+  for (const s of astChars()) for (const [cat, name, qty] of gchars[s].ast) {
     const m = /Boss Kills$/.test(cat) && /^(.*?)\s+kills\s+\((.+)\)$/i.exec(name);
-    if (m && +qty > 0) ((dg[m[2]] ||= {})[m[1]] ||= {})[s] = +qty;
+    if (m && +qty > 0) ((bossOf[byAch ? BOSS_DG[m[2]] || m[2] : m[2]] ||= {})[m[1]] ||= {})[s] = +qty;
   }
-  const list = Object.entries(dg).map(([name, bosses]) => {
-    const runs = {}; // a character's runs = the most kills of any one boss there
-    for (const k of Object.values(bosses)) for (const [s, n] of Object.entries(k)) runs[s] = Math.max(runs[s] || 0, n);
-    return { name, bosses, runs, info: dgInfo(name), total: Object.values(runs).reduce((a, b) => a + b, 0) };
-  }).sort((a, b) => (a.info ? DUNGEONS.indexOf(a.info) : 999) - (b.info ? DUNGEONS.indexOf(b.info) : 999) || a.name.localeCompare(b.name));
+  const runsOf = {}, names = []; // card name -> { slug: completions }, in the game's order
+  const add = n => { if (!(n in runsOf)) { runsOf[n] = {}; names.push(n); } };
+  if (byAch) {
+    for (const row of Array.isArray(gdung?.list) ? gdung.list : []) if (row?.[0]) add(row[0]);
+    for (const s of dgChars) for (const [n, amount, done] of gchars[s].dg) if (n) { add(n); if (+amount > 0 || done) runsOf[n][s] = Math.max(1, +amount || 0); }
+  } else {
+    for (const [n, bosses] of Object.entries(bossOf)) { add(n); for (const k of Object.values(bosses)) for (const [s, v] of Object.entries(k)) runsOf[n][s] = Math.max(runsOf[n][s] || 0, v); }
+    names.sort((a, b) => (dgInfo(a) ? DUNGEONS.indexOf(dgInfo(a)) : 999) - (dgInfo(b) ? DUNGEONS.indexOf(dgInfo(b)) : 999) || a.localeCompare(b));
+  }
+  const list = names.map(name => ({ name, runs: runsOf[name], bosses: bossOf[name] || {}, info: dgInfo(name), total: Object.values(runsOf[name]).reduce((a, b) => a + b, 0) }));
+  const done = list.filter(d => d.total > 0);
   const sumOf = n => chars.reduce((t, s) => t + (astOf(gchars[s], n) || 0), 0);
   const entered = chars.map(s => [s, astOf(gchars[s], "Total 5-player dungeons entered") || 0]).sort((a, b) => b[1] - a[1])[0];
-  $("#dgs-tiles").innerHTML = `<div class="gtiles">${[["Подземелий пройдено", fmtN(list.length)], ["Заходов всего", fmtN(sumOf("Total 5-player dungeons entered"))],
-    ["Прохождений", fmtN(list.reduce((t, d) => t + d.total, 0))], ["Смертей в подземельях", fmtN(sumOf("Total deaths in 5-player dungeons"))],
+  $("#dgs-tiles").innerHTML = `<div class="gtiles">${[["Подземелий пройдено", byAch ? `${done.length} из ${list.length}` : fmtN(done.length)], ["Заходов всего", fmtN(sumOf("Total 5-player dungeons entered"))],
+    ["Прохождений", fmtN(done.reduce((t, d) => t + d.total, 0))], ["Смертей в подземельях", fmtN(sumOf("Total deaths in 5-player dungeons"))],
     ["Главный подземщик", entered[1] ? `${esc(gName(entered[0]))} · ${fmtN(entered[1])}` : "—"]].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
+  const head = d => `<h3>${esc(d.name)}${d.info?.n ? `<span class="new">новое</span>` : ""}</h3><div class="lr">${d.info ? `уровни ${d.info.min}–${d.info.max}` : "&nbsp;"}`;
   $("#dgs-cards").innerHTML = list.length ? list.map(d => {
-    const who = Object.entries(d.runs).sort((a, b) => b[1] - a[1]), top = who[0], all = who.length === chars.length;
+    if (!d.total) return `<div class="dcard no">${head(d)} · ещё никто не прошёл</div></div>`;
+    const who = Object.entries(d.runs).sort((a, b) => b[1] - a[1] || gName(a[0]).localeCompare(gName(b[0]))), top = who[0], all = who.length === chars.length;
     const fact = all && chars.length > 1 ? "Здесь побывала вся гильдия." : who.length === 1 ? `Пока только ${esc(gName(top[0]))}.` : top[1] > 1 ? `Чаще всех: ${esc(gName(top[0]))}, ${fmtN(top[1])} ${plural(top[1], "раз", "раза", "раз")}.` : "";
-    return `<div class="dcard"><h3>${esc(d.name)}${d.info?.n ? `<span class="new">новое</span>` : ""}</h3><div class="lr">${d.info ? `уровни ${d.info.min}–${d.info.max}` : "&nbsp;"}</div>
+    return `<div class="dcard">${head(d)}</div>
       <div class="big"><div><b>${who.length} / ${chars.length}</b>прошли</div><div><b>${fmtN(d.total)}</b>${plural(d.total, "прохождение", "прохождения", "прохождений")}</div></div>
-      ${Object.entries(d.bosses).map(([boss, k]) => `<div class="boss">${esc(boss)}</div><div class="who">${Object.entries(k).sort((a, b) => b[1] - a[1]).map(([s, n]) => gChip(s, `<b>${fmtN(n)}</b>`)).join("")}</div>`).join("")}
+      ${byAch ? `<div class="who">${who.map(([s, n]) => gChip(s, `<b>${fmtN(n)}</b>`)).join("")}</div>` : ""}
+      ${Object.entries(d.bosses).map(([boss, k]) => `<div class="boss">${byAch ? "Убийства: " : ""}${esc(boss)}</div><div class="who">${Object.entries(k).sort((a, b) => b[1] - a[1]).map(([s, n]) => gChip(s, `<b>${fmtN(n)}</b>`)).join("")}</div>`).join("")}
       ${fact ? `<p class="fact">${fact}</p>` : ""}</div>`;
-  }).join("") : `<p class="empty">Пока никто не убил ни одного последнего босса.</p>`;
+  }).join("") : `<p class="empty">Пока никто не прошёл ни одного подземелья.</p>`;
   const z = v => v ? fmtN(v) : `<span class="z">—</span>`;
   $("#dgs-table").innerHTML = `<table class="ptab"><thead><tr><th>Персонаж</th><th>Заходов</th><th>Разных подземелий</th><th>Прохождений</th><th>Смертей в подземельях</th><th>Любимое подземелье</th></tr></thead><tbody>${
-    chars.map(s => { const mine = list.filter(d => d.runs[s]).sort((a, b) => b.runs[s] - a.runs[s]);
+    chars.map(s => { const mine = done.filter(d => d.runs[s]).sort((a, b) => b.runs[s] - a.runs[s]);
       return { s, ent: astOf(gchars[s], "Total 5-player dungeons entered") || 0, n: mine.length, runs: mine.reduce((t, d) => t + d.runs[s], 0), died: astOf(gchars[s], "Total deaths in 5-player dungeons") || 0, fav: mine[0] }; })
-      .sort((a, b) => b.ent - a.ent || gName(a.s).localeCompare(gName(b.s)))
+      .sort((a, b) => b.runs - a.runs || b.ent - a.ent || gName(a.s).localeCompare(gName(b.s)))
       .map(r => `<tr><td><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}" aria-haspopup="dialog">${esc(gName(r.s))}</button></td><td class="hk">${z(r.ent)}</td><td>${z(r.n)}</td><td>${z(r.runs)}</td><td>${z(r.died)}</td><td>${r.fav ? `${esc(r.fav.name)} · ${fmtN(r.fav.runs[r.s])}` : `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table>`;
 }
 const FUN = [ // [counter name in the game data, title, what is counted]
@@ -2637,6 +2657,10 @@ function gSheetMore(c) {
     html += `<h4 class="gsec">Задания</h4>` + tiles([["Выполнено", num(q.done)], ["В журнале", num(log.length)]])
       + (log.length ? `<ul class="gql">${log.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
   }
+  const ach = Array.isArray(c.ach) ? c.ach : [];
+  if (ach.length) html += `<h4 class="gsec">Достижения</h4><ul class="gql">${[...ach].reverse().map(([n, at]) => {
+    let d = ""; try { d = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" }).format(new Date(at)); } catch {}
+    return `<li>${esc(n)}${d ? ` <small>${d}</small>` : ""}</li>`; }).join("")}</ul>`;
   return html;
 }
 function closeG() { gOpen = ""; gTipHide(); renderGSheet(); }
@@ -2775,6 +2799,7 @@ async function boot() {
   db.doc("guild/roster").onSnapshot(s => { guild = s.exists ? s.data() : null; got.add("guild"); render(); }, () => {});
   db.collection("grecipes").onSnapshot(snap => { grec = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); got.add("grecipes"); render(); }, () => {});
   db.collection("gcat").onSnapshot(snap => { gcat = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
+  db.doc("guild/dungeons").onSnapshot(sn => { gdung = sn.exists ? sn.data() : null; render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
