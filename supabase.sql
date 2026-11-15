@@ -583,7 +583,7 @@ returns jsonb language plpgsql security definer set search_path = public, extens
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
-        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb; ach jsonb; dgs jsonb; aid bigint;
+        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb; ach jsonb; dgs jsonb; aid bigint; spz jsonb;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -758,6 +758,20 @@ begin
           where x->>'id' ~ '^[0-9]+$'), '[]'::jsonb))
         on conflict (char_slug) do update set ids = excluded.ids;
       end if;
+      -- 2026-11-16: talent points per tree, active group (sp) and the other one (sp2): [[tree, points], ...], most points first.
+      -- Kept from the previous sync when the request fails.
+      select h.status, h.content into st, body from http(('GET', base || '/specializations' || q, hdr, null, null)::http_request) h;
+      spz := null;
+      if st = 200 then
+        select jsonb_object_agg(case when (g->>'is_active')::boolean then 'sp' else 'sp2' end, (
+                 select coalesce(jsonb_agg(jsonb_build_array(t->'specialization'->'name', coalesce(t->'spent_points', '0'::jsonb))
+                                           order by (t->>'spent_points')::numeric desc nulls last, t->'specialization'->>'name'), '[]'::jsonb)
+                 from jsonb_array_elements(case when jsonb_typeof(g->'specializations') = 'array' then g->'specializations' else '[]'::jsonb end) t
+                 where t->'specialization'->>'name' is not null))
+          into spz
+        from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'specialization_groups') = 'array' then body::jsonb->'specialization_groups' else '[]'::jsonb end) g;
+        spz := coalesce(spz, '{}'::jsonb);
+      end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
         exit when icons_left <= 0;
@@ -771,7 +785,11 @@ begin
         end if;
       end loop;
       select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object(
-               'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, ''), 'tip', bnet_item_tip(i)))), '{}'::jsonb)
+               'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, ''), 'tip', bnet_item_tip(i),
+               -- 2026-11-16: permanent enchantment, e.g. "Intellect +6"
+               'en', (select string_agg(regexp_replace(x->>'display_string', '^Enchanted: ', ''), '; ')
+                      from jsonb_array_elements(case when jsonb_typeof(i->'enchantments') = 'array' then i->'enchantments' else '[]'::jsonb end) x
+                      where x->'enchantment_slot'->>'type' = 'PERMANENT' and coalesce(x->>'display_string', '') <> '')))), '{}'::jsonb)
         into items
       from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
       left join bnet_icons b on b.id = (i->'media'->>'id')::bigint
@@ -784,6 +802,7 @@ begin
                            (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
         'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast, 'ach', ach, 'dg', dgs,
+        'gender', pr->'gender'->'type', 'sp', coalesce(spz->'sp', oldd->'sp'), 'sp2', case when spz is null then oldd->'sp2' else spz->'sp2' end,
         'items', items)))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -869,7 +888,13 @@ begin
     from docs d where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'profs') = 'object' and d.data->'profs' <> '{}'::jsonb), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   -- PvP of the day, for the "PvP" tab: glevels/{day}.hk = {slug: honorable kills so far}, .pd = {slug: deaths from other players so far}
+  -- 2026-11-16: also .il = {slug: equipped item level} and .dt = {slug: all deaths so far}, for the day-by-day table
   update docs set updated_at = now(), data = data || jsonb_build_object(
+    'il', coalesce((select jsonb_object_agg(d.id, d.data->'ilvl') from docs d
+                    where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ilvl') = 'number'), '{}'::jsonb),
+    'dt', coalesce((select jsonb_object_agg(d.id, e->2) from docs d, jsonb_array_elements(d.data->'ast') e
+                    where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ast') = 'array'
+                      and e->>1 = 'Total deaths' and jsonb_typeof(e->2) = 'number'), '{}'::jsonb),
     'hk', coalesce((select jsonb_object_agg(d.id, d.data->'pvp'->'hk') from docs d
                     where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'pvp'->'hk') = 'number'), '{}'::jsonb),
     'pd', coalesce((select jsonb_object_agg(d.id, e->2) from docs d, jsonb_array_elements(d.data->'ast') e

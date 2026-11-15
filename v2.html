@@ -532,7 +532,9 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .cgear .ci img { width: 100%; height: 100%; display: block; }
 .cgear span:last-child { min-width: 0; line-height: 1.3; }
 .cgear b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: color-mix(in srgb, var(--q, var(--fg)) var(--tint), var(--fg)); }
-.cgear small { font-size: 11px; color: var(--muted); }
+.cgear small { display: block; font-size: 11px; color: var(--muted); }
+.cgear small.en { color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cgear small.nen { opacity: .7; font-style: italic; }
 .cc-awards { display: flex; flex-wrap: wrap; gap: 6px; }
 .award { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); font-size: 12px; line-height: 1.3; }
 .award img { width: 28px; height: 28px; border-radius: 4px; flex: none; }
@@ -2193,7 +2195,7 @@ document.addEventListener("click", e => {
   }
   else if (act === "ovpick") { ovF[b.dataset.k] = String(ovF[b.dataset.k]) === b.dataset.v ? "" : b.dataset.v; renderGuild(); }
   else if (act === "ovact") { ovF.act = b.dataset.v; renderGuild(); }
-  else if (act === "ovclr") { ovF = { cls: "", race: "", lvl: "", act: "" }; renderGuild(); }
+  else if (act === "ovclr") { ovF = { cls: "", race: "", lvl: "", act: "", sex: "", role: "" }; renderGuild(); }
   else if (act === "ovf") { ovAll = b.dataset.v === "true"; renderGuild(); }
   else if (act === "menu") menu(!$("#side").classList.contains("open"));
   else if (act === "theme") setTheme(b.dataset.t);
@@ -2476,7 +2478,7 @@ function renderDays(g) {
   const cols = Object.keys(mem).filter(s => lvl(s) >= G_MIN).sort((a, b) => rank(a) - rank(b) || lvl(b) - lvl(a) || g.name(a).localeCompare(g.name(b)));
   const up = (a, b) => a != null && b != null && +a > +b ? +a - +b : 0;
   const gain = (d, p, s) => !(+p.lv[s] > 0) ? null : { // null: no baseline, the character was not synced the day before
-    lv: up(d.lv[s], p.lv[s]), hk: up(d.hk?.[s], p.hk?.[s]), pd: up(d.pd?.[s], p.pd?.[s]),
+    lv: up(d.lv[s], p.lv[s]), hk: up(d.hk?.[s], p.hk?.[s]), pd: up(d.pd?.[s], p.pd?.[s]), dt: up(d.dt?.[s], p.dt?.[s]), il: up(d.il?.[s], p.il?.[s]),
     pr: Object.entries(d.pr?.[s] || {}).map(([n, v]) => [n, up(v, p.pr?.[s]?.[n])]).filter(x => x[1] > 0) };
   let today = "";
   try { today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()); } catch {}
@@ -2488,14 +2490,17 @@ function renderDays(g) {
     if (!cs.length) return null;
     const pr = {};
     for (const c of cs) for (const [n, v] of c.pr) pr[n] = (pr[n] || 0) + v;
-    return { lv: cs.reduce((a, c) => a + c.lv, 0), hk: cs.reduce((a, c) => a + c.hk, 0), pd: cs.reduce((a, c) => a + c.pd, 0), pr: Object.entries(pr) };
+    const tot = k => cs.reduce((a, c) => a + c[k], 0);
+    return { lv: tot("lv"), hk: tot("hk"), pd: tot("pd"), dt: tot("dt"), il: tot("il"), pr: Object.entries(pr) };
   });
   const cell = c => {
     if (!c) return `<td class="dz">—</td>`;
     const bits = [c.lv ? `<b>+${c.lv} ${plural(c.lv, "уровень", "уровня", "уровней")}</b>` : "",
       ...[...c.pr].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<span>${esc(n)} +${fmtN(v)}</span>`),
       c.hk ? `<span title="Почётные убийства">HK +${fmtN(c.hk)}</span>` : "",
-      c.pd ? `<span class="dd">${fmtN(c.pd)} ${plural(c.pd, "смерть", "смерти", "смертей")} от игроков</span>` : ""].filter(Boolean);
+      c.il ? `<span>ilvl +${fmtN(c.il)}</span>` : "",
+      c.dt ? `<span class="dd">${fmtN(c.dt)} ${plural(c.dt, "смерть", "смерти", "смертей")}${c.pd ? `, от игроков ${fmtN(c.pd)}` : ""}</span>`
+        : c.pd ? `<span class="dd">${fmtN(c.pd)} ${plural(c.pd, "смерть", "смерти", "смертей")} от игроков</span>` : ""].filter(Boolean);
     return bits.length ? `<td style="--k:${Math.min(1, c.lv / 3)}">${bits.join("")}</td>` : `<td class="dz">·</td>`;
   };
   const label = r => { const gap = dayNum(r.d.id) - dayNum(r.p.id);
@@ -2503,14 +2508,22 @@ function renderDays(g) {
   el.innerHTML = `<div class="scroll"><table><thead><tr><th>День</th>${cols.map(s => { const p = ownerOf(s);
       return `<th data-g="${esc(s)}"><button type="button" class="glink" data-act="gchar" data-id="${esc(s)}">${esc(g.name(s))}</button><small>${p ? esc(p.name) + (p.char === s ? "" : ", твинк") : "гильдия"} · ${lvl(s)}</small></th>`; }).join("")}</tr></thead>
     <tbody><tr class="dsum"><th scope="row">7 дней</th>${sum.map(cell).join("")}</tr>${rows.map(r => `<tr><th scope="row">${label(r)}</th>${r.cells.map(cell).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="gnote">«—»: персонажа ещё не было в снимке предыдущего дня. «·»: в этот день без изменений (или персонаж не выходил из игры: профиль обновляется после выхода). Смерти здесь только от других игроков.</p>`;
+    <p class="gnote">«—»: персонажа ещё не было в снимке предыдущего дня. «·»: в этот день без изменений (или персонаж не выходил из игры: профиль обновляется после выхода). Все смерти и ilvl считаются с 16 ноября, раньше снимок хранил только смерти от других игроков.</p>`;
 }
 // Overview tiles. "Today" is the last synced day against the calendar day before it; a gap in the sync gives no number rather than a multi-day sum.
 // Guild composition (as in the armory and the old TBC dashboard): classes, races, level brackets, size over time, joins and leaves.
 // Everything comes from the roster and the daily snapshots (glevels.lv holds every member of that day).
 let ovAll = false; // false: level 10+ only; true: everyone, banks included
 const OV_BRACKETS = [[1, 9], [10, 19], [20, 29], [30, 39], [40, 49], [50, 59], [60, 60]];
-let ovF = { cls: "", race: "", lvl: "", act: "" }; // overview filters (a click on a bar, the activity buttons); they combine with AND
+let ovF = { cls: "", race: "", lvl: "", act: "", sex: "", role: "" }; // overview filters (a click on a bar, the activity buttons); they combine with AND
+// Role from the talent tree with the most points (gchars.sp, from /specializations). Feral can tank or deal damage, so it stays "Feral".
+const TREE_ROLE = { Protection: "tank", Holy: "heal", Discipline: "heal", Restoration: "heal", "Feral Combat": "feral" };
+const ROLE_RU = { tank: "Танк", heal: "Лекарь", dps: "Боец", feral: "Feral: танк или боец" };
+const roleOf = s => { const t = gchars[s]?.sp?.[0]; return Array.isArray(t) && +t[1] > 0 ? TREE_ROLE[t[0]] || "dps" : ""; };
+const specText = sp => (Array.isArray(sp) ? sp : []).filter(t => Array.isArray(t) && +t[1] > 0).map(t => `${esc(t[0])} ${+t[1]}`).join(" / ");
+// Slots every character can enchant in Classic; the off hand only when it holds a weapon or a shield.
+const ENCH_SLOTS = ["BACK", "CHEST", "WRIST", "HANDS", "FEET", "MAIN_HAND"];
+const enchantable = (slot, it) => ENCH_SLOTS.includes(slot) || (slot === "OFF_HAND" && (Array.isArray(it?.tip) ? it.tip : []).some(l => Array.isArray(l) && (["One-Hand", "Off Hand"].includes(l[0]) || l[2] === "Shield")));
 const IDLE_DAYS = 14;
 const seenDays = s => { const t = +gchars[s]?.login; return t ? (Date.now() - t) / 864e5 : null; }; // null: no profile (below level 10)
 const ACT = { today: ["За сутки", d => d < 1], week: ["За 7 дней", d => d < 7], idle: [`Неактивны ${IDLE_DAYS}+ дн.`, d => d >= IDLE_DAYS] };
@@ -2522,10 +2535,12 @@ function ovMatch(m, skip) { // skip: the chart being drawn ignores its own filte
   if (skip !== "cls" && ovF.cls && BCLS[m.cls] !== ovF.cls) return false;
   if (skip !== "race" && ovF.race && BRACE[m.race] !== ovF.race) return false;
   if (skip !== "lvl" && ovF.lvl !== "" && lvlBracket(m.level) !== +ovF.lvl) return false;
+  if (skip !== "sex" && ovF.sex && gchars[m.slug]?.gender !== ovF.sex) return false;
+  if (skip !== "role" && ovF.role && roleOf(m.slug) !== ovF.role) return false;
   if (skip !== "act" && ovF.act) { const d = seenDays(m.slug); if (d == null || !ACT[ovF.act][1](d)) return false; }
   return true;
 }
-const ovOn = () => !!(ovF.cls || ovF.race || ovF.lvl !== "" || ovF.act);
+const ovOn = () => !!(ovF.cls || ovF.race || ovF.lvl !== "" || ovF.act || ovF.sex || ovF.role);
 const slugName = s => s.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "); // left members are no longer in the roster
 function renderOverview(g) {
   const all = Object.entries(g.mem).map(([slug, m]) => ({ slug, ...m })), ms = ovAll ? all : all.filter(m => m.level >= G_MIN);
@@ -2540,7 +2555,10 @@ function renderOverview(g) {
   const raceNames = [...new Set(Object.values(BRACE))];
   const races = raceNames.map(r => ({ v: r, label: r, n: count("race", m => BRACE[m.race] === r), color: "var(--accent)", icon: raceIcon(r) })).filter(r => r.n > 0 || ovF.race === r.v);
   const levels = OV_BRACKETS.map(([a, b], i) => ({ v: i, label: a === b ? String(a) : `${a}–${b}`, n: count("lvl", m => lvlBracket(m.level) === i), color: "var(--accent)" }));
-  const chips = [["cls", ovF.cls], ["race", ovF.race], ["lvl", ovF.lvl !== "" ? levels[+ovF.lvl]?.label : ""]].filter(x => x[1]);
+  const sexes = [["MALE", "Мужской", "var(--s1)"], ["FEMALE", "Женский", "var(--s5)"]].map(([v, label, color]) => ({ v, label, n: count("sex", m => gchars[m.slug]?.gender === v), color }));
+  const roles = [["tank", "Танки", "var(--tank)"], ["heal", "Лекари", "var(--healer)"], ["dps", "Бойцы", "var(--dps)"], ["feral", "Feral", "var(--accent)"]]
+    .map(([v, label, color]) => ({ v, label, n: count("role", m => roleOf(m.slug) === v), color })).filter(r => r.n > 0 || ovF.role === r.v || r.v !== "feral");
+  const chips = [["cls", ovF.cls], ["race", ovF.race], ["lvl", ovF.lvl !== "" ? levels[+ovF.lvl]?.label : ""], ["sex", sexes.find(x => x.v === ovF.sex)?.label], ["role", roles.find(x => x.v === ovF.role)?.label]].filter(x => x[1]);
   $("#ov-bar").innerHTML = `<div class="seg" role="group" aria-label="Активность">${[["", "Все"], ...Object.entries(ACT).map(([k, [t]]) => [k, t])].map(([k, t]) => `<button type="button" data-act="ovact" data-v="${k}" aria-pressed="${ovF.act === k}">${t}</button>`).join("")}</div>`
     + chips.map(([k, t]) => `<button type="button" class="ovchip" data-act="ovpick" data-k="${k}" data-v="${esc(String(ovF[k]))}" aria-label="Убрать фильтр ${esc(t)}">${esc(t)} ✕</button>`).join("")
     + (ovOn() ? `<button type="button" class="glink" data-act="ovclr">Сбросить фильтры</button>` : `<span class="gnote">Нажми на столбец, чтобы отфильтровать состав ниже</span>`);
@@ -2562,7 +2580,8 @@ function renderOverview(g) {
     const { hi, step } = niceTop(Math.max(...series[0].pts.map(p => p.lv)));
     el.innerHTML = gKeys(series) + lineChart("gsize", days, series, { W, H: 200, lo: 0, hi, step, label: "Размер гильдии по дням: всего, с 10 уровня и 60 уровня" }) + oneDay(days);
   } else el.innerHTML = `<p class="empty">История начнётся после первой синхронизации.</p>`;
-  $("#ovg").innerHTML = bars("cls", classes, "Классы") + bars("race", races, "Расы") + bars("lvl", levels, "Уровни");
+  $("#ovg").innerHTML = bars("cls", classes, "Классы") + bars("race", races, "Расы") + bars("lvl", levels, "Уровни")
+    + bars("sex", sexes, `Пол <small>с ${G_MIN} уровня</small>`) + bars("role", roles, "Роли <small>по ветке с наибольшим числом талантов</small>");
   $("#ov-ev").innerHTML = evHtml;
 }
 function renderKpis(g, up, core) {
@@ -3032,11 +3051,15 @@ function renderGSheet() {
       ids.length ? `<details data-k="prof:${esc(n)}"><summary>${ids.length} ${plural(ids.length, "рецепт", "рецепта", "рецептов")}</summary><div class="cdgl">${ids.map(r => `<span class="gpc">${esc(r)}</span>`).join("")}</div></details>` : ""}</div>`;
   }).join("");
   const gear = [...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]);
+  // Enchantments are known only after a sync that stores them (gender arrived with it); before that, say nothing rather than "none".
+  const enKnown = !!c.gender || gear.some(t => items[t].en);
+  const ench = { n: gear.filter(t => enchantable(t, items[t]) && items[t].en).length, of: enKnown ? gear.filter(t => enchantable(t, items[t])).length : 0 };
   const facts = [["GearScore", fmtN(gearScore(c, +m.cls))], ["Уровень предметов", c.ilvl ? fmtN(c.ilvl) : "—"], ["Был в игре", login || "—"], ["Игрок", own ? `${esc(own.name)} <small>${own.char === gOpen ? "основной" : "твинк"}</small>` : "—"]];
   box.innerHTML = `<div class="cc-head" style="--cc:${cls ? cls.color : "var(--gold)"}">
       <div class="cc-av">${bimg(c.avatar) ? `<img src="${bimg(c.avatar)}" alt="">` : ""}</div>
       <div class="cc-who"><h2 id="gc-title">${esc(name)}</h2>
         <p class="gsub">Уровень <b>${+m.level || "?"}</b> · ${esc(BRACE[m.race] || "")} <span class="tint">${esc(BCLS[m.cls] || "")}</span>${faction ? ` · ${faction}` : ""}${
+          specText(c.sp) ? `<br>Таланты: <b>${specText(c.sp)}</b>${roleOf(gOpen) ? ` · ${ROLE_RU[roleOf(gOpen)]}` : ""}${specText(c.sp2) ? ` · второй набор: ${specText(c.sp2)}` : ""}` : ""}${
           sibs.length > 1 ? `<br>Персонажи игрока: ${sibs.map(x => x === gOpen ? `<b>${esc(gName(x))}</b>` : `<button type="button" class="glink" data-act="gchar" data-id="${esc(x)}">${esc(gName(x))}</button>`).join(" · ")}` : ""}</p></div>
       <div class="cc-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
       <label class="cc-pick"><span class="seg-label">Другой персонаж</span><select id="cc-sel" aria-label="Открыть карточку другого персонажа">${picker}</select></label>
@@ -3053,11 +3076,12 @@ function renderGSheet() {
           ["Сила атаки", cNum(s.ap)], ["Сила заклинаний", cNum(s.sp)], ["Крит ближний", s.mc == null ? null : fmtN(+(+s.mc).toFixed(2)) + "%"], ["Крит заклинаний", s.sc == null ? null : fmtN(+(+s.sc).toFixed(2)) + "%"], ["Уклонение", s.dg == null ? null : fmtN(+(+s.dg).toFixed(2)) + "%"]])) : ""}
         ${cSec("PvP", cTiles([["Почётные убийства", fmtN(c.pvp?.hk ?? 0)], ["За день", hkDay?.[1] == null ? "—" : fmtN(hkDay[1])], ["Смертей от игроков", cNum(astOf(c, "Total deaths from other players")) ?? "—"], ["Ранг", fmtN(c.pvp?.rank ?? 0)]]))}
         ${cSec("Сводка", cTiles([["Заданий", cNum(c.q?.done ?? astOf(c, "Quests completed")) ?? "—"], ["Заходов в подземелья", cNum(astOf(c, "Total 5-player dungeons entered")) ?? "—"],
-          ["Смертей", cNum(astOf(c, "Total deaths")) ?? "—"], ["Достижений", fmtN(Array.isArray(c.ach) ? c.ach.length : 0)]]))}
+          ["Смертей", cNum(astOf(c, "Total deaths")) ?? "—"], ["Достижений", fmtN(Array.isArray(c.ach) ? c.ach.length : 0)],
+          ["Зачаровано", ench.of ? `${ench.n} / ${ench.of}` : null]]))}
       </div>
     </div>
     ${gear.length ? `<details class="gtable cgear-d" data-k="gear"><summary>Экипировка списком</summary><div class="cgear">${gear.map(t => { const it = items[t];
-      return `<div class="${qc(it)}" data-slot="${t}" tabindex="0"><span class="ci">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span><span><b>${esc(it.name)}</b><small>${G_SLOT[t]}${+it.lvl ? ` · ${+it.lvl}` : ""}</small></span></div>`; }).join("")}</div></details>` : ""}
+      return `<div class="${qc(it)}" data-slot="${t}" tabindex="0"><span class="ci">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span><span><b>${esc(it.name)}</b><small>${G_SLOT[t]}${+it.lvl ? ` · ${+it.lvl}` : ""}</small>${it.en ? `<small class="en">✦ ${esc(it.en)}</small>` : enKnown && enchantable(t, it) ? `<small class="nen">без зачарования</small>` : ""}</span></div>`; }).join("")}</div></details>` : ""}
     ${profHtml ? cSec("Профессии", `<div class="cc-profs">${profHtml}</div>` + `<button type="button" class="glink" data-act="nav" data-nav="recipes">Все рецепты гильдии →</button>`) : ""}
     ${cSec("Награды", fame.length || recs.length ? `<div class="cc-awards">${
       recs.map(([stat, title, unit]) => award("achievement_bg_topdps", title, `рекорд гильдии · ${fmtN(astOf(c, stat))} ${unit}`)).join("")
