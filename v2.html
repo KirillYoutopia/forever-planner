@@ -155,7 +155,9 @@ body {
   padding: 20px 12px 72px; display: flex; flex-direction: column; gap: 2px; }
 .side-brand { padding: 0 10px 10px; }
 .side-cd { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: baseline; margin: 0 2px 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); text-decoration: none; font-size: 12px; }
-.side-cd span { color: var(--muted); }
+.side-cd span { color: var(--muted); white-space: nowrap; }
+.side { scrollbar-width: thin; }
+.side-brand .eyebrow { white-space: nowrap; }
 .side-cd b { font: 400 14px/1.3 var(--font-display); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .side-cd:hover { border-color: var(--accent); }
 .side-brand b { font: 400 22px/1.2 var(--font-display); }
@@ -2363,6 +2365,29 @@ const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, lat
 let guild = null, glevels = [], gchars = {}, gOpen = "", gDrawn = "";
 const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
 const dayShort = k => `${+k.slice(8, 10)} ${MON[+k.slice(5, 7) - 1]}`;
+// GearScore the way GearScoreLite / TacoTip compute it (the Forever armories show the same numbers):
+// per item floor(((ilvl - A) / B) * slot weight * 1.8618 * quality scale), green and better only; hunters weight ranged up, melee down.
+const GS_SLOT = { HEAD: 1, NECK: .5625, SHOULDER: .75, CHEST: 1, WAIST: .75, LEGS: 1, FEET: .75, WRIST: .5625, HANDS: .75, FINGER_1: .5625, FINGER_2: .5625,
+  TRINKET_1: .5625, TRINKET_2: .5625, BACK: .5625, MAIN_HAND: 1, OFF_HAND: 1, RANGED: .3164 };
+const GS_RARITY = { UNCOMMON: 2, RARE: 3, EPIC: 4, LEGENDARY: 5 };
+const gsTable = (l, r) => r === 4 && l < 100 ? [.25, 1.6275] : r === 4 && l < 168 ? [26, 1.2] : r === 3 && l < 148 ? [.75, 1.8] : r === 2 && l < 138 ? [8, 2] : l <= 120 ? [0, 2.25]
+  : { 4: [91.45, .65], 3: [81.375, .8125], 2: [73, 1] }[r];
+function gearScore(c, cls) {
+  let gs = 0;
+  for (const [slot, it] of Object.entries(c?.items || {})) {
+    let r = GS_RARITY[it?.q], w = GS_SLOT[slot], q = 1;
+    const l = +it?.lvl, tip = (Array.isArray(it.tip) ? it.tip : []).map(x => Array.isArray(x) ? x[0] : "");
+    if (!r || !w || !l) continue;
+    if (r === 5) { r = 4; q = 1.3; }
+    if (slot === "MAIN_HAND" && tip.includes("Two-Hand")) w = 2;
+    const [A, B] = gsTable(l, r);
+    let v = Math.max(0, Math.floor((l - A) / B * w * 1.8618 * q));
+    if (cls === 3) v *= slot === "RANGED" ? 5.3224 : slot === "MAIN_HAND" || (slot === "OFF_HAND" && (tip.includes("One-Hand") || tip.includes("Off Hand"))) ? .3164 : 1;
+    gs += v;
+  }
+  return Math.floor(gs);
+}
+console.assert(gearScore({ items: { HEAD: { q: "RARE", lvl: 60 }, MAIN_HAND: { q: "EPIC", lvl: 66, tip: [["Two-Hand", "", "Mace"]] } } }) === 61 + 150, "gearScore self-check");
 function guildData() {
   const days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id) && d.lv && typeof d.lv === "object").sort((a, b) => a.id < b.id ? -1 : 1);
   const mem = guild?.members || {};
@@ -2405,7 +2430,7 @@ function renderGuild() {
   const row = m => {
     const c = CLS[BCLS[m.cls]], d = delta(m);
     return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
-      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}${owner[m.slug] ? ` · <b>${esc(owner[m.slug])}</b>` : ""}</span>
+      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}${gchars[m.slug]?.items ? ` · GS ${fmtN(gearScore(gchars[m.slug], +m.cls))}` : ""}${owner[m.slug] ? ` · <b>${esc(owner[m.slug])}</b>` : ""}</span>
       <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
       <span class="n">${+m.level || "—"}</span>
       <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
@@ -2966,7 +2991,7 @@ function renderGSheet() {
       ids.length ? `<details data-k="prof:${esc(n)}"><summary>${ids.length} ${plural(ids.length, "рецепт", "рецепта", "рецептов")}</summary><div class="cdgl">${ids.map(r => `<span class="gpc">${esc(r)}</span>`).join("")}</div></details>` : ""}</div>`;
   }).join("");
   const gear = [...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]);
-  const facts = [["Уровень предметов", c.ilvl ? fmtN(c.ilvl) : "—"], ["Был в игре", login || "—"], ["Игрок", own ? `${esc(own.name)} <small>${own.char === gOpen ? "основной" : "твинк"}</small>` : "—"]];
+  const facts = [["GearScore", fmtN(gearScore(c, +m.cls))], ["Уровень предметов", c.ilvl ? fmtN(c.ilvl) : "—"], ["Был в игре", login || "—"], ["Игрок", own ? `${esc(own.name)} <small>${own.char === gOpen ? "основной" : "твинк"}</small>` : "—"]];
   box.innerHTML = `<div class="cc-head" style="--cc:${cls ? cls.color : "var(--gold)"}">
       <div class="cc-av">${bimg(c.avatar) ? `<img src="${bimg(c.avatar)}" alt="">` : ""}</div>
       <div class="cc-who"><h2 id="gc-title">${esc(name)}</h2>
