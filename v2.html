@@ -52,6 +52,7 @@
   --gold: #c9a24a;
   --doll-1: #6a3418;  /* character sheet backdrop, same in both themes */
   --doll-2: #170c08;
+  --doll-edge: #07080b; /* edge of the class-coloured backdrop behind the 3D model, same in both themes */
 
   /* soon tab: XP bar, raid border, gravestones (same in both themes) */
   --xp: #9b59d0;
@@ -372,10 +373,14 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .lb { position: fixed; inset: 0; z-index: 70; background: rgba(5, 8, 12, .9); overflow: auto; cursor: zoom-out; padding: 16px; }
 .lb img { display: block; width: max(100%, 900px); height: auto; margin: 0 auto; border-radius: 6px; }
 .lb.char { padding: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 55%, var(--doll-1), var(--doll-2) 78%); }
+.lb.char, #gc-box .gdoll { background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--cc, var(--doll-1)) 55%, var(--doll-edge)), var(--doll-edge) 78%); }
 .lb.char img { width: 100%; height: 100%; max-width: none; object-fit: contain; border-radius: 0; transform: scale(1.3); transform-origin: 50% 50%; } /* the render has wide empty margins, as in the doll */
 @media (orientation: portrait) { .lb.char img { object-fit: cover; transform: none; } } /* tall screens: fill the height, the cut sides are empty anyway */
-.lb3d { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; color-scheme: normal; }
-.lb.m3d img { visibility: hidden; }
+.m3df { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; border: 0; color-scheme: normal; }
+.gfig:not(.m3d) .m3df { pointer-events: none; } /* while loading, a click still opens the picture */
+.lb.m3d img, .gfig.m3d img { visibility: hidden; }
+.g3d-full { display: none; position: absolute; right: 4px; bottom: 4px; z-index: 2; width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--frame-line); background: var(--doll-edge); color: var(--frame-muted); font-size: 16px; cursor: zoom-in; }
+.gfig.m3d .g3d-full { display: block; }
 .lb-x { display: none; position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 18px; cursor: pointer; }
 .lb.char .lb-x { display: block; }
 /* news */
@@ -2491,37 +2496,68 @@ function renderGuild() {
 // Without WebGL, model data or the proxy, the Blizzard picture stays.
 const MV = WF_CONFIG.supabaseUrl + "/functions/v1/modelviewer/", MV_VER = "35ee72d";
 // The viewer runs in its own frame: it needs jQuery as the global $, which on this page is the query helper.
-// Removing the frame frees the model and its WebGL context.
-let mvFrame = null;
-function show3d(slug) {
-  close3d();
+// Removing a frame frees its model and WebGL context. The card has one (inline), the full-screen view another; the files
+// come from the browser cache the second time. The card's model is drawn only while visible and the full screen is closed.
+let mvFull = null;
+const mvIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(x => { try { x.target.contentWindow.mvOn = x.isIntersecting; } catch {} })) : null;
+function frame3d(slug, full) {
   const m = guild?.members?.[slug], c = gchars[slug], it = c?.mdl?.it;
   // shortcut: Skyborne (race 95/96) has no model id we know, it keeps the picture; add it once Wowhead's viewer has one
-  if (!m || !(+m.race >= 1 && +m.race <= 8) || !Array.isArray(it) || !it.length) return;
-  try { const t = document.createElement("canvas"); if (!(t.getContext("webgl2") || t.getContext("webgl"))) return; } catch { return; }
-  const cfg = JSON.stringify({ mv: MV, ver: MV_VER, items: it, id: +m.race * 2 - 1 + (c.gender === "FEMALE" ? 1 : 0), cz: c.mdl.cz || [] }).replace(/</g, "\\u003c");
-  const f = mvFrame = Object.assign(document.createElement("iframe"), { className: "lb3d", title: `${gName(slug)}: 3D-модель, её можно вращать` });
+  if (!m || !(+m.race >= 1 && +m.race <= 8) || !Array.isArray(it) || !it.length) return null;
+  try { const t = document.createElement("canvas"); if (!(t.getContext("webgl2") || t.getContext("webgl"))) return null; } catch { return null; }
+  const cfg = JSON.stringify({ mv: MV, ver: MV_VER, items: it, id: +m.race * 2 - 1 + (c.gender === "FEMALE" ? 1 : 0), cz: c.mdl.cz || [],
+    full, zoom: full ? 0 : -1 }).replace(/</g, "\\u003c"); // zoom: the viewer's default (1) is a bit close
+  const f = Object.assign(document.createElement("iframe"), { className: "m3df", title: `${gName(slug)}: 3D-модель, её можно вращать` });
   f.srcdoc = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}#m{width:100%;height:100%;cursor:grab}</style>
 <div id="m"></div><script>
 const C = ${cfg}, lb = parent.document.getElementById("lb");
 const load = src => new Promise((ok, no) => document.head.append(Object.assign(document.createElement("script"), { src, onload: ok, onerror: no })));
-addEventListener("keydown", e => { if (e.key === "Escape") lb.querySelector(".lb-x").click(); });
+addEventListener("keydown", e => { if (e.key === "Escape") parent.document.querySelector("#lb:not([hidden]) .lb-x")?.click(); });
+// in the card the wheel scrolls the page instead of zooming the model
+addEventListener("dblclick", e => e.stopPropagation(), true); // the viewer's own full screen shows the model without its backdrop
+if (!C.full) addEventListener("wheel", e => { e.stopPropagation(); e.preventDefault(); parent.scrollBy(0, e.deltaY); }, { capture: true, passive: false });
 (async () => {
   await load("https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js");
   window.WH = { debug() {}, defaultAnimation: "Stand", WebP: { getImageExtension: () => ".webp" } };
   await load(C.mv + "deployment/viewer/" + C.ver + "/viewer.min.js?v=2"); // ?v: Cloudflare in front of Supabase kept a 404 from before the function existed
   const el = document.getElementById("m");
-  new ZamModelViewer({ type: 2, contentPath: C.mv, container: jQuery(el), aspect: el.clientWidth / el.clientHeight, hd: false,
+  const v = new ZamModelViewer({ type: 2, contentPath: C.mv, container: jQuery(el), aspect: el.clientWidth / el.clientHeight, hd: false,
     items: C.items, models: { id: C.id, type: 16 }, charCustomization: { options: C.cz } });
-  lb.classList.add("m3d"); // the picture underneath is hidden only once the viewer is up
+  frameElement.parentElement.classList.add("m3d"); // the picture underneath is hidden only once the viewer is up
+  const tune = () => {
+    const r = v.renderer;
+    if (!r) return setTimeout(tune, 100);
+    r.zoom.target = C.zoom;
+    const draw = r.draw.bind(r);
+    r.draw = t => { if (window.mvOn !== false && (C.full || lb.hidden)) draw(t); };
+  };
+  tune();
 })().catch(e => console.warn("3D model unavailable", e));
 <\/script>`;
-  $("#lb").append(f);
+  return f;
+}
+function show3d(slug) {
+  close3d();
+  $("#lb").requestFullscreen?.().catch(() => {}); // the real full screen, backdrop included; the view still works without it
+  $("#lb").style.setProperty("--cc", $("#gc-box").style.getPropertyValue("--cc"));
+  mvFull = frame3d(slug, true);
+  if (mvFull) $("#lb").append(mvFull);
 }
 function close3d() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   $("#lb").classList.remove("m3d");
-  mvFrame?.remove();
-  mvFrame = null;
+  mvFull?.remove();
+  mvFull = null;
+}
+// leaving the full screen (Esc) closes the view too
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && mvFull && !$("#lb").hidden) { $("#lb").hidden = true; close3d(); } });
+// the card's own model, put in after each redraw of the card
+function card3d(box, slug) {
+  mvIO?.disconnect();
+  const g = box.querySelector(".gfig"), f = g && frame3d(slug, false);
+  if (!f) return;
+  g.append(f);
+  mvIO?.observe(f);
 }
 
 // News from Wowhead's WoW Forever feeds: news/forever, filled by news_sync() in supabase.sql every 30 minutes.
@@ -3186,7 +3222,7 @@ function renderGSheet() {
     <div class="cc-top">
       <div class="cc-left">
         <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
-          <div class="gfig">${bimg(c.img) ? `<button type="button" class="gfig-btn" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="Открыть персонажа на весь экран"><img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа"></button>` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
+          <div class="gfig">${bimg(c.img) ? `<button type="button" class="gfig-btn" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="Открыть персонажа на весь экран"><img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа"></button><button type="button" class="g3d-full" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="3D-модель на весь экран" title="На весь экран">⤢</button>` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
           <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
       </div>
       <div class="cc-right">
@@ -3214,6 +3250,7 @@ function renderGSheet() {
       }).join("")}</div>`).join("")}</details>`;
   for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
   if (refocus) box.querySelector(refocus)?.focus();
+  card3d(box, gOpen);
 }
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
 function gTipShow(el) {
