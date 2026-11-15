@@ -154,6 +154,10 @@ body {
 .side { position: fixed; inset: 0 auto 0 0; width: 232px; z-index: 20; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line);
   padding: 20px 12px 72px; display: flex; flex-direction: column; gap: 2px; }
 .side-brand { padding: 0 10px 10px; }
+.side-cd { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: baseline; margin: 0 2px 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); text-decoration: none; font-size: 12px; }
+.side-cd span { color: var(--muted); }
+.side-cd b { font: 400 14px/1.3 var(--font-display); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.side-cd:hover { border-color: var(--accent); }
 .side-brand b { font: 400 22px/1.2 var(--font-display); }
 .side .ng { margin: 14px 10px 4px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .side button { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent;
@@ -198,6 +202,23 @@ body {
 .gdays .dd { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
 .gdays .dz { color: var(--muted); }
 .gdays .dsum th, .gdays .dsum td { border-bottom: 2px solid var(--line); }
+/* guild composition: vertical bars, class colours from CLASSES */
+.ovg { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 28px; }
+.ovc h3, .ovh { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--fg); text-transform: none; letter-spacing: 0; }
+.ovc h3 small { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.vbars { display: flex; align-items: stretch; gap: 6px; height: 180px; }
+.vb { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.vb b { font-size: 12px; min-height: 16px; font-variant-numeric: tabular-nums; }
+.va { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.va i { display: block; width: 100%; min-height: 2px; background: var(--c); border-radius: 3px 3px 0 0; box-shadow: inset 0 0 0 1px var(--line); }
+.vb img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+.vb span { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ov2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px 28px; margin-top: 22px; }
+@media (max-width: 760px) { .ov2 { grid-template-columns: 1fr; } }
+.evt { font-size: 11px; font-weight: 700; border-radius: 3px; padding: 1px 6px; }
+.evt.ein { background: color-mix(in srgb, var(--healer) 20%, transparent); color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); }
+.evt.eout { background: color-mix(in srgb, var(--ban-bg) 20%, transparent); color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.evt.e60 { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .glow summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 0; }
 
 button, input, select { font: inherit; color: inherit; }
@@ -503,7 +524,10 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .award { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); font-size: 12px; line-height: 1.3; }
 .award img { width: 28px; height: 28px; border-radius: 4px; flex: none; }
 .award small { display: block; color: var(--muted); }
-.cc-own { margin-top: 14px; }
+.cc-own { margin-top: 22px; }
+.cgear-d { margin-top: 22px; }
+.cgear-d > summary, .cc-own > summary { font: 400 16px/1.2 var(--font-display); color: var(--fg); letter-spacing: .02em; }
+.cc-profs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 28px; }
 .cc-all { margin-top: 22px; }
 .cdg { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
 .cdgl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -790,6 +814,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 <div class="side-bd" data-act="menu" hidden></div>
 <nav class="side" id="side" aria-label="Разделы">
   <div class="side-brand"><div class="eyebrow">Гильдия WoW Forever</div><b>Kute Expats</b></div>
+  <a class="side-cd" href="#soon" title="Отсчёт и дорожная карта"><span>До рейдов</span><b id="scd-r">--</b><span>До Hardcore</span><b id="scd-h">--</b></a>
   <div class="ng">Гильдия</div>
   <button type="button" data-act="nav" data-nav="home" aria-pressed="true">Обзор</button>
   <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">По дням</button>
@@ -822,12 +847,18 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
   <div class="kpis" id="kpis" data-view="home"></div>
 
+  <section class="panel" aria-labelledby="h-ov" data-view="home">
+    <div class="panel-head"><h2 id="h-ov">Состав гильдии</h2><div class="seg" role="group" aria-label="Кого считать в классах и расах" id="ov-f"></div></div>
+    <div class="ovg" id="ovg"></div>
+    <div class="ov2"><div><h3 class="ovh">Размер гильдии по дням</h3><div id="ov-size"></div></div><div><h3 class="ovh">Изменения состава</h3><div id="ov-ev"></div></div></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-guild" data-view="home">
     <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span></div>
     <div id="groster"></div>
   </section>
 
-  <section class="band" aria-label="Обратный отсчёт и дорожная карта" data-view="home">
+  <section class="band" aria-label="Обратный отсчёт и дорожная карта" data-view="soon" hidden>
     <div class="cds">
       <div class="cd">
         <h3>До открытия рейдов</h3>
@@ -2146,6 +2177,7 @@ document.addEventListener("click", e => {
     applyView();
     scrollTo(0, 0);
   }
+  else if (act === "ovf") { ovAll = b.dataset.v === "true"; renderGuild(); }
   else if (act === "menu") menu(!$("#side").classList.contains("open"));
   else if (act === "theme") setTheme(b.dataset.t);
   else if (act === "zoom") $("#lb").hidden = false;
@@ -2385,6 +2417,7 @@ function renderGuild() {
     + (low.length ? `<details class="glow"><summary>Ниже ${G_MIN} уровня: ${low.length} (банки и новички, в статистику не входят)</summary>${low.map(row).join("")}</details>` : "")
     + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
   renderKpis(g, up, core);
+  renderOverview(g);
   renderDays(g);
   renderGChart(g);
 }
@@ -2429,6 +2462,44 @@ function renderDays(g) {
     <p class="gnote">«—»: персонажа ещё не было в снимке предыдущего дня. «·»: в этот день без изменений (или персонаж не выходил из игры: профиль обновляется после выхода). Смерти здесь только от других игроков.</p>`;
 }
 // Overview tiles. "Today" is the last synced day against the calendar day before it; a gap in the sync gives no number rather than a multi-day sum.
+// Guild composition (as in the armory and the old TBC dashboard): classes, races, level brackets, size over time, joins and leaves.
+// Everything comes from the roster and the daily snapshots (glevels.lv holds every member of that day).
+let ovAll = false; // false: level 10+ only; true: everyone, banks included
+const OV_BRACKETS = [[1, 9], [10, 19], [20, 29], [30, 39], [40, 49], [50, 59], [60, 60]];
+const slugName = s => s.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "); // left members are no longer in the roster
+function renderOverview(g) {
+  const all = Object.entries(g.mem).map(([slug, m]) => ({ slug, ...m })), ms = ovAll ? all : all.filter(m => m.level >= G_MIN);
+  $("#ov-f").innerHTML = [[false, `${G_MIN}+`], [true, "Все"]].map(([v, t]) => `<button type="button" data-act="ovf" data-v="${v}" aria-pressed="${ovAll === v}">${t}</button>`).join("");
+  const bars = (rows, title) => {
+    const max = Math.max(1, ...rows.map(r => r.n));
+    return `<div class="ovc"><h3>${title}</h3><div class="vbars">${rows.map(r => `<div class="vb" title="${esc(r.label)}: ${r.n}"><b>${r.n || ""}</b><div class="va"><i style="height:${r.n / max * 100}%;--c:${r.color}"></i></div>${r.icon ? `<img src="${ICON(r.icon)}" alt="" loading="lazy">` : ""}<span>${esc(r.label)}</span></div>`).join("")}</div></div>`;
+  };
+  const count = f => ms.filter(f).length;
+  const classes = CLASSES.map(c => ({ label: c.id, n: count(m => BCLS[m.cls] === c.id), color: c.color, icon: "classicon_" + c.id.toLowerCase() }));
+  const raceNames = [...new Set(Object.values(BRACE))];
+  const races = raceNames.map(r => ({ label: r, n: count(m => BRACE[m.race] === r), color: "var(--accent)" })).filter(r => r.n > 0);
+  const levels = OV_BRACKETS.map(([a, b]) => ({ label: a === b ? String(a) : `${a}–${b}`, n: all.filter(m => m.level >= a && m.level <= b).length, color: "var(--accent)" }));
+  // size per day and membership changes from consecutive snapshots
+  const days = g.days, ev = [];
+  for (let i = 1; i < days.length; i++) {
+    const a = days[i - 1].lv, b = days[i].lv;
+    for (const s of Object.keys(b)) if (!(s in a)) ev.push([days[i].id, s, "in"]);
+    for (const s of Object.keys(a)) if (!(s in b)) ev.push([days[i].id, s, "out"]);
+    for (const s of Object.keys(b)) if (s in a && +a[s] < 60 && +b[s] >= 60) ev.push([days[i].id, s, "60"]);
+  }
+  const nm = s => g.mem[s] ? g.name(s) : slugName(s);
+  const evHtml = ev.length ? `<ul class="cc-list">${ev.reverse().slice(0, 12).map(([d, s, t]) => `<li><span>${g.mem[s] && gchars[s] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(s)}">${esc(nm(s))}</button>` : esc(nm(s))}</span><span><span class="evt e${t}">${t === "in" ? "вступил" : t === "out" ? "ушёл" : "60 уровень"}</span> <small>${dayShort(d)}</small></span></li>`).join("")}</ul>`
+    : `<p class="gnote">Пока без изменений${days.length ? ` с ${dayShort(days[0].id)}` : ""}: история начинается с первого дневного снимка.</p>`;
+  const el = $("#ov-size"), W = Math.max(280, Math.round(el.clientWidth) || 520);
+  if (days.length) {
+    const series = [["size", "Всего", "var(--s1)", lv => Object.keys(lv).length], ["size10", `${G_MIN}+`, "var(--s2)", lv => Object.values(lv).filter(v => +v >= G_MIN).length], ["size60", "60", "var(--s3)", lv => Object.values(lv).filter(v => +v >= 60).length]]
+      .map(([slug, name, color, f]) => ({ slug, name, color, pts: days.map((d, i) => ({ i, lv: f(d.lv) })) }));
+    const { hi, step } = niceTop(Math.max(...series[0].pts.map(p => p.lv)));
+    el.innerHTML = gKeys(series) + lineChart("gsize", days, series, { W, H: 200, lo: 0, hi, step, label: "Размер гильдии по дням: всего, с 10 уровня и 60 уровня" }) + oneDay(days);
+  } else el.innerHTML = `<p class="empty">История начнётся после первой синхронизации.</p>`;
+  $("#ovg").innerHTML = bars(classes, "Классы") + bars(races, "Расы") + bars(levels, "Уровни <small>все участники</small>");
+  $("#ov-ev").innerHTML = evHtml;
+}
 function renderKpis(g, up, core) {
   const last = g.days[g.days.length - 1], prev = g.days[g.days.length - 2];
   const gain = {};
@@ -2909,8 +2980,6 @@ function renderGSheet() {
         <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
           <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
           <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
-        ${gear.length ? `<details class="gtable cgear-d" data-k="gear"><summary>Экипировка списком</summary><div class="cgear">${gear.map(t => { const it = items[t];
-          return `<div class="${qc(it)}" data-slot="${t}" tabindex="0"><span class="ci">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span><span><b>${esc(it.name)}</b><small>${G_SLOT[t]}${+it.lvl ? ` · ${+it.lvl}` : ""}</small></span></div>`; }).join("")}</div></details>` : ""}
       </div>
       <div class="cc-right">
         ${s ? cSec("Характеристики", cTiles([["Здоровье", cNum(s.hp)], [G_POWER[s.pt] || esc(s.pt || "Ресурс"), cNum(s.pw)],
@@ -2919,19 +2988,21 @@ function renderGSheet() {
         ${cSec("PvP", cTiles([["Почётные убийства", fmtN(c.pvp?.hk ?? 0)], ["За день", hkDay?.[1] == null ? "—" : fmtN(hkDay[1])], ["Смертей от игроков", cNum(astOf(c, "Total deaths from other players")) ?? "—"], ["Ранг", fmtN(c.pvp?.rank ?? 0)]]))}
         ${cSec("Сводка", cTiles([["Заданий", cNum(c.q?.done ?? astOf(c, "Quests completed")) ?? "—"], ["Заходов в подземелья", cNum(astOf(c, "Total 5-player dungeons entered")) ?? "—"],
           ["Смертей", cNum(astOf(c, "Total deaths")) ?? "—"], ["Достижений", fmtN(Array.isArray(c.ach) ? c.ach.length : 0)]]))}
-        ${profHtml ? cSec("Профессии", profHtml + `<button type="button" class="glink" data-act="nav" data-nav="recipes">Все рецепты гильдии →</button>`) : ""}
-        ${cSec("Награды", fame.length || recs.length ? `<div class="cc-awards">${
-          recs.map(([stat, title, unit]) => award("achievement_bg_topdps", title, `рекорд гильдии · ${fmtN(astOf(c, stat))} ${unit}`)).join("")
-          + fame.map(f => award(/^[a-z0-9_]{1,80}$/.test(f.icon || "") ? f.icon : "inv_misc_note_01", f.title, "Зал славы")).join("")}</div>`
-          : `<p class="gnote">Пока ни рекордов, ни записей в Зале славы.</p>`)}
-        <details class="gtable cc-own" data-k="own"><summary>Чей это персонаж</summary>${[["gown", "Основной персонаж:", p => p.char === gOpen], ["galt", "Твинк игрока:", p => altsOf(p).includes(gOpen)]].map(([act, label, has]) =>
-          `<div class="gown"><span>${label}</span>${players.map(p => {
-            const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
-            return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
-          }).join("")}</div>`).join("")}</details>
       </div>
     </div>
-    ${cardSections(c, gOpen)}`;
+    ${gear.length ? `<details class="gtable cgear-d" data-k="gear"><summary>Экипировка списком</summary><div class="cgear">${gear.map(t => { const it = items[t];
+      return `<div class="${qc(it)}" data-slot="${t}" tabindex="0"><span class="ci">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span><span><b>${esc(it.name)}</b><small>${G_SLOT[t]}${+it.lvl ? ` · ${+it.lvl}` : ""}</small></span></div>`; }).join("")}</div></details>` : ""}
+    ${profHtml ? cSec("Профессии", `<div class="cc-profs">${profHtml}</div>` + `<button type="button" class="glink" data-act="nav" data-nav="recipes">Все рецепты гильдии →</button>`) : ""}
+    ${cSec("Награды", fame.length || recs.length ? `<div class="cc-awards">${
+      recs.map(([stat, title, unit]) => award("achievement_bg_topdps", title, `рекорд гильдии · ${fmtN(astOf(c, stat))} ${unit}`)).join("")
+      + fame.map(f => award(/^[a-z0-9_]{1,80}$/.test(f.icon || "") ? f.icon : "inv_misc_note_01", f.title, "Зал славы")).join("")}</div>`
+      : `<p class="gnote">Пока ни рекордов, ни записей в Зале славы.</p>`)}
+    ${cardSections(c, gOpen)}
+    <details class="gtable cc-own" data-k="own"><summary>Чей это персонаж</summary>${[["gown", "Основной персонаж:", p => p.char === gOpen], ["galt", "Твинк игрока:", p => altsOf(p).includes(gOpen)]].map(([act, label, has]) =>
+      `<div class="gown"><span>${label}</span>${players.map(p => {
+        const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
+        return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
+      }).join("")}</div>`).join("")}</details>`;
   for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
   if (refocus) box.querySelector(refocus)?.focus();
 }
@@ -2986,7 +3057,7 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
@@ -3043,14 +3114,17 @@ function tick() {
     $("#cd-m").textContent = pad2(Math.floor(s % 3600 / 60));
     $("#cd-s").textContent = pad2(s % 60);
   }
+  $("#scd-r").textContent = left > 0 ? `${Math.floor(left / 864e5)} дн ${pad2(Math.floor(left % 864e5 / 36e5))}:${pad2(Math.floor(left % 36e5 / 6e4))}:${pad2(Math.floor(left % 6e4 / 1e3))}` : "открыты";
   const hc = HC_AT - Date.now();
   if (hc > 0) {
     const days = Math.ceil(hc / 864e5);
     $("#cd-hc-n").textContent = "≈ " + days;
     $("#cd-hc-u").textContent = plural(days, "день", "дня", "дней");
+    $("#scd-h").textContent = `≈ ${days} ${plural(days, "день", "дня", "дней")}`;
   } else {
     $("#cd-hc-n").textContent = "—";
     $("#cd-hc-u").textContent = "ориентир прошёл";
+    $("#scd-h").textContent = "—";
   }
 }
 function setLaunchNote() {
