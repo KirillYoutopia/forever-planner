@@ -522,6 +522,14 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gsub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
 .gsub b { color: var(--fg); }
 /* character card: class colour (--cc) on the avatar ring, the name and the class word; --tint keeps coloured text readable in the light theme */
+.cc-tabs { margin: 16px 0 4px; }
+#cc-prog .gplot { margin-top: 8px; }
+.cc-bk { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.cc-bk th, .cc-bk td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.cc-bk th { color: var(--muted); font-weight: 600; }
+#cc-prog .up { color: var(--healer); font-weight: 700; }
+#cc-prog .z { color: var(--muted); }
+.cc-bk td:nth-child(n+3), .cc-bk th:nth-child(n+3) { text-align: right; }
 /* character list on the left of the card (wide screens); narrower ones keep the select in the card head */
 .cc-list { display: none; }
 @media (min-width: 1200px) {
@@ -2292,6 +2300,7 @@ document.addEventListener("click", e => {
   else if (act === "authpick") openAuth("pass", { player: id });
   else if (act === "authclose") closeAuth();
   else if (act === "gchar") openCard(id);
+  else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
   else if ((act === "gown" || act === "galt") && p && gOpen) { // link or unlink the open character as a player's main or twink; one player per character
     const slug = gOpen, main = act === "gown", on = main ? p.char === slug : altsOf(p).includes(slug);
@@ -3117,6 +3126,69 @@ function cDaily(slug, key) {
 }
 const repColor = tier => tier >= 5 ? "var(--healer)" : tier === 4 ? "var(--second-bg)" : tier === 3 ? "var(--gold)" : "var(--ban-bg)";
 const cMore = (n, word, body) => n > 0 ? `<details class="gtable"><summary>Ещё ${n} ${word}</summary>${body}</details>` : "";
+// "Прогресс по дням" tab: this character's lines from the daily snapshots (glevels/{day}), which start on 2026-11-13;
+// item level and all deaths since 11-15, dungeon boss kills (bk) since 11-16. The game gives only today's totals.
+let cTab = "main";
+const BK_RE = /^(.*) Kills \((.*)\)$/; // "Edwin VanCleef Kills (Deadmines)"
+function cardProgress(box, slug) {
+  const el = box.querySelector("#cc-prog");
+  if (!el) return;
+  const c = gchars[slug] || {}, days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id)).sort((a, b) => a.id < b.id ? -1 : 1);
+  const W = Math.max(280, Math.round(el.clientWidth) || 680), H = W < 480 ? 200 : 240, col = k => `var(--s${k % 8 + 1})`;
+  const pts = get => days.map((d, i) => ({ i, lv: get(d) })).filter(p => p.lv != null && Number.isFinite(+p.lv)).map(p => ({ i: p.i, lv: +p.lv }));
+  const since = p => p.length ? dayShort(days[p[0].i].id) : "";
+  // change over the last 7 days, or since the first snapshot when the history is shorter
+  const gain = p => {
+    if (p.length < 2) return null;
+    const last = p.at(-1), t = dayNum(days[last.i].id) - 7, base = [...p].reverse().find(x => dayNum(days[x.i].id) <= t);
+    return { v: last.lv - (base || p[0]).lv, label: base ? "За 7 дней" : `С ${since(p)}` };
+  };
+  const plus = g => g ? [g.label, g.v > 0 ? `+${fmtN(g.v)}` : fmtN(g.v)] : [null, null];
+  const chart = (id, series, label, scale) => {
+    series = series.filter(x => x.pts.length);
+    if (!series.length) return "";
+    const all = series.flatMap(x => x.pts.map(p => p.lv)), t = scale ? scale(all) : { lo: 0, ...niceTop(Math.max(...all)) };
+    return (series.length > 1 ? gKeys(series) : "") + lineChart("cc:" + id, days, series, { W, H, lo: t.lo, hi: t.hi, step: t.step, label });
+  };
+  const one = (name, p, color = "var(--cc)") => [{ slug: name, name, color, pts: p }];
+  const note = n => n < 2 ? `<p class="gnote">Пока есть данные только за один день. Линия появится завтра.</p>` : "";
+  let html = "";
+  // level
+  const lv = pts(d => d.lv?.[slug]);
+  html += cSec("Уровень", lv.length ? cTiles([["Сейчас", fmtN(lv.at(-1).lv)], plus(gain(lv)), ["История с", since(lv)]])
+    + chart("lv", one("Уровень", lv), "Уровень персонажа по дням", all => {
+      const lo = Math.max(0, Math.floor((Math.min(...all) - 1) / 5) * 5), hi = Math.max(lo + 5, Math.min(60, Math.ceil((Math.max(...all) + 1) / 5) * 5));
+      return { lo, hi, step: hi - lo > 30 ? 10 : 5 };
+    }) + note(lv.length) : "");
+  // professions: one line per profession this character has
+  const pnames = [...new Set(days.flatMap(d => Object.keys(d.pr?.[slug] || {})))].filter(n => days.some(d => +d.pr?.[slug]?.[n] > 0))
+    .sort((a, b) => (+c.profs?.[b]?.s || 0) - (+c.profs?.[a]?.s || 0) || a.localeCompare(b));
+  const pser = pnames.map((n, k) => ({ slug: n, name: n, color: col(k), pts: pts(d => d.pr?.[slug]?.[n]) }));
+  html += cSec("Профессии", pser.length ? cTiles(pser.map(x => { const g = gain(x.pts); return [esc(x.name), `${fmtN(x.pts.at(-1).lv)}${g && g.v ? ` <small class="up">+${fmtN(g.v)}</small>` : ""}`]; }))
+    + chart("pr", pser, "Навык профессий по дням") + note(Math.max(...pser.map(x => x.pts.length))) : "", pser.length && gain(pser[0].pts) ? `зелёным: ${gain(pser[0].pts).label.toLowerCase()}` : "");
+  // PvP: honorable kills; deaths (all, and from other players)
+  const hk = pts(d => d.hk?.[slug]), pd = pts(d => d.pd?.[slug]), dt = pts(d => d.dt?.[slug]);
+  html += cSec("PvP", hk.length ? cTiles([["Почётные убийства", fmtN(hk.at(-1).lv)], plus(gain(hk)), ["Смертей от игроков", pd.length ? fmtN(pd.at(-1).lv) : null]])
+    + chart("hk", one("Почётные убийства", hk), "Почётные убийства нарастающим итогом по дням") + note(hk.length) : "");
+  html += cSec("Смерти", dt.length || pd.length ? chart("dt", [{ slug: "all", name: "Все смерти", color: "var(--s5)", pts: dt }, { slug: "pvp", name: "От игроков", color: "var(--s1)", pts: pd }],
+    "Смерти нарастающим итогом по дням") : "", "все смерти считаются с 15 ноября");
+  // item level
+  const il = pts(d => d.il?.[slug]);
+  html += cSec("Уровень предметов", il.length ? cTiles([["Сейчас", fmtN(il.at(-1).lv)], plus(gain(il))])
+    + chart("il", one("Уровень предметов", il), "Средний уровень предметов по дням") + note(il.length) : "", "с 15 ноября");
+  // dungeons: boss kills now (the game's statistics) and their history (daily snapshots since 16 November)
+  const bosses = (Array.isArray(c.ast) ? c.ast : []).filter(x => x[0] === "Dungeons & Raids / Boss Kills" && BK_RE.test(x[1]) && +x[2] > 0)
+    .map(x => { const [, boss, dg] = x[1].match(BK_RE); const p = pts(d => d.bk?.[slug]?.[x[1]]); return { stat: x[1], boss, dg, n: +x[2], g: gain(p) }; })
+    .sort((a, b) => b.n - a.n || a.dg.localeCompare(b.dg));
+  const bkSum = pts(d => d.bk?.[slug] ? Object.values(d.bk[slug]).reduce((n, v) => n + (+v || 0), 0) : null);
+  html += cSec("Подземелья", bosses.length ? cTiles([["Убито боссов", fmtN(bosses.reduce((n, b) => n + b.n, 0))], ["Подземелий", bosses.length && new Set(bosses.map(b => b.dg)).size], plus(gain(bkSum))])
+    + (bkSum.length ? chart("bk", one("Боссов убито", bkSum), "Убийства боссов подземелий нарастающим итогом по дням") + note(bkSum.length)
+      : `<p class="gnote">История по дням копится с 16 ноября: график появится после второй синхронизации.</p>`)
+    + `<div class="scroll"><table class="cc-bk"><thead><tr><th>Подземелье</th><th>Босс</th><th>Убит</th><th>Прирост</th></tr></thead><tbody>${bosses.map(b =>
+      `<tr><td>${esc(b.dg)}</td><td>${esc(b.boss)}</td><td>${fmtN(b.n)}</td><td>${b.g ? (b.g.v > 0 ? `<span class="up">+${fmtN(b.g.v)}</span>` : "0") : `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table></div>`
+    : `<p class="empty">Убитых боссов подземелий пока нет.</p>`, "по счётчикам убийств боссов в игре");
+  el.innerHTML = html || `<p class="empty">Истории по дням для этого персонажа пока нет.</p>`;
+}
 function cardSections(c, slug) {
   let html = "";
   // achievements: account-wide, newest first
@@ -3183,7 +3255,7 @@ function renderGSheet() {
   const own = ownerOf(gOpen), last = glevels.reduce((a, d) => d.id > a ? d.id : a, "");
   const key = [gOpen, c.at, gzones[gOpen]?.at, grec[gOpen]?.at, last, Object.keys(gchars).map(s => s + ":" + (mem[s]?.level || "")).join(), Object.values(gcat).map(x => x.at).join(),
     fameAll.map(f => f.id + (f.deleted ? "-" : "+") + f.title + f.icon).join(), players.map(p => `${p.id}:${p.name}:${p.char || ""}+${altsOf(p).join("+")}`).join(),
-    auth?.player, auth?.admin, readOnly, offline].join("|");
+    auth?.player, auth?.admin, readOnly, offline, cTab].join("|");
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
   gDrawn = key;
   // keep open <details> and the focused control across the redraw (realtime updates, linking a character)
@@ -3242,7 +3314,9 @@ function renderGSheet() {
       <div class="cc-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
       <label class="cc-pick"><span class="seg-label">Другой персонаж</span><select id="cc-sel" aria-label="Открыть карточку другого персонажа">${picker}</select></label>
     </div>
-    <div class="cc-top">
+    <div class="cc-tabs"><div class="seg" role="group" aria-label="Раздел карточки">${[["main", "Персонаж"], ["prog", "Прогресс по дням"]].map(([v, t]) =>
+      `<button type="button" data-act="ctab" data-v="${v}" aria-pressed="${cTab === v}">${t}</button>`).join("")}</div></div>
+    ${cTab === "prog" ? `<div id="cc-prog"></div>` : `<div class="cc-top">
       <div class="cc-left">
         <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
           <div class="gfig">${bimg(c.img) ? `<button type="button" class="gfig-btn" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="Открыть персонажа на весь экран"><img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа"></button><button type="button" class="g3d-full" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="3D-модель на весь экран" title="На весь экран">⤢</button>` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
@@ -3270,11 +3344,11 @@ function renderGSheet() {
       `<div class="gown"><span>${label}</span>${players.map(p => {
         const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
         return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
-      }).join("")}</div>`).join("")}</details></div>`;
+      }).join("")}</div>`).join("")}</details>`}</div>`;
   box.querySelector(".cc-list [aria-current]")?.scrollIntoView({ block: "nearest" });
   for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
   if (refocus) box.querySelector(refocus)?.focus();
-  card3d(box, gOpen);
+  if (cTab === "prog") cardProgress(box, gOpen); else card3d(box, gOpen);
 }
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
 function gTipShow(el) {
@@ -3327,7 +3401,7 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
