@@ -929,8 +929,14 @@ begin
     from docs d where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'profs') = 'object' and d.data->'profs' <> '{}'::jsonb), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   -- PvP of the day, for the "PvP" tab: glevels/{day}.hk = {slug: honorable kills so far}, .pd = {slug: deaths from other players so far}
-  -- 2026-11-16: also .il = {slug: equipped item level} and .dt = {slug: all deaths so far}, for the day-by-day table
+  -- 2026-11-16: also .il = {slug: equipped item level} and .dt = {slug: all deaths so far}, for the day-by-day table,
+  -- and .bk = {slug: {"Boss Kills (Dungeon)": kills so far}}, the game's dungeon boss counters, for the card's progress tab
   update docs set updated_at = now(), data = data || jsonb_build_object(
+    'bk', coalesce((select jsonb_object_agg(x.id, x.k) from (
+                      select d.id, jsonb_object_agg(e->>1, e->2) k from docs d, jsonb_array_elements(d.data->'ast') e
+                      where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ast') = 'array'
+                        and e->>0 = 'Dungeons & Raids / Boss Kills' and jsonb_typeof(e->2) = 'number'
+                      group by d.id) x), '{}'::jsonb),
     'il', coalesce((select jsonb_object_agg(d.id, d.data->'ilvl') from docs d
                     where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ilvl') = 'number'), '{}'::jsonb),
     'dt', coalesce((select jsonb_object_agg(d.id, e->2) from docs d, jsonb_array_elements(d.data->'ast') e
