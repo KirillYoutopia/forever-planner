@@ -248,7 +248,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat'))  -- hourly Blizzard sync rows: nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones'))  -- hourly Blizzard sync rows: nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -440,6 +440,92 @@ revoke all on public.bnet_recipes, public.bnet_prof_cat from anon, authenticated
 --   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, ok (details loaded), i, q, ds, re, icon, iq, il, tip}}}
 --                       details of the recipes someone in the guild knows
 
+-- 2026-11-14: dungeons per character come from the "Spelunker" achievements, whose criteria are the dungeons themselves
+-- (Excavation Site: Wetlands, each Scarlet Monastery wing, ...) with a completion count.
+-- Hidden cache of those achievement definitions: crit = {criterion id: dungeon name}, ord = the order of its dungeons.
+create table if not exists public.bnet_ach (id bigint primary key, name text not null, crit jsonb not null, ord jsonb not null);
+alter table public.bnet_ach enable row level security;
+revoke all on public.bnet_ach from anon, authenticated;
+-- What the page reads: guild/dungeons {at, list: [[dungeon, achievement name], ...]}  every dungeon the game tracks, in order;
+--   gchars/{slug}.dg  [[dungeon, times completed, done], ...]   and   gchars/{slug}.ach  [[achievement, completed at (ms)], ...]
+
+-- 2026-11-14: quest progress per zone. Hidden caches: the game's zones with their quests, and each character's completed quests.
+create table if not exists public.bnet_quest_areas (id bigint primary key, name text not null, total int not null default 0, loaded boolean not null default false);
+create table if not exists public.bnet_quests (id bigint primary key, area_id bigint not null);
+create table if not exists public.bnet_char_quests (char_slug text primary key, ids jsonb not null);
+alter table public.bnet_quest_areas enable row level security;
+alter table public.bnet_quests enable row level security;
+alter table public.bnet_char_quests enable row level security;
+revoke all on public.bnet_quest_areas, public.bnet_quests, public.bnet_char_quests from anon, authenticated;
+-- What the page reads: gzones/{slug} {at, z: [[zone, completed, quests in the zone], ...], other: completed quests outside any zone}
+--   (zones with at least one completed quest, most completed first).
+create or replace function public.guild_zones_publish()
+returns void language plpgsql security definer set search_path = public as $$
+declare members jsonb; now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
+begin
+  if not exists (select 1 from bnet_quest_areas where loaded) then return; end if;  -- nothing to count against yet
+  select data->'members' into members from docs where coll = 'guild' and id = 'roster';
+  insert into docs (coll, id, data)
+  select 'gzones', c.char_slug, jsonb_build_object('at', now_ms,
+    'z', coalesce((select jsonb_agg(jsonb_build_array(t.name, t.done, t.total) order by t.done desc, t.name)
+                   from (select a.name, count(*) done, a.total from jsonb_array_elements(c.ids) e
+                         join bnet_quests q on q.id = (e #>> '{}')::bigint join bnet_quest_areas a on a.id = q.area_id
+                         group by a.id, a.name, a.total) t), '[]'::jsonb),
+    'other', (select count(*) from jsonb_array_elements(c.ids) e where not exists (select 1 from bnet_quests q where q.id = (e #>> '{}')::bigint)))
+  from bnet_char_quests c where members ? c.char_slug
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+  where docs.data->'z' is distinct from excluded.data->'z' or docs.data->'other' is distinct from excluded.data->'other';
+end $$;
+revoke execute on function public.guild_zones_publish() from public, anon, authenticated;
+
+-- Loads the zones and their quest lists, one request per zone, for at most p_seconds; makes no request once all are loaded.
+create or replace function public.guild_zones_fill(p_seconds int default 30)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare cid text; sec text; region text; st int; body text; hdr http_header[]; aid bigint; did boolean := false;
+        t0 timestamptz := clock_timestamp(); lim interval := make_interval(secs => greatest(1, least(coalesce(p_seconds, 30), 50)));
+begin
+  if not pg_try_advisory_xact_lock(4273002) then return jsonb_build_object('busy', true); end if;
+  if exists (select 1 from bnet_quest_areas) and not exists (select 1 from bnet_quest_areas where not loaded) then
+    return jsonb_build_object('zones_to_load', 0);
+  end if;
+  select v into cid from bnet_config where k = 'client_id';
+  select v into sec from bnet_config where k = 'client_secret';
+  if coalesce(cid, '') = '' or coalesce(sec, '') = '' then raise exception 'bnet_config: client_id / client_secret are not set'; end if;
+  region := coalesce((select v from bnet_config where k = 'region'), 'eu');
+  if region !~ '^[a-z]{2}$' then raise exception 'bnet_config: bad region'; end if;
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  select h.status, h.content into st, body from http(('POST', 'https://oauth.battle.net/token',
+    array[http_header('Authorization', 'Basic ' || replace(encode(convert_to(cid || ':' || sec, 'utf8'), 'base64'), E'\n', ''))],
+    'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
+  if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
+  hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
+  if not exists (select 1 from bnet_quest_areas) then
+    select h.status, h.content into st, body from http(('GET',
+      format('https://%s.api.blizzard.com/data/wow/quest/area/index?namespace=static-forever-%s&locale=en_US', region, region), hdr, null, null)::http_request) h;
+    if st <> 200 then raise exception 'quest areas: HTTP %', st; end if;
+    insert into bnet_quest_areas (id, name)
+    select distinct on ((a->>'id')::bigint) (a->>'id')::bigint, a->>'name' from jsonb_array_elements(coalesce(body::jsonb->'areas', '[]'::jsonb)) a
+    where a->>'id' ~ '^[0-9]+$' and coalesce(a->>'name', '') <> ''
+    on conflict (id) do nothing;
+  end if;
+  for aid in select a.id from bnet_quest_areas a where not a.loaded order by a.id loop
+    exit when clock_timestamp() - t0 > lim;
+    select h.status, h.content into st, body from http(('GET',
+      format('https://%s.api.blizzard.com/data/wow/quest/area/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+    continue when st not in (200, 404);
+    if st = 200 then
+      insert into bnet_quests (id, area_id)
+      select distinct on ((x->>'id')::bigint) (x->>'id')::bigint, aid from jsonb_array_elements(coalesce(body::jsonb->'quests', '[]'::jsonb)) x where x->>'id' ~ '^[0-9]+$'
+      on conflict (id) do nothing;
+    end if;
+    update bnet_quest_areas set loaded = true, total = (select count(*) from bnet_quests q where q.area_id = aid) where id = aid;
+    did := true;
+  end loop;
+  if did then perform guild_zones_publish(); end if;
+  return jsonb_build_object('zones_to_load', (select count(*) from bnet_quest_areas where not loaded));
+end $$;
+revoke execute on function public.guild_zones_fill(int) from public, anon, authenticated;
+
 -- Tooltip lines for one equipped item, in the armory's order: [[text, kind, right?], ...].
 -- kind: '' plain, 'g' green (bonuses, enchants, use effects), 'y' gold (set name, flavour text), 'm' muted (inactive, sell price).
 -- "right" is the right-aligned half of a two-part line (Head | Mail, 39 - 74 Damage | Speed 1.90).
@@ -497,7 +583,7 @@ returns jsonb language plpgsql security definer set search_path = public, extens
 declare cid text; sec text; region text; slug text; tok text; st int; body text; r jsonb; members jsonb; lv jsonb;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
-        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb;
+        oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb; ach jsonb; dgs jsonb; aid bigint;
         icons_left int := 60; sheets int := 0;
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
@@ -542,6 +628,13 @@ begin
       select h.status, h.content into st, body from http(('GET', base || q, hdr, null, null)::http_request) h;
       if st <> 200 then continue; end if;
       pr := body::jsonb;
+      -- The guild roster only says who is in the guild. The level comes from the character's own profile, the same source
+      -- the armory uses: Blizzard refreshes the roster on its own schedule, hours behind. Characters without a profile
+      -- (below level 10) keep the roster's level.
+      if pr->>'level' ~ '^[0-9]+$' and (pr->>'level')::int > 0 then
+        members := jsonb_set(members, array[ch, 'level'], pr->'level');
+        lv := jsonb_set(lv, array[ch], pr->'level');
+      end if;
       select h.status, h.content into st, body from http(('GET', base || '/equipment' || q, hdr, null, null)::http_request) h;
       if st <> 200 then continue; end if;
       eq := body::jsonb;
@@ -579,7 +672,35 @@ begin
       --   reps [[faction, standing, value, max, tier]]   highest first
       --   q    {done: completed quests, log: [quest names in progress]}
       select d.data into oldd from docs d where d.coll = 'gchars' and d.id = ch;
-      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q'; ast := oldd->'ast';
+      stt := oldd->'st'; pvp := oldd->'pvp'; reps := oldd->'reps'; qs := oldd->'q'; ast := oldd->'ast'; ach := oldd->'ach'; dgs := oldd->'dg';
+      select h.status, h.content into st, body from http(('GET', base || '/achievements' || q, hdr, null, null)::http_request) h;
+      if st = 200 then
+        j := case when jsonb_typeof(body::jsonb->'achievements') = 'array' then body::jsonb->'achievements' else '[]'::jsonb end;
+        select coalesce(jsonb_agg(jsonb_build_array(x->'achievement'->'name', x->'completed_timestamp') order by (x->>'completed_timestamp')::numeric), '[]'::jsonb)
+          into ach
+        from jsonb_array_elements(j) x where jsonb_typeof(x->'completed_timestamp') = 'number' and x->'achievement'->>'name' is not null;
+        -- definitions of the Spelunker achievements this character has, fetched once each
+        for aid in select (x->'achievement'->>'id')::bigint from jsonb_array_elements(j) x
+                   where x->'achievement'->>'name' like '%Spelunker' and x->'achievement'->>'id' ~ '^[0-9]+$'
+                     and not exists (select 1 from bnet_ach b where b.id = (x->'achievement'->>'id')::bigint) loop
+          select h.status, h.content into st, body from http(('GET',
+            format('https://%s.api.blizzard.com/data/wow/achievement/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+          continue when st <> 200;
+          insert into bnet_ach (id, name, crit, ord)
+          select aid, body::jsonb->>'name', coalesce(jsonb_object_agg(c.v->>'id', c.v->'description'), '{}'::jsonb), coalesce(jsonb_agg(c.v->'description' order by c.n), '[]'::jsonb)
+          from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'criteria'->'child_criteria') = 'array' then body::jsonb->'criteria'->'child_criteria' else '[]'::jsonb end)
+               with ordinality c(v, n)
+          where c.v->>'id' is not null and coalesce(c.v->>'description', '') <> ''
+          having body::jsonb->>'name' is not null
+          on conflict (id) do nothing;
+        end loop;
+        select coalesce(jsonb_agg(jsonb_build_array(b.crit->(cc->>'id'), coalesce(cc->'amount', '0'::jsonb), coalesce(cc->'is_completed', 'false'::jsonb)) order by b.id), '[]'::jsonb)
+          into dgs
+        from jsonb_array_elements(j) x
+        join bnet_ach b on b.id = (x->'achievement'->>'id')::bigint,
+             jsonb_array_elements(case when jsonb_typeof(x->'criteria'->'child_criteria') = 'array' then x->'criteria'->'child_criteria' else '[]'::jsonb end) cc
+        where x->'achievement'->>'id' ~ '^[0-9]+$' and b.crit ? (cc->>'id');
+      end if;
       -- 2026-11-14: ast = the game's own statistics ("Total deaths", "World Honorable Kills", boss kills per dungeon, ...):
       --   [[category, name, quantity, description], ...]; sub-categories appear as "Category / Sub-category".
       select h.status, h.content into st, body from http(('GET', base || '/achievements/statistics' || q, hdr, null, null)::http_request) h;
@@ -632,6 +753,10 @@ begin
       if st = 200 then
         qs := coalesce(qs, '{}'::jsonb) || jsonb_build_object('done',
           jsonb_array_length(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end));
+        insert into bnet_char_quests (char_slug, ids) values (ch, coalesce((
+          select jsonb_agg((x->>'id')::bigint) from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end) x
+          where x->>'id' ~ '^[0-9]+$'), '[]'::jsonb))
+        on conflict (char_slug) do update set ids = excluded.ids;
       end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
@@ -658,7 +783,7 @@ begin
         'avatar', coalesce((select a->'value' from jsonb_array_elements(md->'assets') a where a->>'key' = 'avatar' limit 1),
                            (select d.data->'avatar' from docs d where d.coll = 'gchars' and d.id = ch)),
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
-        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast,
+        'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast, 'ach', ach, 'dg', dgs,
         'items', items)))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -666,6 +791,57 @@ begin
       raise warning 'guild_sync: % skipped: %', ch, sqlerrm;
     end;
   end loop;
+  -- Every dungeon the game tracks, for the "Подземелья" tab. The full list needs all Spelunker definitions, also the ones
+  -- nobody has started, so they are read from the "Dungeons" achievement category once. Never allowed to break the sync.
+  begin
+    if not exists (select 1 from bnet_ach where name like 'Master%') then
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/achievement-category/index?namespace=static-forever-%s&locale=en_US', region, region), hdr, null, null)::http_request) h;
+      if st = 200 then
+        select (c->>'id')::bigint into aid from jsonb_array_elements(coalesce(body::jsonb->'categories', '[]'::jsonb)) c where c->>'name' = 'Dungeons' and c->>'id' ~ '^[0-9]+$' limit 1;
+        if aid is not null then
+          select h.status, h.content into st, body from http(('GET',
+            format('https://%s.api.blizzard.com/data/wow/achievement-category/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+          if st = 200 then
+            j := coalesce(body::jsonb->'achievements', '[]'::jsonb);
+            for aid in select (x->>'id')::bigint from jsonb_array_elements(j) x
+                       where x->>'name' like '%Spelunker' and x->>'id' ~ '^[0-9]+$' and not exists (select 1 from bnet_ach b where b.id = (x->>'id')::bigint) loop
+              select h.status, h.content into st, body from http(('GET',
+                format('https://%s.api.blizzard.com/data/wow/achievement/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+              continue when st <> 200;
+              insert into bnet_ach (id, name, crit, ord)
+              select aid, body::jsonb->>'name', coalesce(jsonb_object_agg(c.v->>'id', c.v->'description'), '{}'::jsonb), coalesce(jsonb_agg(c.v->'description' order by c.n), '[]'::jsonb)
+              from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'criteria'->'child_criteria') = 'array' then body::jsonb->'criteria'->'child_criteria' else '[]'::jsonb end)
+                   with ordinality c(v, n)
+              where c.v->>'id' is not null and coalesce(c.v->>'description', '') <> ''
+              having body::jsonb->>'name' is not null
+              on conflict (id) do nothing;
+            end loop;
+          end if;
+        end if;
+      end if;
+    end if;
+    -- the same achievement exists in several copies with the same dungeons: keep the first copy of each name
+    insert into docs (coll, id, data)
+    select 'guild', 'dungeons', jsonb_build_object('at', now_ms, 'list', coalesce(jsonb_agg(jsonb_build_array(d.v, f.name) order by f.id, d.n), '[]'::jsonb))
+    from (select distinct on (name) id, name, ord from bnet_ach order by name, id) f, jsonb_array_elements(f.ord) with ordinality d(v, n)
+    having count(*) > 0
+    on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+    where docs.data->'list' is distinct from excluded.data->'list';
+  exception when others then
+    raise warning 'guild_sync: dungeon list skipped: %', sqlerrm;
+  end;
+  -- Levels taken from the profiles above
+  update docs set data = jsonb_set(data, '{members}', members), updated_at = now()
+  where coll = 'guild' and id = 'roster' and data->'members' is distinct from members;
+  update docs set data = jsonb_set(data, '{lv}', lv), updated_at = now()
+  where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD') and data->'lv' is distinct from lv;
+  -- Quest progress per zone (the zone lists themselves are loaded by guild_zones_fill every 5 minutes until complete).
+  begin
+    perform guild_zones_publish();
+  exception when others then
+    raise warning 'guild_sync: zones skipped: %', sqlerrm;
+  end;
   -- Recipes. Never allowed to break the rest of the sync.
   begin
     -- 1. Categories: one catalogue request per profession, once.
@@ -785,6 +961,8 @@ begin
 end $$;
 revoke execute on function public.guild_recipes_fill(int) from public, anon, authenticated;
 select cron.schedule('guild-recipes', '*/5 * * * *', 'select public.guild_recipes_fill(40)');
+
+select cron.schedule('guild-zones', '*/5 * * * *', 'select public.guild_zones_fill(30)');
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
