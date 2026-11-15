@@ -522,6 +522,22 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gsub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
 .gsub b { color: var(--fg); }
 /* character card: class colour (--cc) on the avatar ring, the name and the class word; --tint keeps coloured text readable in the light theme */
+/* character list on the left of the card (wide screens); narrower ones keep the select in the card head */
+.cc-list { display: none; }
+@media (min-width: 1200px) {
+  #gc-box { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
+  #gc-box > .empty { grid-column: 1 / -1; }
+  .cc-list { display: block; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; padding-right: 4px; }
+  .cc-pick { display: none; }
+}
+.cc-lg { margin: 12px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cc-lg:first-child { margin-top: 0; }
+.cc-list button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px; border: 0; border-radius: 6px; background: none; color: var(--fg); text-align: left; cursor: pointer; font: inherit; font-size: 13px; }
+.cc-list button:hover { background: var(--cell); }
+.cc-list button[aria-current] { background: color-mix(in srgb, var(--lc) 18%, var(--cell)); font-weight: 700; }
+.cc-list img, .cc-list i { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 2px solid var(--lc); background: var(--panel-2); }
+.cc-list span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-list small { color: var(--muted); font-size: 12px; }
 .cc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .cc-av { width: 72px; height: 72px; flex: none; border-radius: 12px; border: 3px solid var(--cc); overflow: hidden; background: var(--panel-2); }
 .cc-av img { width: 100%; height: 100%; display: block; }
@@ -3186,8 +3202,15 @@ function renderGSheet() {
   const core = new Set(players.map(p => p.char).filter(Boolean)), alts = new Set(players.flatMap(altsOf));
   const all = Object.keys(gchars).filter(s => mem[s] && mem[s].level >= G_MIN).sort((a, b) => mem[b].level - mem[a].level || gName(a).localeCompare(gName(b)));
   const opt = s => `<option value="${esc(s)}"${s === gOpen ? " selected" : ""}>${esc(gName(s))} · ${+mem[s].level}</option>`;
-  const picker = [["Кор", all.filter(s => core.has(s))], ["Твинки", all.filter(s => alts.has(s) && !core.has(s))], ["Гильдия", all.filter(s => !core.has(s) && !alts.has(s))]]
-    .filter(([, l]) => l.length).map(([t, l]) => `<optgroup label="${t}">${l.map(opt).join("")}</optgroup>`).join("");
+  const groups = [["Кор", all.filter(s => core.has(s))], ["Твинки", all.filter(s => alts.has(s) && !core.has(s))], ["Гильдия", all.filter(s => !core.has(s) && !alts.has(s))]]
+    .filter(([, l]) => l.length);
+  const picker = groups.map(([t, l]) => `<optgroup label="${t}">${l.map(opt).join("")}</optgroup>`).join("");
+  // the same list on the left of the card, on wide screens
+  const sideList = `<nav class="cc-list" aria-label="Персонажи гильдии">${groups.map(([t, l]) => `<p class="cc-lg">${t}</p>${l.map(x => {
+    const xc = gchars[x], col = CLS[BCLS[mem[x].cls]]?.color || "var(--line)";
+    return `<button type="button" data-act="gchar" data-id="${esc(x)}"${x === gOpen ? ' aria-current="true"' : ""} style="--lc: ${col}">${
+      bimg(xc?.avatar) ? `<img src="${bimg(xc.avatar)}" alt="" loading="lazy">` : "<i></i>"}<span>${esc(gName(x))}</span><small>${+mem[x].level}</small></button>`;
+  }).join("")}`).join("")}</nav>`;
   const sibs = own ? [own.char, ...altsOf(own)].filter(s => s && gchars[s] && mem[s]) : [];
   const hkDay = cDaily(gOpen, "hk").at(-1), s = c.st && typeof c.st === "object" ? c.st : null;
   // awards: the player's Hall of Fame entries plus guild records this character holds (FUN counters, first place)
@@ -3210,7 +3233,7 @@ function renderGSheet() {
   const ench = { n: gear.filter(t => enchantable(t, items[t]) && items[t].en).length, of: enKnown ? gear.filter(t => enchantable(t, items[t])).length : 0 };
   const facts = [["GearScore", fmtN(gearScore(c, +m.cls))], ["Уровень предметов", c.ilvl ? fmtN(c.ilvl) : "—"], ["Был в игре", login || "—"], ["Игрок", own ? `${esc(own.name)} <small>${own.char === gOpen ? "основной" : "твинк"}</small>` : "—"]];
   box.style.setProperty("--cc", cls ? cls.color : "var(--gold)"); // the whole card takes the class colour
-  box.innerHTML = `<div class="cc-head">
+  box.innerHTML = `${sideList}<div class="cc-main"><div class="cc-head">
       <div class="cc-av">${bimg(c.avatar) ? `<img src="${bimg(c.avatar)}" alt="">` : ""}</div>
       <div class="cc-who"><h2 id="gc-title">${esc(name)}</h2>
         <p class="gsub">Уровень <b>${+m.level || "?"}</b> · ${esc(BRACE[m.race] || "")} <span class="tint">${esc(BCLS[m.cls] || "")}</span>${faction ? ` · ${faction}` : ""}${
@@ -3247,7 +3270,8 @@ function renderGSheet() {
       `<div class="gown"><span>${label}</span>${players.map(p => {
         const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
         return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
-      }).join("")}</div>`).join("")}</details>`;
+      }).join("")}</div>`).join("")}</details></div>`;
+  box.querySelector(".cc-list [aria-current]")?.scrollIntoView({ block: "nearest" });
   for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
   if (refocus) box.querySelector(refocus)?.focus();
   card3d(box, gOpen);
