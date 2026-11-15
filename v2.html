@@ -2509,7 +2509,7 @@ addEventListener("keydown", e => { if (e.key === "Escape") lb.querySelector(".lb
 (async () => {
   await load("https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js");
   window.WH = { debug() {}, defaultAnimation: "Stand", WebP: { getImageExtension: () => ".webp" } };
-  await load(C.mv + "deployment/viewer/" + C.ver + "/viewer.min.js");
+  await load(C.mv + "deployment/viewer/" + C.ver + "/viewer.min.js?v=2"); // ?v: Cloudflare in front of Supabase kept a 404 from before the function existed
   const el = document.getElementById("m");
   new ZamModelViewer({ type: 2, contentPath: C.mv, container: jQuery(el), aspect: el.clientWidth / el.clientHeight, hd: false,
     items: C.items, models: { id: C.id, type: 16 }, charCustomization: { options: C.cz } });

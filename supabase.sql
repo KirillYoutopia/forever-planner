@@ -419,6 +419,10 @@ revoke all on public.bnet_config from anon, authenticated;
 create table if not exists public.bnet_display (id bigint primary key, disp int not null, inv int not null);
 alter table public.bnet_display enable row level security;
 revoke all on public.bnet_display from anon, authenticated;
+-- v2 (2026-11-16): the slot is Wowhead's "slotbak" when it has one: a robe is slot 20 there, while its inventorySlot says
+-- 5 (chest) and the viewer then draws no robe. Rows saved before that are looked up again.
+alter table public.bnet_display add column if not exists v smallint not null default 1;
+delete from public.bnet_display where v < 2;
 
 -- Item icon URLs, looked up once per item (Blizzard media ids). '' = Blizzard has no icon for it.
 create table if not exists public.bnet_icons (id bigint primary key, icon text not null);
@@ -808,8 +812,9 @@ begin
         wh_left := wh_left - 1;
         select h.status, h.content into st, body from http(('GET', format('https://www.wowhead.com/forever/item=%s&xml', mid), whdr, null, null)::http_request) h;
         continue when st <> 200 or body !~ '<wowhead>';  -- only Wowhead's own XML is cached (not an error or challenge page)
-        insert into bnet_display (id, disp, inv)
-        values (mid, coalesce(substring(body from 'displayId="([0-9]+)"')::int, 0), coalesce(substring(body from '<inventorySlot id="([0-9]+)"')::int, 0))
+        insert into bnet_display (id, disp, inv, v)
+        values (mid, coalesce(substring(body from 'displayId="([0-9]+)"')::int, 0),
+                coalesce(substring(body from '"slotbak":([0-9]+)')::int, substring(body from '<inventorySlot id="([0-9]+)"')::int, 0), 2)
         on conflict (id) do nothing;
       end loop;
       -- not drawn on the model: neck, rings, trinkets, ranged, bags, ammo, relics; a one-hander goes to the hand it is in
