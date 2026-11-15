@@ -3176,6 +3176,20 @@ function cardProgress(box, slug) {
   const il = pts(d => d.il?.[slug]);
   html += cSec("Уровень предметов", il.length ? cTiles([["Сейчас", fmtN(il.at(-1).lv)], plus(gain(il))])
     + chart("il", one("Уровень предметов", il), "Средний уровень предметов по дням") + note(il.length) : "", "с 15 ноября");
+  // quests completed and reputations (daily snapshots since 16 November)
+  const qd = pts(d => d.qd?.[slug]);
+  html += cSec("Задания", qd.length ? cTiles([["Выполнено", fmtN(qd.at(-1).lv)], plus(gain(qd))])
+    + chart("qd", one("Выполнено заданий", qd), "Выполненные задания нарастающим итогом по дням") + note(qd.length) : "", "с 16 ноября");
+  const rnames = [...new Set(days.flatMap(d => Object.keys(d.rp?.[slug] || {})))];
+  const rser = rnames.map(n => ({ n, p: pts(d => d.rp?.[slug]?.[n]) })).sort((x, y) => y.p.at(-1).lv - x.p.at(-1).lv || x.n.localeCompare(y.n))
+    .slice(0, 8).map((x, k) => ({ slug: x.n, name: x.n, color: col(k), pts: x.p }));
+  html += cSec("Репутация", rser.length ? cTiles(rser.map(x => { const g = gain(x.pts), st = (Array.isArray(c.reps) ? c.reps : []).find(r => r[0] === x.name)?.[1];
+      return [esc(x.name), `${esc(st || "")}${g && g.v ? ` <small class="up">+${fmtN(g.v)}</small>` : ""}` || "—"]; }))
+    + chart("rp", rser, "Репутация по дням, очки от начала шкалы", all => { // hostile factions go below zero: the axis starts on a step below the lowest value
+      const mn = Math.min(0, ...all), mx = Math.max(...all), t = niceTop(mx - mn), lo = Math.floor(mn / t.step) * t.step;
+      return { lo, hi: lo + Math.ceil((mx - lo) / t.step) * t.step, step: t.step };
+    })
+    + note(Math.max(...rser.map(x => x.pts.length))) : "", "8 самых высоких, с 16 ноября");
   // dungeons: boss kills now (the game's statistics) and their history (daily snapshots since 16 November)
   const bosses = (Array.isArray(c.ast) ? c.ast : []).filter(x => x[0] === "Dungeons & Raids / Boss Kills" && BK_RE.test(x[1]) && +x[2] > 0)
     .map(x => { const [, boss, dg] = x[1].match(BK_RE); const p = pts(d => d.bk?.[slug]?.[x[1]]); return { stat: x[1], boss, dg, n: +x[2], g: gain(p) }; })
