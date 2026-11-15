@@ -186,6 +186,18 @@ body {
 .kpi span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .kpi b { display: block; font: 600 26px/1.2 var(--font-body); margin: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kpi small { color: var(--muted); font-size: 12px; }
+/* day by day table: a cell tints with the levels gained that day (--k, 0..1) */
+.gdays table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.gdays th, .gdays td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+.gdays thead th { white-space: nowrap; font-size: 13px; }
+.gdays th small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+.gdays tbody th { white-space: nowrap; font-weight: 600; position: sticky; left: 0; background: var(--panel); z-index: 1; }
+.gdays td { min-width: 120px; background: color-mix(in srgb, var(--accent) calc(var(--k, 0) * 24%), transparent); }
+.gdays td b { display: block; font-size: 13px; }
+.gdays td span { display: block; color: var(--muted); white-space: nowrap; }
+.gdays .dd { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.gdays .dz { color: var(--muted); }
+.gdays .dsum th, .gdays .dsum td { border-bottom: 2px solid var(--line); }
 .glow summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 0; }
 
 button, input, select { font: inherit; color: inherit; }
@@ -940,6 +952,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="panel" aria-labelledby="h-gprofs" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
     <div id="gprofs"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-days" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-days">Что сделали по дням</h2><span class="cap">Разница с предыдущим днём, по снимкам на конец дня (Центральная Европа). Персонажи с 10 уровня</span></div>
+    <div class="gdays" id="gdays"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-gchart" data-view="guild" hidden>
@@ -2334,7 +2351,7 @@ function renderGuild() {
     const msg = got.has("guild") ? "Данных пока нет: синхронизация с Blizzard ещё не настроена." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
     $("#guild-cap").textContent = "";
     $("#groster").innerHTML = `<p class="empty">${msg}</p>`;
-    $("#gchart").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; $("#gpcharts").innerHTML = "";
+    $("#gchart").innerHTML = $("#gdays").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; $("#gpcharts").innerHTML = "";
     $("#gprofs").innerHTML = `<p class="empty">${msg}</p>`;
     return;
   }
@@ -2368,7 +2385,48 @@ function renderGuild() {
     + (low.length ? `<details class="glow"><summary>Ниже ${G_MIN} уровня: ${low.length} (банки и новички, в статистику не входят)</summary>${low.map(row).join("")}</details>` : "")
     + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
   renderKpis(g, up, core);
+  renderDays(g);
   renderGChart(g);
+}
+// Day by day: what each character gained since the previous synced day. Plain differences of the daily snapshots
+// (glevels: lv, pr, hk, pd); a value missing on either day counts as nothing, so a new profession or a first sync shows no jump.
+function renderDays(g) {
+  const el = $("#gdays"), days = g.days, mem = g.mem;
+  if (days.length < 2) { el.innerHTML = `<p class="empty">Нужна история хотя бы за два дня.</p>`; return; }
+  const last = days[days.length - 1], lvl = s => +last.lv[s] || +mem[s]?.level || 0;
+  const core = new Set(players.map(p => p.char).filter(Boolean)), alts = new Set(players.flatMap(altsOf));
+  const rank = s => core.has(s) ? 0 : alts.has(s) ? 1 : 2;
+  const cols = Object.keys(mem).filter(s => lvl(s) >= G_MIN).sort((a, b) => rank(a) - rank(b) || lvl(b) - lvl(a) || g.name(a).localeCompare(g.name(b)));
+  const up = (a, b) => a != null && b != null && +a > +b ? +a - +b : 0;
+  const gain = (d, p, s) => !(+p.lv[s] > 0) ? null : { // null: no baseline, the character was not synced the day before
+    lv: up(d.lv[s], p.lv[s]), hk: up(d.hk?.[s], p.hk?.[s]), pd: up(d.pd?.[s], p.pd?.[s]),
+    pr: Object.entries(d.pr?.[s] || {}).map(([n, v]) => [n, up(v, p.pr?.[s]?.[n])]).filter(x => x[1] > 0) };
+  let today = "";
+  try { today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()); } catch {}
+  const rows = [];
+  for (let i = days.length - 1; i > 0 && rows.length < 21; i--) rows.push({ d: days[i], p: days[i - 1], cells: cols.map(s => gain(days[i], days[i - 1], s)) });
+  // last 7 calendar days, summed
+  const week = rows.filter(r => dayNum(last.id) - dayNum(r.d.id) < 7), sum = cols.map((s, k) => {
+    const cs = week.map(r => r.cells[k]).filter(Boolean);
+    if (!cs.length) return null;
+    const pr = {};
+    for (const c of cs) for (const [n, v] of c.pr) pr[n] = (pr[n] || 0) + v;
+    return { lv: cs.reduce((a, c) => a + c.lv, 0), hk: cs.reduce((a, c) => a + c.hk, 0), pd: cs.reduce((a, c) => a + c.pd, 0), pr: Object.entries(pr) };
+  });
+  const cell = c => {
+    if (!c) return `<td class="dz">—</td>`;
+    const bits = [c.lv ? `<b>+${c.lv} ${plural(c.lv, "уровень", "уровня", "уровней")}</b>` : "",
+      ...[...c.pr].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<span>${esc(n)} +${fmtN(v)}</span>`),
+      c.hk ? `<span title="Почётные убийства">HK +${fmtN(c.hk)}</span>` : "",
+      c.pd ? `<span class="dd">${fmtN(c.pd)} ${plural(c.pd, "смерть", "смерти", "смертей")} от игроков</span>` : ""].filter(Boolean);
+    return bits.length ? `<td style="--k:${Math.min(1, c.lv / 3)}">${bits.join("")}</td>` : `<td class="dz">·</td>`;
+  };
+  const label = r => { const gap = dayNum(r.d.id) - dayNum(r.p.id);
+    return r.d.id === today ? `${dayShort(r.d.id)}<small>сегодня, ещё идёт</small>` : gap > 1 ? `${dayShort(r.d.id)}<small>за ${gap} ${plural(gap, "день", "дня", "дней")}: синхронизации не было</small>` : dayShort(r.d.id); };
+  el.innerHTML = `<div class="scroll"><table><thead><tr><th>День</th>${cols.map(s => { const p = ownerOf(s);
+      return `<th data-g="${esc(s)}"><button type="button" class="glink" data-act="gchar" data-id="${esc(s)}">${esc(g.name(s))}</button><small>${p ? esc(p.name) + (p.char === s ? "" : ", твинк") : "гильдия"} · ${lvl(s)}</small></th>`; }).join("")}</tr></thead>
+    <tbody><tr class="dsum"><th scope="row">7 дней</th>${sum.map(cell).join("")}</tr>${rows.map(r => `<tr><th scope="row">${label(r)}</th>${r.cells.map(cell).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="gnote">«—»: персонажа ещё не было в снимке предыдущего дня. «·»: в этот день без изменений (или персонаж не выходил из игры: профиль обновляется после выхода). Смерти здесь только от других игроков.</p>`;
 }
 // Overview tiles. "Today" is the last synced day against the calendar day before it; a gap in the sync gives no number rather than a multi-day sum.
 function renderKpis(g, up, core) {
