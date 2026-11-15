@@ -3129,7 +3129,7 @@ const cMore = (n, word, body) => n > 0 ? `<details class="gtable"><summary>Ещ�
 // "Прогресс по дням" tab: this character's lines from the daily snapshots (glevels/{day}), which start on 2026-11-13;
 // item level and all deaths since 11-15, dungeon boss kills (bk) since 11-16. The game gives only today's totals.
 let cTab = "main";
-const BK_RE = /^(.*) Kills \((.*)\)$/; // "Edwin VanCleef Kills (Deadmines)"
+const BK_RE = /^(.*) kills \((.*)\)$/i; // "Edwin VanCleef Kills (Deadmines)", also "Bazzalan kills (Ragefire Chasm)"
 function cardProgress(box, slug) {
   const el = box.querySelector("#cc-prog");
   if (!el) return;
