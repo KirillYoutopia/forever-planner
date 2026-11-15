@@ -748,7 +748,8 @@ begin
       end if;
       select h.status, h.content into st, body from http(('GET', base || '/reputations' || q, hdr, null, null)::http_request) h;
       if st = 200 then
-        select coalesce(jsonb_agg(jsonb_build_array(x->'faction'->'name', x->'standing'->'name', x->'standing'->'value', x->'standing'->'max', x->'standing'->'tier')
+        -- 2026-11-16: 6th element = raw, the running total across all standings (for the day-by-day chart)
+        select coalesce(jsonb_agg(jsonb_build_array(x->'faction'->'name', x->'standing'->'name', x->'standing'->'value', x->'standing'->'max', x->'standing'->'tier', x->'standing'->'raw')
                  order by (x->'standing'->>'raw')::numeric desc nulls last, x->'faction'->>'name'), '[]'::jsonb)
           into reps
         from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'reputations') = 'array' then body::jsonb->'reputations' else '[]'::jsonb end) x
@@ -930,8 +931,15 @@ begin
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
   -- PvP of the day, for the "PvP" tab: glevels/{day}.hk = {slug: honorable kills so far}, .pd = {slug: deaths from other players so far}
   -- 2026-11-16: also .il = {slug: equipped item level} and .dt = {slug: all deaths so far}, for the day-by-day table,
-  -- and .bk = {slug: {"Boss Kills (Dungeon)": kills so far}}, the game's dungeon boss counters, for the card's progress tab
+  -- and .bk = {slug: {"Boss Kills (Dungeon)": kills so far}}, the game's dungeon boss counters, for the card's progress tab;
+  -- .qd = {slug: completed quests} and .rp = {slug: {faction: reputation raw total}} likewise
   update docs set updated_at = now(), data = data || jsonb_build_object(
+    'qd', coalesce((select jsonb_object_agg(d.id, d.data->'q'->'done') from docs d
+                    where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'q'->'done') = 'number'), '{}'::jsonb),
+    'rp', coalesce((select jsonb_object_agg(x.id, x.k) from (
+                      select d.id, jsonb_object_agg(e->>0, e->5) k from docs d, jsonb_array_elements(d.data->'reps') e
+                      where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'reps') = 'array' and jsonb_typeof(e->5) = 'number'
+                      group by d.id) x), '{}'::jsonb),
     'bk', coalesce((select jsonb_object_agg(x.id, x.k) from (
                       select d.id, jsonb_object_agg(e->>1, e->2) k from docs d, jsonb_array_elements(d.data->'ast') e
                       where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ast') = 'array'
