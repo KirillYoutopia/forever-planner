@@ -230,7 +230,6 @@ body {
 .evt.ein { background: color-mix(in srgb, var(--healer) 20%, transparent); color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); }
 .evt.eout { background: color-mix(in srgb, var(--ban-bg) 20%, transparent); color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
 .evt.e60 { background: color-mix(in srgb, var(--accent) 25%, transparent); }
-.glow summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 0; }
 
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -372,6 +371,43 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .road figcaption { font-size: 12px; color: var(--muted); padding: 8px 12px; }
 .lb { position: fixed; inset: 0; z-index: 70; background: rgba(5, 8, 12, .9); overflow: auto; cursor: zoom-out; padding: 16px; }
 .lb img { display: block; width: max(100%, 900px); height: auto; margin: 0 auto; border-radius: 6px; }
+.lb.char { padding: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 55%, var(--doll-1), var(--doll-2) 78%); }
+.lb.char img { width: 100%; height: 100%; max-width: none; object-fit: contain; border-radius: 0; transform: scale(1.3); transform-origin: 50% 50%; } /* the render has wide empty margins, as in the doll */
+@media (orientation: portrait) { .lb.char img { object-fit: cover; transform: none; } } /* tall screens: fill the height, the cut sides are empty anyway */
+/* news */
+.news2 { grid-template-columns: 1fr 1fr; margin-top: 0; }
+@media (max-width: 760px) { .news2 { grid-template-columns: 1fr; } }
+.news { list-style: none; margin: 0; padding: 0; }
+.news li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.news a { color: var(--fg); font-weight: 600; text-decoration: none; }
+.news a:hover { color: var(--accent); text-decoration: underline; }
+.news small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+/* full roster table */
+.rsearch { margin-left: auto; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-width: 180px; }
+.rtab { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.rtab th, .rtab td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; vertical-align: top; }
+.rtab thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.rtab thead button { border: 0; background: none; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; font-weight: 700; }
+.rtab thead th[aria-sort] { color: var(--accent); }
+.rtab tbody th { position: sticky; left: 0; z-index: 1; background: var(--panel); font-weight: 600; }
+.rtab small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.rtab small.up { color: var(--fg); font-weight: 600; }
+.rtab .rn, .rtab .rn .glink { color: color-mix(in srgb, var(--c) var(--tint), var(--fg)); }
+.rtab .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rtab td.idle { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.rtab tbody tr:hover td, .rtab tbody tr:hover th { background: var(--panel-2); }
+.ri16 { width: 16px; height: 16px; border-radius: 50%; vertical-align: -3px; margin-right: 6px; }
+.badge { display: inline-block; margin-left: 6px; border-radius: 3px; padding: 0 6px; font-size: 11px; font-weight: 700; }
+.badge.ok { background: color-mix(in srgb, var(--healer) 20%, transparent); color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); }
+.badge.miss { background: color-mix(in srgb, var(--dps) 20%, transparent); color: color-mix(in srgb, var(--dps) var(--tint), var(--fg)); }
+/* the character card takes the class colour (--cc, set on #gc-box) */
+#gc-box { --accent: color-mix(in srgb, var(--cc, var(--gold)) var(--tint), var(--fg)); border-color: color-mix(in srgb, var(--cc, var(--line)) 35%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cc, var(--panel)) 12%, var(--panel)), var(--panel) 420px); }
+#gc-box .cc-sec > .gsec { color: color-mix(in srgb, var(--cc) var(--tint), var(--fg)); }
+#gc-box .cc-sec > .gsec::after { background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 50%, transparent), transparent); }
+#gc-box .gtiles div, #gc-box .cc-facts div { border-top: 2px solid color-mix(in srgb, var(--cc) 45%, var(--line)); }
+.gfig-btn { position: absolute; inset: 0; border: 0; padding: 0; background: none; cursor: zoom-in; }
+
 
 /* calendar */
 .best { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
@@ -447,16 +483,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .wit.q0 { --q: var(--q-poor); } .wit.q2 { --q: var(--q-unc); } .wit.q3 { --q: var(--q-rare); } .wit.q4 { --q: var(--q-epic); } .wit.q5 { --q: var(--q-leg); }
 .whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
 /* guild tab: roster + day-by-day level chart */
-.gr { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(110px, 1.3fr) minmax(80px, 1.6fr) 40px 96px; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 6px; }
-.gr + .gr { border-top: 1px solid var(--line); }
-.gr .gc b { color: var(--fg); font-weight: 600; }
-.gr > b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gr .gc { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gr .n { font: 400 22px/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
-.gr .gd { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.gr .gd.up { color: var(--fg); font-weight: 600; }
-.gr .gd small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
-.gr .gd small.idle { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
 .gbar { height: 8px; background: var(--track); border-radius: 0 4px 4px 0; overflow: hidden; }
 .gbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
 .gkey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c, transparent); margin-right: 8px; vertical-align: middle; }
@@ -481,13 +507,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gtable th, .gtable td { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
 .gtable th { font-weight: 600; color: var(--muted); }
 .gtable th:first-child, .gtable td:first-child { text-align: left; }
-@media (max-width: 640px) {
-  .gr { grid-template-columns: minmax(0, 1fr) 36px 78px; gap: 6px 10px; }
-  .gr .gc { grid-column: 1; grid-row: 2; padding-left: 22px; }
-  .gr .gbar { grid-column: 1 / -1; grid-row: 3; }
-  .gr .n { grid-row: 1 / span 2; grid-column: 2; }
-  .gr .gd { grid-row: 1 / span 2; grid-column: 3; }
-}
 /* guild character sheet: paper doll with gear around the render */
 .glink { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .glink:hover { text-decoration-color: var(--accent); }
@@ -841,6 +860,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Профессии</button>
   <button type="button" data-act="nav" data-nav="pvp" aria-pressed="false">PvP</button>
   <button type="button" data-act="nav" data-nav="stats" aria-pressed="false">Статистика</button>
+  <div class="ng">Игра</div>
+  <button type="button" data-act="nav" data-nav="news" aria-pressed="false">Новости</button>
   <div class="ng">Таверна</div>
   <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Дуэли и кошелёк</button>
   <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
@@ -858,6 +879,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
   <div id="note"></div>
 
+  <section class="panel" aria-labelledby="h-news" data-view="news" hidden>
+    <div class="panel-head"><h2 id="h-news">Новости WoW Forever</h2><span class="cap">Синие посты Blizzard и новости с Wowhead, обновляется каждые 30 минут. Ссылки открываются на Wowhead</span></div>
+    <div id="news-list"></div>
+  </section>
+
   <section class="panel" id="gc-box" data-view="char" aria-labelledby="gc-title" hidden></section>
 
   <div class="kpis" id="kpis" data-view="home"></div>
@@ -870,7 +896,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   </section>
 
   <section class="panel" aria-labelledby="h-guild" data-view="home">
-    <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span></div>
+    <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span><input id="rsearch" class="rsearch" type="search" maxlength="40" placeholder="Поиск по имени" aria-label="Поиск по имени персонажа" autocomplete="off"></div>
     <div id="groster"></div>
   </section>
 
@@ -2193,13 +2219,18 @@ document.addEventListener("click", e => {
     applyView();
     scrollTo(0, 0);
   }
+  else if (act === "rsort") { // first click: natural direction, second: reversed, third: back to the default order
+    const k = b.dataset.k, d0 = R_ASC.includes(k) ? 1 : -1;
+    rSort = rSort.k !== k ? { k, dir: d0 } : rSort.dir === d0 ? { k, dir: -d0 } : { k: "", dir: 1 };
+    renderGuild();
+  }
   else if (act === "ovpick") { ovF[b.dataset.k] = String(ovF[b.dataset.k]) === b.dataset.v ? "" : b.dataset.v; renderGuild(); }
   else if (act === "ovact") { ovF.act = b.dataset.v; renderGuild(); }
   else if (act === "ovclr") { ovF = { cls: "", race: "", lvl: "", act: "", sex: "", role: "" }; renderGuild(); }
   else if (act === "ovf") { ovAll = b.dataset.v === "true"; renderGuild(); }
   else if (act === "menu") menu(!$("#side").classList.contains("open"));
   else if (act === "theme") setTheme(b.dataset.t);
-  else if (act === "zoom") $("#lb").hidden = false;
+  else if (act === "zoom") { $("#lb img").src = b.dataset.src || "roadmap.png"; $("#lb").classList.toggle("char", !!b.dataset.src); $("#lb").hidden = false; }
   else if (act === "unzoom") $("#lb").hidden = true;
   else if (act === "calmore") { calWeeks = Math.min(12, calWeeks + 4); render(); }
   else if (act === "av" && sheet) { setAvail(sheet.date, b.dataset.v); closeSheet(); }
@@ -2444,29 +2475,74 @@ function renderGuild() {
     if (p.char) { owner[p.char] = p.name; core.add(p.char); }
     for (const s of altsOf(p)) if (!core.has(s)) { owner[s] ||= `${p.name}, твинк`; alt.add(s); }
   }
-  const seen = s => { const d = seenDays(s); if (d == null) return ""; const n = Math.floor(d);
-    return `<small class="${d >= IDLE_DAYS ? "idle" : ""}" title="Когда персонаж последний раз был в игре">был ${n < 1 ? "сегодня" : n === 1 ? "вчера" : n + " дн. назад"}</small>`; };
-  const row = m => {
-    const c = CLS[BCLS[m.cls]], d = delta(m);
-    return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
-      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}${gchars[m.slug]?.items ? ` · GS ${fmtN(gearScore(gchars[m.slug], +m.cls))}` : ""}${owner[m.slug] ? ` · <b>${esc(owner[m.slug])}</b>` : ""}</span>
-      <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
-      <span class="n">${+m.level || "—"}</span>
-      <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}${seen(m.slug)}</span></div>`;
-  };
-  // Focus: the core team (players' mains), then their twinks, then the rest of the guild. Below level 10 (bank characters, fresh twinks) is folded away.
-  const upAll = list.filter(m => m.level >= G_MIN), shown = list.filter(m => ovMatch(m));
-  const up = shown.filter(m => m.level >= G_MIN), low = shown.filter(m => !(m.level >= G_MIN));
-  const groups = [["Кор", up.filter(m => core.has(m.slug))], ["Твинки", up.filter(m => alt.has(m.slug))], ["Гильдия", up.filter(m => !core.has(m.slug) && !alt.has(m.slug))]];
-  $("#groster").innerHTML = (ovOn() ? `<p class="ovnote">Фильтр: показано ${shown.length} из ${list.length}. <button type="button" class="glink" data-act="ovclr">Сбросить</button></p>` + (shown.length ? "" : `<p class="empty">Под фильтр никто не подходит.</p>`) : "")
-    + groups.filter(([, ms]) => ms.length).map(([t, ms]) => `<div class="gpg">${t} · ${ms.length}</div>` + ms.map(row).join("")).join("")
-    + (low.length ? `<details class="glow"><summary>Ниже ${G_MIN} уровня: ${low.length} (банки и новички, в статистику не входят)</summary>${low.map(row).join("")}</details>` : "")
-    + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
+  const upAll = list.filter(m => m.level >= G_MIN);
+  renderRoster(g, list, core, alt, owner, delta);
   renderKpis(g, upAll, core);
   renderOverview(g);
   renderDays(g);
   renderGChart(g);
 }
+// News from Wowhead's WoW Forever feeds: news/forever, filled by news_sync() in supabase.sql every 30 minutes.
+let news = null;
+function renderNews() {
+  const el = $("#news-list"), items = Array.isArray(news?.items) ? news.items : [];
+  if (!items.length) {
+    el.innerHTML = `<p class="empty">${got.has("news") ? "Новостей пока нет: лента появится в течение получаса после обновления базы." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…"}</p>`;
+    return;
+  }
+  const when = ts => { try { return ts ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(+ts)) : ""; } catch { return ""; } };
+  const col = (kind, title) => {
+    const list = items.filter(x => Array.isArray(x) && x[3] === kind && /^https:\/\/www\.wowhead\.com\//.test(x[1] || "")); // only Wowhead links, as the server stores them
+    return `<div><h3 class="ovh">${title}</h3>${list.length ? `<ul class="news">${list.map(([t, link, ts]) =>
+      `<li><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a><small>${when(ts)}</small></li>`).join("")}</ul>` : `<p class="gnote">Пока пусто.</p>`}</div>`;
+  };
+  el.innerHTML = `<div class="ov2 news2">${col("blue", "Синие посты")}${col("news", "Новости Wowhead")}</div>`;
+}
+// Full roster as a table, like the old TBC dashboard: the overview filters and the 10+/all switch apply, headers sort, the box above searches by name.
+let rSort = { k: "", dir: 1 }; // k "": core → twinks → guild, then level
+const R_COLS = [["name", "Персонаж"], ["cls", "Класс"], ["race", "Раса"], ["lvl", "Ур."], ["il", "ilvl"], ["gs", "GS"], ["spec", "Таланты"], ["ench", "Зачарования"], ["hk", "HK"], ["rank", "Ранг"], ["since", "В гильдии"], ["seen", "Был в игре"]];
+const R_ASC = ["name", "cls", "race", "spec", "ench", "rank", "seen"]; // these sort ascending on the first click, the rest descending
+const enchOf = c => { // {n enchanted, of enchantable}; null until a sync has stored enchantments (gender came with it)
+  const it = c?.items || {}, sl = Object.keys(it).filter(t => enchantable(t, it[t]));
+  return sl.length && (c.gender || sl.some(t => it[t].en)) ? { n: sl.filter(t => it[t].en).length, of: sl.length } : null;
+};
+function renderRoster(g, list, core, alt, owner, delta) {
+  const q = $("#rsearch").value.trim().toLowerCase(), last = g.days[g.days.length - 1];
+  const first = {}; // first daily snapshot with the character: "days in the guild" as far as our data goes
+  for (const d of g.days) for (const sl of Object.keys(d.lv)) if (!(sl in first)) first[sl] = d.id;
+  const rows = list.filter(m => (ovAll || m.level >= G_MIN) && ovMatch(m) && (!q || g.name(m.slug).toLowerCase().includes(q))).map(m => {
+    const c = gchars[m.slug];
+    return { m, c, gs: c?.items ? gearScore(c, +m.cls) : null, il: +c?.ilvl || null, e: enchOf(c), hk: c?.pvp?.hk ?? null, seen: seenDays(m.slug),
+      since: first[m.slug] && last ? dayNum(last.id) - dayNum(first[m.slug]) : null, grp: core.has(m.slug) ? 0 : alt.has(m.slug) ? 1 : 2 };
+  });
+  const val = { name: r => g.name(r.m.slug), cls: r => BCLS[r.m.cls] || "", race: r => BRACE[r.m.race] || "", lvl: r => +r.m.level, il: r => r.il, gs: r => r.gs,
+    spec: r => specText(r.c?.sp) || null, ench: r => r.e ? r.e.of - r.e.n : null, hk: r => r.hk, rank: r => r.m.rank ?? null, since: r => r.since, seen: r => r.seen };
+  const byDefault = (a, b) => a.grp - b.grp || b.m.level - a.m.level || g.name(a.m.slug).localeCompare(g.name(b.m.slug));
+  rows.sort(!rSort.k ? byDefault : (a, b) => { // empty values always last
+    const x = val[rSort.k](a), y = val[rSort.k](b);
+    if (x == null || y == null) return x == null && y == null ? byDefault(a, b) : x == null ? 1 : -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * rSort.dir || byDefault(a, b);
+  });
+  const ago = d => { const n = Math.floor(d); return n < 1 ? "сегодня" : n === 1 ? "вчера" : n + " дн. назад"; };
+  const tr = r => {
+    const { m, c } = r, cls = CLS[BCLS[m.cls]], d = delta(m), who = owner[m.slug] || (r.grp === 2 ? "гильдия" : ""), ri = raceIcon(BRACE[m.race]);
+    return `<tr data-g="${esc(m.slug)}"><th scope="row" class="rn" style="--c:${cls ? cls.color : "var(--fg)"}">${c ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}<small>${esc(who)}</small></th>
+      <td>${cls ? cdot(cls) : ""}${esc(BCLS[m.cls] || "?")}</td>
+      <td>${ri ? `<img class="ri16" src="${ICON(ri)}" alt="" loading="lazy">` : ""}${esc(BRACE[m.race] || "?")}</td>
+      <td class="num"><b>${+m.level || "—"}</b>${d > 0 ? `<small class="up">+${d} за 7 дн.</small>` : ""}</td>
+      <td class="num">${r.il ?? "—"}</td><td class="num">${r.gs == null ? "—" : fmtN(r.gs)}</td>
+      <td>${specText(c?.sp) || "—"}${specText(c?.sp2) ? `<small>второй: ${specText(c.sp2)}</small>` : ""}</td>
+      <td>${r.e ? `${r.e.n}/${r.e.of}<span class="badge ${r.e.n === r.e.of ? "ok" : "miss"}">${r.e.n === r.e.of ? "Готово" : `Не хватает ${r.e.of - r.e.n}`}</span>` : "—"}</td>
+      <td class="num">${r.hk == null ? "—" : fmtN(r.hk)}</td><td class="num">${m.rank == null ? "—" : +m.rank === 0 ? "Глава" : +m.rank}</td>
+      <td class="num">${r.since == null ? "—" : `${r.since} дн.`}</td>
+      <td class="${r.seen != null && r.seen >= IDLE_DAYS ? "idle" : ""}">${r.seen == null ? "—" : ago(r.seen)}</td></tr>`;
+  };
+  $("#groster").innerHTML = (ovOn() || q ? `<p class="ovnote">Показано ${rows.length} из ${list.length}.${ovOn() ? ` <button type="button" class="glink" data-act="ovclr">Сбросить фильтры</button>` : ""}</p>` : "")
+    + (rows.length ? `<div class="scroll"><table class="rtab"><thead><tr>${R_COLS.map(([k, t]) => `<th scope="col"${rSort.k === k ? ` aria-sort="${rSort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="rsort" data-k="${k}">${t}${rSort.k === k ? (rSort.dir > 0 ? " ↑" : " ↓") : ""}</button></th>`).join("")}</tr></thead>
+      <tbody>${rows.map(tr).join("")}</tbody></table></div>` : `<p class="empty">Никто не подходит под фильтр.</p>`)
+    + `<p class="gnote">Данные Blizzard API, обновляются раз в час, уровень меняется после выхода персонажа из игры. Нажми на заголовок, чтобы отсортировать, ещё раз, чтобы развернуть, третий раз, чтобы вернуть обычный порядок. «В гильдии»: дней по нашим снимкам (с ${g.days[0] ? dayShort(g.days[0].id) : "—"}). Ранг: номер ранга в гильдии, названий API не отдаёт.${ovAll ? "" : ` Персонажи ниже ${G_MIN} уровня скрыты переключателем «${G_MIN}+» выше.`}</p>`;
+}
+$("#rsearch").addEventListener("input", () => renderGuild());
 // Day by day: what each character gained since the previous synced day. Plain differences of the daily snapshots
 // (glevels: lv, pr, hk, pd); a value missing on either day counts as nothing, so a new profession or a first sync shows no jump.
 function renderDays(g) {
@@ -3055,7 +3131,8 @@ function renderGSheet() {
   const enKnown = !!c.gender || gear.some(t => items[t].en);
   const ench = { n: gear.filter(t => enchantable(t, items[t]) && items[t].en).length, of: enKnown ? gear.filter(t => enchantable(t, items[t])).length : 0 };
   const facts = [["GearScore", fmtN(gearScore(c, +m.cls))], ["Уровень предметов", c.ilvl ? fmtN(c.ilvl) : "—"], ["Был в игре", login || "—"], ["Игрок", own ? `${esc(own.name)} <small>${own.char === gOpen ? "основной" : "твинк"}</small>` : "—"]];
-  box.innerHTML = `<div class="cc-head" style="--cc:${cls ? cls.color : "var(--gold)"}">
+  box.style.setProperty("--cc", cls ? cls.color : "var(--gold)"); // the whole card takes the class colour
+  box.innerHTML = `<div class="cc-head">
       <div class="cc-av">${bimg(c.avatar) ? `<img src="${bimg(c.avatar)}" alt="">` : ""}</div>
       <div class="cc-who"><h2 id="gc-title">${esc(name)}</h2>
         <p class="gsub">Уровень <b>${+m.level || "?"}</b> · ${esc(BRACE[m.race] || "")} <span class="tint">${esc(BCLS[m.cls] || "")}</span>${faction ? ` · ${faction}` : ""}${
@@ -3067,7 +3144,7 @@ function renderGSheet() {
     <div class="cc-top">
       <div class="cc-left">
         <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
-          <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
+          <div class="gfig">${bimg(c.img) ? `<button type="button" class="gfig-btn" data-act="zoom" data-src="${bimg(c.img)}" aria-label="Открыть персонажа на весь экран"><img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа"></button>` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
           <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
       </div>
       <div class="cc-right">
@@ -3184,7 +3261,7 @@ function setTheme(t) {
   document.querySelectorAll("[data-act=theme]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || ""))));
 }
 setTheme(document.documentElement.dataset.theme || "");
-const VIEWS = ["home", "char", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
+const VIEWS = ["home", "char", "news", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
 function readHash() { // #view, or #char/<slug> for a character card
   const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h);
   if (c) { view = "char"; try { gOpen = decodeURIComponent(c[1]); } catch { gOpen = ""; } }
@@ -3254,6 +3331,7 @@ async function boot() {
   db.doc("guild/roster").onSnapshot(s => { guild = s.exists ? s.data() : null; got.add("guild"); render(); }, () => {});
   db.collection("grecipes").onSnapshot(snap => { grec = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); got.add("grecipes"); render(); }, () => {});
   db.collection("gcat").onSnapshot(snap => { gcat = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
+  db.doc("news/forever").onSnapshot(sn => { news = sn.exists ? sn.data() : null; got.add("news"); renderNews(); }, () => {});
   db.doc("guild/dungeons").onSnapshot(sn => { gdung = sn.exists ? sn.data() : null; render(); }, () => {});
   db.collection("gzones").onSnapshot(snap => { gzones = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});

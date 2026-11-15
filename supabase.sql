@@ -248,7 +248,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones'))  -- hourly Blizzard sync rows: nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones', 'news'))  -- synced rows (Blizzard, Wowhead): nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -991,6 +991,60 @@ select cron.schedule('guild-zones', '*/5 * * * *', 'select public.guild_zones_fi
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
+
+-- 2026-11-16: WoW Forever news for the "Новости" page, from Wowhead's RSS feeds: blue posts and news articles.
+-- Only titles, links and dates are kept. Fetched every 30 minutes; Wowhead answers 403 without a User-Agent.
+-- What the page reads: news/forever {at, items: [[title, link, published (ms), "blue" | "news"], ...]}, newest first, at most 40.
+create or replace function public.news_text(p text) returns text language sql immutable set search_path = public as $$
+  select replace(replace(replace(replace(replace(replace(
+    regexp_replace(btrim(coalesce(p, '')), '^<!\[CDATA\[(.*)\]\]>$', '\1'),
+    '&lt;', '<'), '&gt;', '>'), '&quot;', '"'), '&#39;', ''''), '&#039;', ''''), '&amp;', '&')
+$$;
+create or replace function public.news_ts(p text) returns numeric language plpgsql immutable set search_path = public as $$
+begin
+  return floor(extract(epoch from p::timestamptz) * 1000);  -- RFC 822 dates, e.g. "Sat, 14 Nov 2026 19:18:42 -0600"
+exception when others then
+  return null;
+end $$;
+create or replace function public.news_sync()
+returns int language plpgsql security definer set search_path = public, extensions as $$
+declare st int; body text; f record; items jsonb := '[]'::jsonb; nw jsonb; done text[] := '{}';
+        hdr http_header[] := array[http_header('User-Agent', 'KuteExpats guild site (+https://kirillyoutopia.github.io/forever-planner/)')];
+begin
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  for f in select * from (values ('blue', 'https://www.wowhead.com/forever/blue-tracker?rss'), ('news', 'https://www.wowhead.com/news/rss/forever')) v(kind, url) loop
+    begin
+      select h.status, h.content into st, body from http(('GET', f.url, hdr, null, null)::http_request) h;
+      continue when st <> 200 or body is null;
+      nw := coalesce((
+        select jsonb_agg(jsonb_build_array(t.title, t.link, news_ts(t.d), f.kind))
+        from (select regexp_replace(news_text(substring(m[1] from '<title>(.*?)</title>')), ' — World of Warcraft — Blizzard News$', '') title, news_text(substring(m[1] from '<link>(.*?)</link>')) link,
+                     substring(m[1] from '<pubDate>(.*?)</pubDate>') d
+              from regexp_matches(body, '<item>(.*?)</item>', 'g') m) t
+        where t.title <> '' and t.link ~ '^https://www\.wowhead\.com/'), '[]'::jsonb);
+      -- a 200 without items (an error or challenge page) counts as a failure: the feed keeps its previous items
+      continue when jsonb_array_length(nw) = 0;
+      items := items || nw;
+      done := done || f.kind::text;
+    exception when others then
+      raise warning 'news_sync: % skipped: %', f.kind, sqlerrm;
+    end;
+  end loop;
+  if cardinality(done) = 0 then return 0; end if;
+  -- a feed that failed this time keeps its previous items
+  items := items || coalesce((select jsonb_agg(v) from docs d, jsonb_array_elements(d.data->'items') v
+                              where d.coll = 'news' and d.id = 'forever' and not (v->>3 = any(done))), '[]'::jsonb);
+  select coalesce(jsonb_agg(x.v order by x.ts desc nulls last), '[]'::jsonb) into items
+  from (select v, (v->>2)::numeric ts from (  -- the same post often comes twice (EU and US forums): keep one per kind and title, the newest
+          select distinct on (v->>3, v->>0) v from jsonb_array_elements(items) v order by v->>3, v->>0, (v->>2)::numeric desc nulls last) u
+        order by (v->>2)::numeric desc nulls last limit 40) x;
+  insert into docs (coll, id, data) values ('news', 'forever', jsonb_build_object('at', floor(extract(epoch from clock_timestamp()) * 1000), 'items', items))
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+  where docs.data->'items' is distinct from excluded.data->'items';  -- nothing new: no write, no realtime event
+  return jsonb_array_length(items);
+end $$;
+revoke execute on function public.news_sync() from public, anon, authenticated;
+select cron.schedule('news-sync', '*/30 * * * *', 'select public.news_sync()');
 
 -- 2026-11-13: players get an optional "char" (guild character slug). The page reads the player's level, class and
 -- avatar from that character; the manual level/xp fields stay as a fallback and are no longer edited.
