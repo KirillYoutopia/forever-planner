@@ -414,6 +414,12 @@ create table if not exists public.bnet_config (k text primary key, v text not nu
 alter table public.bnet_config enable row level security;
 revoke all on public.bnet_config from anon, authenticated;
 
+-- 2026-11-16: Wowhead's display id and inventory slot of each item, for the 3D model on the character card.
+-- Blizzard's API has no display ids; they come from Wowhead's item XML, once per item. disp 0 = Wowhead has none.
+create table if not exists public.bnet_display (id bigint primary key, disp int not null, inv int not null);
+alter table public.bnet_display enable row level security;
+revoke all on public.bnet_display from anon, authenticated;
+
 -- Item icon URLs, looked up once per item (Blizzard media ids). '' = Blizzard has no icon for it.
 create table if not exists public.bnet_icons (id bigint primary key, icon text not null);
 alter table public.bnet_icons enable row level security;
@@ -584,7 +590,8 @@ declare cid text; sec text; region text; slug text; tok text; st int; body text;
         hdr http_header[]; ch text; base text; q text; pr jsonb; eq jsonb; md jsonb; items jsonb; mid bigint; profs jsonb;
         pf jsonb; ptiers jsonb := '{}'::jsonb; pk text; rid bigint; rd jsonb; t0 timestamptz;
         oldd jsonb; stt jsonb; pvp jsonb; reps jsonb; qs jsonb; j jsonb; ast jsonb; ach jsonb; dgs jsonb; aid bigint; spz jsonb;
-        icons_left int := 60; sheets int := 0;
+        icons_left int := 60; sheets int := 0; cz jsonb; mit jsonb; wh_left int := 60;
+        whdr http_header[] := array[http_header('User-Agent', 'KuteExpats guild site (+https://kirillyoutopia.github.io/forever-planner/)')];
         now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
   select v into cid from bnet_config where k = 'client_id';
@@ -784,6 +791,35 @@ begin
           on conflict (id) do nothing;
         end if;
       end loop;
+      -- 2026-11-16: 3D model (Wowhead's viewer, see supabase/functions/modelviewer):
+      --   mdl {cz: [{optionId, choiceId}] (appearance from Blizzard), it: [[inventory slot, display id]] (visible gear)}
+      -- Each part keeps its previous value when its request fails. At most 60 new items are looked up per run.
+      -- Wowhead or Blizzard failing here must not cost the rest of the sheet: the model keeps its previous data.
+      cz := oldd->'mdl'->'cz'; mit := oldd->'mdl'->'it';
+      begin
+      select h.status, h.content into st, body from http(('GET', base || '/appearance' || q, hdr, null, null)::http_request) h;
+      if st = 200 and jsonb_typeof(body::jsonb->'customizations') = 'array' then
+        select coalesce(jsonb_agg(jsonb_build_object('optionId', (x->'option'->>'id')::int, 'choiceId', (x->'choice'->>'id')::int)), '[]'::jsonb) into cz
+        from jsonb_array_elements(body::jsonb->'customizations') x where x->'option'->>'id' ~ '^[0-9]+$' and x->'choice'->>'id' ~ '^[0-9]+$';
+      end if;
+      for mid in select distinct (i->'item'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
+                 where i->'item'->>'id' ~ '^[0-9]+$' and not exists (select 1 from bnet_display b where b.id = (i->'item'->>'id')::bigint) loop
+        exit when wh_left <= 0;
+        wh_left := wh_left - 1;
+        select h.status, h.content into st, body from http(('GET', format('https://www.wowhead.com/forever/item=%s&xml', mid), whdr, null, null)::http_request) h;
+        continue when st <> 200 or body !~ '<wowhead>';  -- only Wowhead's own XML is cached (not an error or challenge page)
+        insert into bnet_display (id, disp, inv)
+        values (mid, coalesce(substring(body from 'displayId="([0-9]+)"')::int, 0), coalesce(substring(body from '<inventorySlot id="([0-9]+)"')::int, 0))
+        on conflict (id) do nothing;
+      end loop;
+      -- not drawn on the model: neck, rings, trinkets, ranged, bags, ammo, relics; a one-hander goes to the hand it is in
+      select coalesce(jsonb_agg(jsonb_build_array(case when b.inv = 13 and i->'slot'->>'type' = 'OFF_HAND' then 22 when b.inv = 13 then 21 else b.inv end, b.disp)
+                                order by b.inv), '[]'::jsonb) into mit
+      from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i join bnet_display b on b.id = (i->'item'->>'id')::bigint
+      where b.disp > 0 and b.inv not in (0, 2, 11, 12, 15, 18, 24, 25, 26, 28);
+      exception when others then
+        raise warning 'guild_sync: % model skipped: %', ch, sqlerrm;
+      end;
       select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object(
                'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, ''), 'tip', bnet_item_tip(i),
                -- 2026-11-16: permanent enchantment, e.g. "Intellect +6"
@@ -803,7 +839,7 @@ begin
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
         'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast, 'ach', ach, 'dg', dgs,
         'gender', pr->'gender'->'type', 'sp', coalesce(spz->'sp', oldd->'sp'), 'sp2', case when spz is null then oldd->'sp2' else spz->'sp2' end,
-        'items', items)))
+        'items', items, 'mdl', jsonb_build_object('cz', cz, 'it', mit))))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
     exception when others then
