@@ -157,6 +157,7 @@ body {
 .side-cd { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: baseline; margin: 0 2px 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); text-decoration: none; font-size: 12px; }
 .side-cd span { color: var(--muted); white-space: nowrap; }
 .side { scrollbar-width: thin; }
+.side > * { flex-shrink: 0; } /* a short screen scrolls the sidebar instead of squashing the theme switch */
 .side-brand .eyebrow { white-space: nowrap; }
 .side-cd b { font: 400 14px/1.3 var(--font-display); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .side-cd:hover { border-color: var(--accent); }
@@ -209,7 +210,15 @@ body {
 .ovc h3, .ovh { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--fg); text-transform: none; letter-spacing: 0; }
 .ovc h3 small { font-weight: 500; color: var(--muted); margin-left: 4px; }
 .vbars { display: flex; align-items: stretch; gap: 6px; height: 180px; }
-.vb { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.vb { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.vb.dim { opacity: .35; }
+.vb:hover .va i { filter: brightness(1.15); }
+.vb[aria-pressed="true"] span:last-child { color: var(--fg); font-weight: 700; }
+.ovbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 16px; }
+.ovbar .seg button { padding: 5px 10px; min-height: 32px; font-size: 12px; }
+.ovchip { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 14px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.ovnote { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.idle { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
 .vb b { font-size: 12px; min-height: 16px; font-variant-numeric: tabular-nums; }
 .va { flex: 1; width: 100%; display: flex; align-items: flex-end; }
 .va i { display: block; width: 100%; min-height: 2px; background: var(--c); border-radius: 3px 3px 0 0; box-shadow: inset 0 0 0 1px var(--line); }
@@ -438,7 +447,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .wit.q0 { --q: var(--q-poor); } .wit.q2 { --q: var(--q-unc); } .wit.q3 { --q: var(--q-rare); } .wit.q4 { --q: var(--q-epic); } .wit.q5 { --q: var(--q-leg); }
 .whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
 /* guild tab: roster + day-by-day level chart */
-.gr { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(110px, .9fr) minmax(80px, 2fr) 40px 84px; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 6px; }
+.gr { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(110px, 1.3fr) minmax(80px, 1.6fr) 40px 96px; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 6px; }
 .gr + .gr { border-top: 1px solid var(--line); }
 .gr .gc b { color: var(--fg); font-weight: 600; }
 .gr > b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -446,6 +455,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gr .n { font: 400 22px/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
 .gr .gd { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .gr .gd.up { color: var(--fg); font-weight: 600; }
+.gr .gd small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.gr .gd small.idle { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
 .gbar { height: 8px; background: var(--track); border-radius: 0 4px 4px 0; overflow: hidden; }
 .gbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
 .gkey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c, transparent); margin-right: 8px; vertical-align: middle; }
@@ -851,6 +862,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
   <section class="panel" aria-labelledby="h-ov" data-view="home">
     <div class="panel-head"><h2 id="h-ov">Состав гильдии</h2><div class="seg" role="group" aria-label="Кого считать в классах и расах" id="ov-f"></div></div>
+    <div class="ovbar" id="ov-bar"></div>
     <div class="ovg" id="ovg"></div>
     <div class="ov2"><div><h3 class="ovh">Размер гильдии по дням</h3><div id="ov-size"></div></div><div><h3 class="ovh">Изменения состава</h3><div id="ov-ev"></div></div></div>
   </section>
@@ -1320,8 +1332,8 @@ function renderGrid() {
   </tr>`).join("");
   $("#grid").innerHTML = `<table class="grid">${head}<tbody>${rows}</tbody></table>`;
 }
-// Official game icons from the Wowhead CDN.
-const ICON = n => `https://wow.zamimg.com/images/wow/icons/large/${n}.jpg`;
+// Game icons from Blizzard's own render server, by icon name or file id (56 px, like the API's icons).
+const ICON = n => `https://render.worldofwarcraft.com/eu/icons/56/${encodeURIComponent(n)}.jpg`;
 function renderChars() {
   const ro = readOnly || offline;
   if (!players.length) { $("#chars").innerHTML = `<p class="empty">Добавь игроков в таблице приоритетов.</p>`; return; }
@@ -2179,6 +2191,9 @@ document.addEventListener("click", e => {
     applyView();
     scrollTo(0, 0);
   }
+  else if (act === "ovpick") { ovF[b.dataset.k] = String(ovF[b.dataset.k]) === b.dataset.v ? "" : b.dataset.v; renderGuild(); }
+  else if (act === "ovact") { ovF.act = b.dataset.v; renderGuild(); }
+  else if (act === "ovclr") { ovF = { cls: "", race: "", lvl: "", act: "" }; renderGuild(); }
   else if (act === "ovf") { ovAll = b.dataset.v === "true"; renderGuild(); }
   else if (act === "menu") menu(!$("#side").classList.contains("open"));
   else if (act === "theme") setTheme(b.dataset.t);
@@ -2360,7 +2375,7 @@ document.addEventListener("pointerleave", () => { tip.hidden = true; });
 /* ---------- guild: levels from Blizzard's API, synced hourly on the server (guild_sync in supabase.sql) ---------- */
 const PROF_ID = new Set(PROFS.map(p => p.id));
 const BCLS = { 1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage", 9: "Warlock", 11: "Druid" };
-const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "Skyborne", 96: "Skyborne" };
+const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "High Order Skyborne", 96: "Windshaper Skyborne" }; // the API names; 95 is Alliance, 96 Horde
 const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, later characters are grey
 let guild = null, glevels = [], gchars = {}, gOpen = "", gDrawn = "";
 const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
@@ -2427,21 +2442,25 @@ function renderGuild() {
     if (p.char) { owner[p.char] = p.name; core.add(p.char); }
     for (const s of altsOf(p)) if (!core.has(s)) { owner[s] ||= `${p.name}, твинк`; alt.add(s); }
   }
+  const seen = s => { const d = seenDays(s); if (d == null) return ""; const n = Math.floor(d);
+    return `<small class="${d >= IDLE_DAYS ? "idle" : ""}" title="Когда персонаж последний раз был в игре">был ${n < 1 ? "сегодня" : n === 1 ? "вчера" : n + " дн. назад"}</small>`; };
   const row = m => {
     const c = CLS[BCLS[m.cls]], d = delta(m);
     return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
       <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}${gchars[m.slug]?.items ? ` · GS ${fmtN(gearScore(gchars[m.slug], +m.cls))}` : ""}${owner[m.slug] ? ` · <b>${esc(owner[m.slug])}</b>` : ""}</span>
       <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
       <span class="n">${+m.level || "—"}</span>
-      <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
+      <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}${seen(m.slug)}</span></div>`;
   };
   // Focus: the core team (players' mains), then their twinks, then the rest of the guild. Below level 10 (bank characters, fresh twinks) is folded away.
-  const up = list.filter(m => m.level >= G_MIN), low = list.filter(m => !(m.level >= G_MIN));
+  const upAll = list.filter(m => m.level >= G_MIN), shown = list.filter(m => ovMatch(m));
+  const up = shown.filter(m => m.level >= G_MIN), low = shown.filter(m => !(m.level >= G_MIN));
   const groups = [["Кор", up.filter(m => core.has(m.slug))], ["Твинки", up.filter(m => alt.has(m.slug))], ["Гильдия", up.filter(m => !core.has(m.slug) && !alt.has(m.slug))]];
-  $("#groster").innerHTML = groups.filter(([, ms]) => ms.length).map(([t, ms]) => `<div class="gpg">${t} · ${ms.length}</div>` + ms.map(row).join("")).join("")
+  $("#groster").innerHTML = (ovOn() ? `<p class="ovnote">Фильтр: показано ${shown.length} из ${list.length}. <button type="button" class="glink" data-act="ovclr">Сбросить</button></p>` + (shown.length ? "" : `<p class="empty">Под фильтр никто не подходит.</p>`) : "")
+    + groups.filter(([, ms]) => ms.length).map(([t, ms]) => `<div class="gpg">${t} · ${ms.length}</div>` + ms.map(row).join("")).join("")
     + (low.length ? `<details class="glow"><summary>Ниже ${G_MIN} уровня: ${low.length} (банки и новички, в статистику не входят)</summary>${low.map(row).join("")}</details>` : "")
     + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
-  renderKpis(g, up, core);
+  renderKpis(g, upAll, core);
   renderOverview(g);
   renderDays(g);
   renderGChart(g);
@@ -2491,19 +2510,40 @@ function renderDays(g) {
 // Everything comes from the roster and the daily snapshots (glevels.lv holds every member of that day).
 let ovAll = false; // false: level 10+ only; true: everyone, banks included
 const OV_BRACKETS = [[1, 9], [10, 19], [20, 29], [30, 39], [40, 49], [50, 59], [60, 60]];
+let ovF = { cls: "", race: "", lvl: "", act: "" }; // overview filters (a click on a bar, the activity buttons); they combine with AND
+const IDLE_DAYS = 14;
+const seenDays = s => { const t = +gchars[s]?.login; return t ? (Date.now() - t) / 864e5 : null; }; // null: no profile (below level 10)
+const ACT = { today: ["За сутки", d => d < 1], week: ["За 7 дней", d => d < 7], idle: [`Неактивны ${IDLE_DAYS}+ дн.`, d => d >= IDLE_DAYS] };
+// Race icons: the classic race portraits. The API has no race icons at all; for Skyborne we use its racial Wind Blessed (file 463565, from the API).
+const RACE_ICON = { Human: "human_male", Dwarf: "dwarf_male", Gnome: "gnome_male", "Night Elf": "nightelf_female", Orc: "orc_male", Undead: "undead_male", Tauren: "tauren_male", Troll: "troll_male" };
+const raceIcon = r => RACE_ICON[r] ? "achievement_character_" + RACE_ICON[r] : /Skyborne$/.test(r) ? "463565" : "";
+const lvlBracket = l => OV_BRACKETS.findIndex(([a, b]) => l >= a && l <= b);
+function ovMatch(m, skip) { // skip: the chart being drawn ignores its own filter, so its other bars stay visible
+  if (skip !== "cls" && ovF.cls && BCLS[m.cls] !== ovF.cls) return false;
+  if (skip !== "race" && ovF.race && BRACE[m.race] !== ovF.race) return false;
+  if (skip !== "lvl" && ovF.lvl !== "" && lvlBracket(m.level) !== +ovF.lvl) return false;
+  if (skip !== "act" && ovF.act) { const d = seenDays(m.slug); if (d == null || !ACT[ovF.act][1](d)) return false; }
+  return true;
+}
+const ovOn = () => !!(ovF.cls || ovF.race || ovF.lvl !== "" || ovF.act);
 const slugName = s => s.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "); // left members are no longer in the roster
 function renderOverview(g) {
   const all = Object.entries(g.mem).map(([slug, m]) => ({ slug, ...m })), ms = ovAll ? all : all.filter(m => m.level >= G_MIN);
   $("#ov-f").innerHTML = [[false, `${G_MIN}+`], [true, "Все"]].map(([v, t]) => `<button type="button" data-act="ovf" data-v="${v}" aria-pressed="${ovAll === v}">${t}</button>`).join("");
-  const bars = (rows, title) => {
+  const bars = (k, rows, title) => {
     const max = Math.max(1, ...rows.map(r => r.n));
-    return `<div class="ovc"><h3>${title}</h3><div class="vbars">${rows.map(r => `<div class="vb" title="${esc(r.label)}: ${r.n}"><b>${r.n || ""}</b><div class="va"><i style="height:${r.n / max * 100}%;--c:${r.color}"></i></div>${r.icon ? `<img src="${ICON(r.icon)}" alt="" loading="lazy">` : ""}<span>${esc(r.label)}</span></div>`).join("")}</div></div>`;
+    return `<div class="ovc"><h3>${title}</h3><div class="vbars">${rows.map(r => { const on = String(ovF[k]) === String(r.v);
+      return `<button type="button" class="vb${ovF[k] !== "" && !on ? " dim" : ""}" data-act="ovpick" data-k="${k}" data-v="${esc(String(r.v))}" aria-pressed="${on}" aria-label="${esc(r.label)}: ${r.n}"><b>${r.n || ""}</b><span class="va"><i style="height:${r.n / max * 100}%;--c:${r.color}"></i></span>${r.icon ? `<img src="${ICON(r.icon)}" alt="" loading="lazy">` : ""}<span>${esc(r.label)}</span></button>`; }).join("")}</div></div>`;
   };
-  const count = f => ms.filter(f).length;
-  const classes = CLASSES.map(c => ({ label: c.id, n: count(m => BCLS[m.cls] === c.id), color: c.color, icon: "classicon_" + c.id.toLowerCase() }));
+  const count = (k, f) => ms.filter(m => ovMatch(m, k) && f(m)).length;
+  const classes = CLASSES.map(c => ({ v: c.id, label: c.id, n: count("cls", m => BCLS[m.cls] === c.id), color: c.color, icon: "classicon_" + c.id.toLowerCase() }));
   const raceNames = [...new Set(Object.values(BRACE))];
-  const races = raceNames.map(r => ({ label: r, n: count(m => BRACE[m.race] === r), color: "var(--accent)" })).filter(r => r.n > 0);
-  const levels = OV_BRACKETS.map(([a, b]) => ({ label: a === b ? String(a) : `${a}–${b}`, n: all.filter(m => m.level >= a && m.level <= b).length, color: "var(--accent)" }));
+  const races = raceNames.map(r => ({ v: r, label: r, n: count("race", m => BRACE[m.race] === r), color: "var(--accent)", icon: raceIcon(r) })).filter(r => r.n > 0 || ovF.race === r.v);
+  const levels = OV_BRACKETS.map(([a, b], i) => ({ v: i, label: a === b ? String(a) : `${a}–${b}`, n: count("lvl", m => lvlBracket(m.level) === i), color: "var(--accent)" }));
+  const chips = [["cls", ovF.cls], ["race", ovF.race], ["lvl", ovF.lvl !== "" ? levels[+ovF.lvl]?.label : ""]].filter(x => x[1]);
+  $("#ov-bar").innerHTML = `<div class="seg" role="group" aria-label="Активность">${[["", "Все"], ...Object.entries(ACT).map(([k, [t]]) => [k, t])].map(([k, t]) => `<button type="button" data-act="ovact" data-v="${k}" aria-pressed="${ovF.act === k}">${t}</button>`).join("")}</div>`
+    + chips.map(([k, t]) => `<button type="button" class="ovchip" data-act="ovpick" data-k="${k}" data-v="${esc(String(ovF[k]))}" aria-label="Убрать фильтр ${esc(t)}">${esc(t)} ✕</button>`).join("")
+    + (ovOn() ? `<button type="button" class="glink" data-act="ovclr">Сбросить фильтры</button>` : `<span class="gnote">Нажми на столбец, чтобы отфильтровать состав ниже</span>`);
   // size per day and membership changes from consecutive snapshots
   const days = g.days, ev = [];
   for (let i = 1; i < days.length; i++) {
@@ -2522,7 +2562,7 @@ function renderOverview(g) {
     const { hi, step } = niceTop(Math.max(...series[0].pts.map(p => p.lv)));
     el.innerHTML = gKeys(series) + lineChart("gsize", days, series, { W, H: 200, lo: 0, hi, step, label: "Размер гильдии по дням: всего, с 10 уровня и 60 уровня" }) + oneDay(days);
   } else el.innerHTML = `<p class="empty">История начнётся после первой синхронизации.</p>`;
-  $("#ovg").innerHTML = bars(classes, "Классы") + bars(races, "Расы") + bars(levels, "Уровни <small>все участники</small>");
+  $("#ovg").innerHTML = bars("cls", classes, "Классы") + bars("race", races, "Расы") + bars("lvl", levels, "Уровни");
   $("#ov-ev").innerHTML = evHtml;
 }
 function renderKpis(g, up, core) {
@@ -2533,10 +2573,11 @@ function renderKpis(g, up, core) {
   const sum = Object.values(gain).reduce((a, b) => a + b, 0);
   const lead = Object.keys(gain).sort((a, b) => gain[b] - gain[a] || (core.has(b) - core.has(a)))[0];
   const cl = up.filter(m => core.has(m.slug)), avg = cl.length ? cl.reduce((a, m) => a + m.level, 0) / cl.length : 0;
-  const day = last ? dayShort(last.id) : "";
+  const day = last ? dayShort(last.id) : "", act = up.filter(m => seenDays(m.slug) != null && seenDays(m.slug) < IDLE_DAYS).length;
   const tile = (t, v, s) => `<div class="kpi"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
   $("#kpis").innerHTML = tile(`В гильдии ${G_MIN}+`, up.length, `из ${Object.keys(g.mem).length} в составе`)
     + tile("Средний уровень Кора", cl.length ? avg.toFixed(1).replace(".", ",") : "—", cl.length ? `${cl.length} ${plural(cl.length, "персонаж", "персонажа", "персонажей")}` : "основные персонажи не выбраны")
+    + tile(`Активны за ${IDLE_DAYS} дней`, `${act} / ${up.length}`, `были в игре, персонажи ${G_MIN}+`)
     + tile("Уровней за день", sum ? `+${sum}` : "—", prev ? day : "нужна история за два дня")
     + tile("Лидер дня", lead ? esc(g.name(lead)) : "—", lead ? `+${gain[lead]} ${plural(gain[lead], "уровень", "уровня", "уровней")} · ${day}` : "пока никто не апнулся");
 }
@@ -2879,7 +2920,7 @@ const cTiles = rows => `<div class="gtiles">${rows.filter(r => r[1] != null).map
 const cBar = (label, right, w, col) => `<div class="grep"><div><span>${label}</span><small>${right}</small></div><i style="--c:${col};--w:${Math.min(100, Math.max(0, w))}%"></i></div>`;
 const cNum = v => v == null ? null : fmtN(v);
 const cSec = (title, body, sub = "") => body ? `<section class="cc-sec"><h3 class="gsec">${title}${sub ? `<small>${sub}</small>` : ""}</h3>${body}</section>` : "";
-const B_HORDE = new Set([2, 5, 6, 8]), B_ALLY = new Set([1, 3, 4, 7]); // Skyborne (95/96) can be either: no faction shown
+const B_HORDE = new Set([2, 5, 6, 8, 96]), B_ALLY = new Set([1, 3, 4, 7, 95]); // from playable-race: High Order Skyborne (95) is Alliance, Windshaper (96) Horde
 // Day-by-day counter of one character from glevels (hk, pd): [[day, gained]] for days that follow a synced day.
 function cDaily(slug, key) {
   const days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id) && d[key]?.[slug] != null).sort((a, b) => a.id < b.id ? -1 : 1);
