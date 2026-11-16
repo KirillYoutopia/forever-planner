@@ -457,7 +457,8 @@ create table if not exists public.bnet_ach (id bigint primary key, name text not
 alter table public.bnet_ach enable row level security;
 revoke all on public.bnet_ach from anon, authenticated;
 -- What the page reads: guild/dungeons {at, list: [[dungeon, achievement name], ...]}  every dungeon the game tracks, in order;
---   gchars/{slug}.dg  [[dungeon, times completed, done], ...]   and   gchars/{slug}.ach  [[achievement, completed at (ms)], ...]
+--   gchars/{slug}.dg  [[dungeon, times completed, done], ...]   and   gchars/{slug}.ach  [[achievement, completed at (ms), id], ...]
+--   (the id since 2026-11-17)
 
 -- 2026-11-14: quest progress per zone. Hidden caches: the game's zones with their quests, and each character's completed quests.
 create table if not exists public.bnet_quest_areas (id bigint primary key, name text not null, total int not null default 0, loaded boolean not null default false);
@@ -687,7 +688,7 @@ begin
       select h.status, h.content into st, body from http(('GET', base || '/achievements' || q, hdr, null, null)::http_request) h;
       if st = 200 then
         j := case when jsonb_typeof(body::jsonb->'achievements') = 'array' then body::jsonb->'achievements' else '[]'::jsonb end;
-        select coalesce(jsonb_agg(jsonb_build_array(x->'achievement'->'name', x->'completed_timestamp') order by (x->>'completed_timestamp')::numeric), '[]'::jsonb)
+        select coalesce(jsonb_agg(jsonb_build_array(x->'achievement'->'name', x->'completed_timestamp', x->'achievement'->'id') order by (x->>'completed_timestamp')::numeric), '[]'::jsonb)
           into ach
         from jsonb_array_elements(j) x where jsonb_typeof(x->'completed_timestamp') = 'number' and x->'achievement'->>'name' is not null;
         -- definitions of the Spelunker achievements this character has, fetched once each
@@ -1043,6 +1044,88 @@ revoke execute on function public.guild_recipes_fill(int) from public, anon, aut
 select cron.schedule('guild-recipes', '*/5 * * * *', 'select public.guild_recipes_fill(40)');
 
 select cron.schedule('guild-zones', '*/5 * * * *', 'select public.guild_zones_fill(30)');
+
+-- 2026-11-17: achievements on the character card with icon, category, description and points.
+-- Hidden caches, filled by guild_ach_fill every 5 minutes, one request per achievement / category / icon:
+--   bnet_ach_info  info: null = not fetched yet, {} = Blizzard has none, else {d: description, p: points, c: category id}
+--                  icon: null = not fetched yet, '' = none
+--   bnet_ach_cat   category name and its parent's name ('' = Blizzard has none)
+-- What the page reads: guild/achinfo {at, a: {achievement id: {d, p, c: "Parent / Category", icon}}}
+--   for every achievement a guild character has.
+create table if not exists public.bnet_ach_info (id bigint primary key, info jsonb, icon text);
+create table if not exists public.bnet_ach_cat (id bigint primary key, name text not null, parent text);
+alter table public.bnet_ach_info enable row level security;
+alter table public.bnet_ach_cat enable row level security;
+revoke all on public.bnet_ach_info, public.bnet_ach_cat from anon, authenticated;
+create or replace function public.guild_ach_fill(p_seconds int default 30)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare cid text; sec text; region text; st int; body text; hdr http_header[]; aid bigint; j jsonb; members jsonb;
+        t0 timestamptz := clock_timestamp(); lim interval := make_interval(secs => greatest(1, least(coalesce(p_seconds, 30), 50)));
+        now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
+begin
+  if not pg_try_advisory_xact_lock(4273003) then return jsonb_build_object('busy', true); end if;
+  select data->'members' into members from docs where coll = 'guild' and id = 'roster';
+  insert into bnet_ach_info (id)
+  select distinct (e->>2)::bigint from docs d, jsonb_array_elements(case when jsonb_typeof(d.data->'ach') = 'array' then d.data->'ach' else '[]'::jsonb end) e
+  where d.coll = 'gchars' and members ? d.id and e->>2 ~ '^[0-9]+$'
+  on conflict (id) do nothing;
+  if exists (select 1 from bnet_ach_info i where i.info is null or i.icon is null
+             or (i.info->>'c' ~ '^[0-9]+$' and not exists (select 1 from bnet_ach_cat c where c.id = (i.info->>'c')::bigint))) then
+    select v into cid from bnet_config where k = 'client_id';
+    select v into sec from bnet_config where k = 'client_secret';
+    if coalesce(cid, '') = '' or coalesce(sec, '') = '' then raise exception 'bnet_config: client_id / client_secret are not set'; end if;
+    region := coalesce((select v from bnet_config where k = 'region'), 'eu');
+    if region !~ '^[a-z]{2}$' then raise exception 'bnet_config: bad region'; end if;
+    perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+    select h.status, h.content into st, body from http(('POST', 'https://oauth.battle.net/token',
+      array[http_header('Authorization', 'Basic ' || replace(encode(convert_to(cid || ':' || sec, 'utf8'), 'base64'), E'\n', ''))],
+      'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
+    if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
+    hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
+    -- 1. description, points, category
+    for aid in select i.id from bnet_ach_info i where i.info is null order by i.id loop
+      exit when clock_timestamp() - t0 > lim;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/achievement/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      j := case when st = 200 then body::jsonb else '{}'::jsonb end;
+      update bnet_ach_info set info = jsonb_strip_nulls(jsonb_build_object('d', nullif(j->>'description', ''),
+        'p', case when jsonb_typeof(j->'points') = 'number' then j->'points' end,
+        'c', case when j->'category'->>'id' ~ '^[0-9]+$' then j->'category'->'id' end)) where id = aid;
+    end loop;
+    -- 2. categories, with the parent's name
+    for aid in select distinct (i.info->>'c')::bigint from bnet_ach_info i
+               where i.info->>'c' ~ '^[0-9]+$' and not exists (select 1 from bnet_ach_cat c where c.id = (i.info->>'c')::bigint) loop
+      exit when clock_timestamp() - t0 > lim;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/achievement-category/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      j := case when st = 200 then body::jsonb else '{}'::jsonb end;
+      insert into bnet_ach_cat (id, name, parent) values (aid, coalesce(j->>'name', ''), nullif(j->'parent_category'->>'name', ''))
+      on conflict (id) do nothing;
+    end loop;
+    -- 3. icons
+    for aid in select i.id from bnet_ach_info i where i.icon is null order by i.id loop
+      exit when clock_timestamp() - t0 > lim;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/media/achievement/%s?namespace=static-forever-%s', region, aid, region), hdr, null, null)::http_request) h;
+      continue when st not in (200, 404);
+      update bnet_ach_info set icon = case when st = 200 then coalesce((
+        select a->>'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'icon' limit 1), '') else '' end
+      where id = aid;
+    end loop;
+  end if;
+  insert into docs (coll, id, data)
+  select 'guild', 'achinfo', jsonb_build_object('at', now_ms, 'a', coalesce(jsonb_object_agg(i.id::text, jsonb_strip_nulls(jsonb_build_object(
+    'd', i.info->'d', 'p', i.info->'p', 'c', case when c.name <> '' then concat_ws(' / ', c.parent, c.name) end, 'icon', nullif(i.icon, '')))), '{}'::jsonb))
+  from bnet_ach_info i left join bnet_ach_cat c on c.id::text = i.info->>'c'
+  where i.info is not null
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now()
+  where docs.data->'a' is distinct from excluded.data->'a';  -- an idle run rewrites nothing
+  return jsonb_build_object('to_load', (select count(*) from bnet_ach_info i where i.info is null or i.icon is null));
+end $$;
+revoke execute on function public.guild_ach_fill(int) from public, anon, authenticated;
+select cron.schedule('guild-ach', '*/5 * * * *', 'select public.guild_ach_fill(30)');
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
