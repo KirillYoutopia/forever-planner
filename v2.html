@@ -726,6 +726,9 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .rf-reset { width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
 .rf-reset:hover { border-color: var(--accent); }
 .rcount { margin: 0 0 4px; }
+.rknown small { opacity: .7; font-variant-numeric: tabular-nums; }
+.rrow .rnone { color: var(--muted); text-align: right; }
+@media (max-width: 640px) { .rrow .rnone { text-align: left; } }
 @media (min-width: 900px) {
   .rcat { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px; align-items: start; }
   .rfilt { position: sticky; top: 16px; margin: 0; max-height: calc(100vh - 32px); overflow-y: auto; }
@@ -1124,6 +1127,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="panel" aria-labelledby="h-recipes" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-recipes">Рецепты гильдии</h2><span class="cap" id="recipes-cap"></span></div>
     <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off">
+      <div class="seg rknown" id="rknown" role="group" aria-label="Какие рецепты"></div>
       <label class="rsort"><span>Порядок</span><select id="rsort"><option value="cat">По категориям</option><option value="il">Уровень предмета ↓</option><option value="rl">Требуемый уровень ↑</option><option value="n">По названию</option></select></label></div>
     <div class="rchips" id="rprofs" role="group" aria-label="Профессия"></div>
     <div class="rcat">
@@ -2361,6 +2365,7 @@ document.addEventListener("click", e => {
   else if (act === "gchar") openCard(id);
   else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
+  else if (act === "rknown") { rKnown = b.dataset.v; renderRecipes(); }
   else if (act === "rfq") { const v = b.dataset.v; rFq.has(v) ? rFq.delete(v) : rFq.add(v); renderRecipes(); }
   else if (act === "rfkind") { rFkind = rFkind === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
   else if (act === "rfreset") {
@@ -3116,7 +3121,7 @@ function renderStats() {
 }
 // Recipes: grecipes/{slug} lists what each character knows, gcat/{Profession} has the names, categories and reagents.
 // Filters read the crafted item's tooltip lines (slot, "Requires Level N", "+N Stat"), all from Blizzard's API.
-let grec = {}, gcat = {}, rProf = "", rDrawn = "", rFkind = "";
+let grec = {}, gcat = {}, rProf = "", rDrawn = "", rFkind = "", rKnown = "known"; // rKnown: known | un (nobody knows it) | all
 const rFq = new Set(), rOptH = {};
 const R_ALL = "*"; // the "Все" chip
 const R_Q = [["POOR", "Серое"], ["COMMON", "Белое"], ["UNCOMMON", "Зелёное"], ["RARE", "Синее"], ["EPIC", "Фиолетовое"], ["LEGENDARY", "Оранжевое"]];
@@ -3145,7 +3150,7 @@ function renderRecipes() {
   const mem = guild?.members || {}, q = $("#rq").value.trim().toLowerCase();
   const f = { cat: $("#rf-cat").value, slot: $("#rf-slot").value, stat: $("#rf-stat").value, who: $("#rf-who").value, sort: $("#rsort").value || "cat",
     il0: rNum("rf-il0"), il1: rNum("rf-il1"), rl0: rNum("rf-rl0"), rl1: rNum("rf-rl1") };
-  const key = [q, rProf, JSON.stringify(f), [...rFq].join(), rFkind, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at),
+  const key = [q, rProf, rKnown, JSON.stringify(f), [...rFq].join(), rFkind, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at),
     players.map(p => `${p.id}:${p.char}+${altsOf(p).join("+")}`).join()].join("|");
   if (key === rDrawn) return; // the list can be long: redraw only when the data or the filter changed
   rDrawn = key;
@@ -3165,31 +3170,39 @@ function renderRecipes() {
     return;
   }
   if (rProf !== R_ALL && !profs.includes(rProf)) rProf = profs[0];
-  const all = [];
-  for (const pr of profs) for (const [id, who] of Object.entries(by[pr])) {
-    const r = info(pr, id);
-    all.push({ pr, id, r, who, re: Array.isArray(r.re) ? r.re : [], cat: r.c || "Другое", n: r.n || `Рецепт ${id}`, m: rMeta(r) });
+  const all = [], row = (pr, id, who) => { const r = info(pr, id); return { pr, id, r, who, un: !who.length, re: Array.isArray(r.re) ? r.re : [], cat: r.c || "Другое", n: r.n || `Рецепт ${id}`, m: rMeta(r) }; };
+  for (const pr of profs) {
+    for (const [id, who] of Object.entries(by[pr])) all.push(row(pr, id, who));
+    for (const id of Object.keys(gcat[pr]?.r || {})) if (!by[pr][id] && (info(pr, id).n || "") !== pr) all.push(row(pr, id, []));
   }
+  const cnt = pr => all.filter(x => x.pr === pr).length, known = all.filter(x => !x.un);
+  const inMode = x => rKnown === "all" || (rKnown === "un") === x.un, nMode = pr => all.filter(x => (!pr || x.pr === pr) && inMode(x)).length;
+  // who has the profession, for the recipes nobody knows yet
+  const hasProf = {};
+  for (const [sl, c] of Object.entries(gchars)) if (mem[sl]) for (const p of Object.keys(c.profs || {})) (hasProf[p] ||= []).push(sl);
   // summary: tiles, recipes per profession, quality of what the guild crafts
-  const crafters = new Set(all.flatMap(x => x.who)), qn = {};
-  for (const x of all) if (x.r.iq) qn[x.r.iq] = (qn[x.r.iq] || 0) + 1;
-  const qAll = Object.values(qn).reduce((a, b) => a + b, 0), maxP = Math.max(...profs.map(pr => Object.keys(by[pr]).length));
+  const crafters = new Set(known.flatMap(x => x.who)), qn = {};
+  for (const x of known) if (x.r.iq) qn[x.r.iq] = (qn[x.r.iq] || 0) + 1;
+  const qAll = Object.values(qn).reduce((a, b) => a + b, 0), cat = all.length > known.length; // the catalogue is loaded
   const topOf = pr => { const n = {}; for (const w of Object.values(by[pr])) for (const s of w) n[s] = (n[s] || 0) + 1; return Object.entries(n).sort((a, b) => b[1] - a[1])[0]; };
-  $("#rsum").innerHTML = cTiles([["Рецептов", fmtN(total)], ["Профессий", fmtN(profs.length)], ["Мастеров", fmtN(crafters.size)],
-      ["Синих и лучше", fmtN((qn.RARE || 0) + (qn.EPIC || 0) + (qn.LEGENDARY || 0))], ["Чар и без предмета", fmtN(all.filter(x => x.m.kind === "ench").length)]])
-    + `<div class="rsum"><div><h4 class="cc-h4">Рецептов по профессиям</h4>${profs.map(pr => { const n = Object.keys(by[pr]).length, t = topOf(pr);
-        return cBar(`<button type="button" class="glink" data-act="rprof" data-prof="${esc(pr)}">${esc(pr)}</button>`, `<b>${fmtN(n)}</b>${t ? ` · больше всех ${esc(name(t[0]))} (${fmtN(t[1])})` : ""}`, n / maxP * 100, "var(--accent)"); }).join("")}</div>
+  $("#rsum").innerHTML = cTiles([["Изучено рецептов", fmtN(total)], ["В каталоге", cat ? fmtN(all.length) : null], ["Каталог закрыт", cat ? `${Math.floor(total / all.length * 100)}%` : null],
+      ["Мастеров", fmtN(crafters.size)], ["Синих и лучше", fmtN((qn.RARE || 0) + (qn.EPIC || 0) + (qn.LEGENDARY || 0))]])
+    + `<div class="rsum"><div><h4 class="cc-h4">${cat ? "Изучено из каталога профессии" : "Рецептов по профессиям"}</h4>${profs.map(pr => { const n = Object.keys(by[pr]).length, m = cnt(pr), t = topOf(pr);
+        return cBar(`<button type="button" class="glink" data-act="rprof" data-prof="${esc(pr)}">${esc(pr)}</button>`, `<b>${fmtN(n)}</b>${cat ? ` из ${fmtN(m)}` : ""}${t ? ` · больше всех ${esc(name(t[0]))} (${fmtN(t[1])})` : ""}`, cat ? n / m * 100 : n / Math.max(...profs.map(p => Object.keys(by[p]).length)) * 100, "var(--accent)"); }).join("")}</div>
       ${qAll ? `<div><h4 class="cc-h4">Качество создаваемых предметов</h4><div class="rqbar">${R_Q.filter(([k]) => qn[k]).map(([k, t]) => `<i class="rq-${k}" style="flex:${qn[k]}" title="${t}: ${qn[k]}"></i>`).join("")}</div>
         <ul class="rqleg">${R_Q.filter(([k]) => qn[k]).map(([k, t]) => `<li class="rq-${k}"><i></i>${t}<b>${fmtN(qn[k])}</b></li>`).join("")}</ul></div>` : ""}</div>`;
-  $("#rprofs").innerHTML = [[R_ALL, "Все", total], ...profs.map(pr => [pr, pr, Object.keys(by[pr]).length])].map(([v, t, n]) =>
+  $("#rknown").innerHTML = [["known", "Изученные", known.length], ["un", "Неизученные", all.length - known.length], ["all", "Все", all.length]].map(([v, t, n]) =>
+    `<button type="button" data-act="rknown" data-v="${v}" aria-pressed="${rKnown === v}">${t} <small>${fmtN(n)}</small></button>`).join("");
+  $("#rprofs").innerHTML = [[R_ALL, "Все", nMode("")], ...profs.map(pr => [pr, pr, nMode(pr)]).filter(([v, , n]) => n || v === rProf)].map(([v, t, n]) =>
     `<button type="button" data-act="rprof" data-prof="${esc(v)}" aria-pressed="${(q ? R_ALL : rProf) === v}">${esc(t)}<small>${n}</small></button>`).join("");
   // filter options come from what is in scope (the chosen profession, or every profession while searching)
-  const scope = all.filter(x => q || rProf === R_ALL || x.pr === rProf), uniq = l => [...new Set(l.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const scope = all.filter(x => inMode(x) && (q || rProf === R_ALL || x.pr === rProf)), uniq = l => [...new Set(l.filter(Boolean))].sort((a, b) => a.localeCompare(b));
   rOpts("rf-cat", uniq(scope.map(x => x.cat)), "Любая");
   rOpts("rf-slot", uniq(scope.map(x => x.m.slot)), "Любой");
   rOpts("rf-stat", uniq(scope.flatMap(x => x.m.stats)), "Любая");
   const scopeWho = new Set(scope.flatMap(x => x.who)), live = players.filter(p => !p.deleted);
   const pChars = p => [p.char, ...altsOf(p)].filter(s => scopeWho.has(s)), owned = new Set(live.flatMap(pChars));
+  $("#rf-who").disabled = rKnown === "un"; // nobody knows these
   rOpts("rf-who", [...live.filter(p => pChars(p).length).map(p => ["p:" + p.id, `${p.name} (все персонажи)`]),
     ...[...scopeWho].filter(s => !owned.has(s)).sort((a, b) => name(a).localeCompare(name(b))).map(s => ["c:" + s, name(s)])], "Кто угодно");
   const qs = R_Q.filter(([k]) => scope.some(x => x.r.iq === k));
@@ -3200,8 +3213,8 @@ function renderRecipes() {
   const inR = (v, lo, hi) => (lo == null && hi == null) || (v != null && (lo == null || v >= lo) && (hi == null || v <= hi));
   const rows = scope.filter(x => (!q || [x.r.n, x.r.i, x.r.ds, ...x.re.map(y => y[0])].some(t => String(t || "").toLowerCase().includes(q)))
     && (!f.cat || x.cat === f.cat) && (!rFq.size || rFq.has(x.r.iq)) && inR(x.m.il, f.il0, f.il1) && inR(x.m.rl, f.rl0, f.rl1)
-    && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || x.who.some(s => whoSet.has(s))));
-  const nf = [f.cat, f.slot, f.stat, f.who, rFkind, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
+    && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || rKnown === "un" || x.who.some(s => whoSet.has(s))));
+  const nf = [f.cat, f.slot, f.stat, rKnown !== "un" && f.who, rFkind, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
   $("#rfn").textContent = nf ? ` · ${nf}` : "";
   const multi = q || rProf === R_ALL, by2 = (a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n);
   rows.sort(f.sort === "il" ? (a, b) => (b.m.il ?? -1) - (a.m.il ?? -1) || a.n.localeCompare(b.n)
@@ -3216,10 +3229,12 @@ function renderRecipes() {
     html += `<div class="rrow${x.r.iq ? " rq-" + esc(x.r.iq) : ""}"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
       <div><b class="rn${tip ? " rtip" : ""}"${tip ? tip.replace(' tabindex="0"', "") : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}<a class="rwh" href="${esc(wh)}" target="_blank" rel="noopener" aria-label="${esc(x.n)} на Wowhead">Wowhead ↗</a>
       ${meta ? `<small class="rmeta">${esc(meta)}</small>` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small></div>
-      <div class="rw">${x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}">${esc(name(sl))}</button>`).join("")}</div></div>`;
+      <div class="rw">${x.un ? `<small class="rnone">Никто не знает${hasProf[x.pr]?.length ? `. Профессия есть у: ${esc(hasProf[x.pr].map(name).sort((a, b) => a.localeCompare(b)).join(", "))}` : ""}</small>`
+        : x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}">${esc(name(sl))}</button>`).join("")}</div></div>`;
   }
-  $("#rlist").innerHTML = rows.length ? `<p class="gnote rcount">Найдено: ${fmtN(rows.length)}</p>` + html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос или фильтры.</p>` : "")
-    : `<p class="empty">${q && !nf ? `Ничего не нашлось. Никто в гильдии пока не умеет делать «${esc(q)}».` : "Под эти фильтры ничего не подходит."}</p>`;
+  const unNote = rKnown !== "known" ? `<p class="gnote">Неизученные — остальные рецепты из каталога профессии в Blizzard API. Откуда берётся рецепт (тренер, продавец, добыча, задание), API не говорит: смотри на Wowhead, на странице предмета в разделе «Created by».${all.some(x => x.un && !x.r.ok) ? " Детали неизученных ещё загружаются, по порциям каждые 5 минут." : ""}</p>` : "";
+  $("#rlist").innerHTML = rows.length ? unNote + `<p class="gnote rcount">Найдено: ${fmtN(rows.length)}</p>` + html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос или фильтры.</p>` : "")
+    : unNote + `<p class="empty">${rKnown === "un" && !all.some(x => x.un) ? "Каталог профессий ещё не загружен: неизученные рецепты появятся после следующей загрузки." : q && !nf ? `Ничего не нашлось${rKnown === "known" ? `. Никто в гильдии пока не умеет делать «${esc(q)}»` : ""}.` : "Под эти фильтры ничего не подходит."}</p>`;
 }
 $("#rq").addEventListener("input", renderRecipes);
 for (const ev of ["input", "change"]) $("#rfilt").addEventListener(ev, renderRecipes);

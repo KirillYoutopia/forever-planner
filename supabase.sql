@@ -449,7 +449,8 @@ revoke all on public.bnet_recipes, public.bnet_prof_cat from anon, authenticated
 --   grecipes/{slug}     {at, r: {Profession: [recipe id, ...]}}   the recipes a level 10+ character knows
 --   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, ok (details loaded), i, iid, q, ds, re, icon, iq, il, tip}}}
 --                       (iid, the crafted item's id, since 2026-11-18: the page links it to Wowhead)
---                       details of the recipes someone in the guild knows
+--                       details of the recipes someone in the guild knows and, since 2026-11-18, of the rest of the catalogue
+--                       of the guild's professions (the page tells them apart with grecipes)
 
 -- 2026-11-14: dungeons per character come from the "Spelunker" achievements, whose criteria are the dungeons themselves
 -- (Excavation Site: Wetlands, each Scarlet Monastery wing, ...) with a completion count.
@@ -966,6 +967,8 @@ end $$;
 revoke execute on function public.guild_sync() from public, anon, authenticated;
 
 -- Loads what is still missing for the recipes guild members know, for at most p_seconds, then publishes gcat/{Profession}.
+-- 2026-11-18: also every other recipe in the catalogue of a profession someone in the guild has (cat is set for those),
+-- for the "not learned yet" list; the known ones are loaded first.
 -- Three kinds of request, in this order: recipe details (reagents, description), recipe icons, crafted item tooltips.
 -- Does nothing (and makes no request) when everything is loaded. Returns how many recipes still miss something.
 create or replace function public.guild_recipes_fill(p_seconds int default 40)
@@ -979,7 +982,7 @@ begin
   select array_agg(distinct (e.value #>> '{}')::bigint) into known
   from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
   where d.coll = 'grecipes' and members ? d.id;
-  select count(*) into todo from bnet_recipes b where b.id = any(known) and (b.detail is null or b.icon is null or b.item is null);
+  select count(*) into todo from bnet_recipes b where (b.id = any(known) or b.cat is not null) and (b.detail is null or b.icon is null or b.item is null);
   if coalesce(todo, 0) > 0 then
     select v into cid from bnet_config where k = 'client_id';
     select v into sec from bnet_config where k = 'client_secret';
@@ -993,7 +996,7 @@ begin
     if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
     hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
     -- 1. recipe details
-    for rid in select b.id from bnet_recipes b where b.id = any(known) and b.detail is null order by b.id loop
+    for rid in select b.id from bnet_recipes b where (b.id = any(known) or b.cat is not null) and b.detail is null order by (b.id = any(known)) desc nulls last, b.id loop
       exit when clock_timestamp() - t0 > lim;
       select h.status, h.content into st, body from http(('GET',
         format('https://%s.api.blizzard.com/data/wow/recipe/%s?namespace=static-forever-%s&locale=en_US', region, rid, region), hdr, null, null)::http_request) h;
@@ -1007,7 +1010,7 @@ begin
       where id = rid;
     end loop;
     -- 2. recipe icons
-    for rid in select b.id from bnet_recipes b where b.id = any(known) and b.icon is null order by b.id loop
+    for rid in select b.id from bnet_recipes b where (b.id = any(known) or b.cat is not null) and b.icon is null order by (b.id = any(known)) desc nulls last, b.id loop
       exit when clock_timestamp() - t0 > lim;
       select h.status, h.content into st, body from http(('GET',
         format('https://%s.api.blizzard.com/data/wow/media/recipe/%s?namespace=static-forever-%s', region, rid, region), hdr, null, null)::http_request) h;
@@ -1018,7 +1021,7 @@ begin
     end loop;
     -- 3. tooltip of the crafted item (the same lines as on the character sheet)
     for rid, iid in select b.id, (b.detail->>'iid')::bigint from bnet_recipes b
-                    where b.id = any(known) and b.item is null and b.detail->>'iid' ~ '^[0-9]+$' order by b.id loop
+                    where (b.id = any(known) or b.cat is not null) and b.item is null and b.detail->>'iid' ~ '^[0-9]+$' order by (b.id = any(known)) desc nulls last, b.id loop
       exit when clock_timestamp() - t0 > lim;
       select h.status, h.content into st, body from http(('GET',
         format('https://%s.api.blizzard.com/data/wow/item/%s?namespace=static-forever-%s&locale=en_US', region, iid, region), hdr, null, null)::http_request) h;
@@ -1034,12 +1037,12 @@ begin
   select 'gcat', b.prof, jsonb_build_object('at', now_ms, 'r', jsonb_object_agg(b.id::text,
     jsonb_strip_nulls(jsonb_build_object('n', b.name, 'c', b.cat, 'icon', nullif(b.icon, ''), 'ok', case when b.detail is not null then true end))
       || (coalesce(b.detail, '{}'::jsonb) - 'v') || coalesce(b.item, '{}'::jsonb)))
-  from bnet_recipes b where b.id = any(known)
+  from bnet_recipes b where b.id = any(known) or b.cat is not null
   group by b.prof
   on conflict (coll, id) do update set data = excluded.data, updated_at = now()
   where docs.data->'r' is distinct from excluded.data->'r';  -- an idle run rewrites nothing
   return jsonb_build_object('recipes_to_load', (select count(*) from bnet_recipes b
-    where b.id = any(known) and (b.detail is null or b.icon is null or b.item is null)));
+    where (b.id = any(known) or b.cat is not null) and (b.detail is null or b.icon is null or b.item is null)));
 end $$;
 revoke execute on function public.guild_recipes_fill(int) from public, anon, authenticated;
 select cron.schedule('guild-recipes', '*/5 * * * *', 'select public.guild_recipes_fill(40)');
