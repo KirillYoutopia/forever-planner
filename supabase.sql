@@ -143,12 +143,12 @@ on conflict (player_id) do nothing;
 drop function if exists public.patch_doc(text, text, jsonb);  -- the old version without a login
 create or replace function public.patch_doc(p_token text, p_coll text, p_id text, p_patch jsonb)
 returns void language plpgsql security definer set search_path = public as $$
-declare s record; owner text;
+declare s record; owner text; od jsonb;
 begin
   select * into s from auth_session(p_token);
   if s.pid is null then raise exception 'login required'; end if;
   if s.must_change then raise exception 'change password first'; end if;
-  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths', 'bets', 'fame', 'rolls', 'pays') then
+  if p_coll not in ('players', 'votes', 'meta', 'tasks', 'goals', 'wants', 'deaths', 'bets', 'fame', 'rolls', 'pays', 'orders') then
     raise exception 'unknown collection %', p_coll;
   end if;
   -- Roll to Death duels are created and rolled only by deathroll_new / deathroll_roll; the page may only hide one.
@@ -177,6 +177,35 @@ begin
     if not s.admin and s.pid not in (p_patch->>'from', p_patch->>'to') then raise exception 'not yours'; end if;
   end if;
   if jsonb_typeof(p_patch) <> 'object' or octet_length(p_patch::text) > 20000 then raise exception 'bad patch'; end if;
+  -- 2026-11-18: craft orders ("Заявки на крафт"). The author creates, comments and cancels; a player one of whose characters
+  -- (main or twink) knows the recipe takes it and marks it done. Profession and recipe never change after creation.
+  if p_coll = 'orders' then
+    if exists (select 1 from jsonb_object_keys(p_patch) k where k not in ('by', 'prof', 'rid', 'n', 'note', 'st', 'taker', 'at', 'doneAt', 'deleted'))
+       or coalesce(p_patch->>'st', 'open') not in ('open', 'taken', 'done') or char_length(coalesce(p_patch->>'note', '')) > 200
+       or char_length(coalesce(p_patch->>'n', '')) > 120 then
+      raise exception 'bad order';
+    end if;
+    select data into od from docs where coll = 'orders' and id = p_id;
+    if od is null and (coalesce(p_patch->>'rid', '') !~ '^[0-9]{1,12}$' or coalesce(p_patch->>'prof', '') = '' or char_length(p_patch->>'prof') > 40) then
+      raise exception 'bad order';
+    end if;
+    if od is not null and (p_patch ? 'by' or p_patch ? 'prof' or p_patch ? 'rid') then raise exception 'bad order'; end if;
+    if not s.admin then
+      if od is null then
+        if p_patch->>'by' is distinct from s.pid or coalesce(p_patch->>'st', 'open') <> 'open' or p_patch ? 'taker' then raise exception 'not yours'; end if;
+      elsif od->>'by' is distinct from s.pid then
+        if exists (select 1 from jsonb_object_keys(p_patch) k where k not in ('st', 'taker', 'doneAt')) then raise exception 'not yours'; end if;
+        if coalesce(od->>'taker', '') not in ('', s.pid) or coalesce(p_patch->>'taker', s.pid) not in ('', s.pid) then raise exception 'not yours'; end if;
+        if not exists (select 1 from docs p, docs g where p.coll = 'players' and p.id = s.pid and g.coll = 'grecipes'
+                       and (g.id = p.data->>'char' or coalesce((p.data->'alts'->>g.id)::boolean, false))
+                       and g.data->'r'->(od->>'prof') @> to_jsonb((od->>'rid')::bigint)) then
+          raise exception 'cannot craft';
+        end if;
+      elsif coalesce(p_patch->>'taker', '') not in ('', s.pid) then
+        raise exception 'not yours';
+      end if;
+    end if;
+  end if;
   if p_coll = 'votes' then
     if not exists (select 1 from docs where coll = 'players' and id = p_id
                    and not coalesce((data->>'deleted')::boolean, false)) then
@@ -297,6 +326,8 @@ on conflict (coll, id) do update
 -- 2026-10-23: Таверна (Roll to Death), Ставки, Зал славы.
 --   bets/{id}  {q, opts: [text], picks: {playerId: optionIndex | -1}, result: optionIndex | -1, resolvedAt, at}
 --   bets also get stakes: {playerId: silver}. pays/{id} {from, to, s (silver), by, at}: "Рассчитались" settlements.
+--   2026-11-18: orders/{id} {by, prof, rid (recipe id), n (recipe name), note, st: open | taken | done, taker, doneAt, at, deleted}:
+--   craft orders on the "Профессии" page (rules in patch_doc). players/{id}.fav {"Profession:recipe id": true | false} = favourites.
 --   fame/{id}  {who: playerId | "" (whole group), title, icon, at, auto}. Auto ids are deterministic (e.g. lvl20_p_kirill).
 --   rolls/{id} {a, b, start, stakeS, rolls: [{by, max, r, at}], winner, loser, endedAt, at}. Written only by the functions
 --   below, so the dice are rolled on the server and turns are enforced. stakeS is in silver (1 gold = 100 silver);

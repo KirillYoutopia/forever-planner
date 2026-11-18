@@ -727,6 +727,18 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .rf-reset:hover { border-color: var(--accent); }
 .rcount { margin: 0 0 4px; }
 .rknown small { opacity: .7; font-variant-numeric: tabular-nums; }
+.racts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 5px; }
+.rfav { min-width: 30px; min-height: 28px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; }
+.rfav[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+.rordb, .rob { min-height: 28px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); color: var(--fg); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.rordb:hover, .rob:hover, .rfav:hover { border-color: var(--accent); }
+.rordb.on { border-color: var(--accent); color: var(--accent); }
+.rob.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.rordtag { font-size: 12px; color: var(--accent); }
+.rost { color: var(--muted); } .rost.taken { color: var(--accent); } .rost.done { color: var(--healer); }
+.rinl { display: inline !important; }
+.ronote { display: block; width: 100%; max-width: 440px; min-height: 32px; margin: 5px 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); color: var(--fg); font: inherit; font-size: 13px; }
+#rorders .rw { gap: 6px; }
 .rrow .rnone { color: var(--muted); text-align: right; }
 @media (max-width: 640px) { .rrow .rnone { text-align: left; } }
 @media (min-width: 900px) {
@@ -1103,6 +1115,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div id="rsum"></div>
   </section>
 
+  <section class="panel" aria-labelledby="h-orders" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-orders">Заявки на крафт</h2><span class="cap">Нужен предмет или чары? Найди рецепт в каталоге ниже и нажми «Заказать»</span></div>
+    <div id="rorders"></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-gprofs" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
     <div id="gprofs"></div>
@@ -1140,6 +1157,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
         <label class="rf"><span>Характеристика</span><select id="rf-stat"></select></label>
         <label class="rf"><span>Кто умеет</span><select id="rf-who"></select></label>
         <div class="rf"><span>Что получается</span><div class="rchips sm" id="rf-kind" role="group" aria-label="Что получается"></div></div>
+        <div class="rf"><span>Показать только</span><div class="rchips sm" id="rf-only" role="group" aria-label="Показать только"></div></div>
         <button type="button" class="rf-reset" data-act="rfreset">Сбросить фильтры</button>
       </details>
       <div id="rlist"></div>
@@ -1738,7 +1756,7 @@ const DUNGEONS = [
 const RAIDS = [ // WoW Forever, открываются 9 декабря
   { id: "barrow", name: "Barrow Deeps", size: 10 }, { id: "hyjal", name: "Hyjal Summit", size: 20 }, { id: "ony", name: "Onyxia's Lair", size: 40 },
 ];
-let wants = [], deaths = [], tasks = [], goals = [];
+let wants = [], deaths = [], tasks = [], goals = [], orders = []; // orders: craft orders on the "Профессии" page
 const live = docs => docs.map(d => ({ id: d.id, ...d.data() })).filter(x => !x.deleted);
 // A player's level comes from their linked guild character (players.char = character slug); the old manual level is the fallback.
 const altsOf = p => Object.keys(p?.alts || {}).filter(s => p.alts[s] && s !== p.char); // twinks: players.alts = { slug: true }
@@ -2366,10 +2384,21 @@ document.addEventListener("click", e => {
   else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
   else if (act === "rknown") { rKnown = b.dataset.v; renderRecipes(); }
+  else if (act === "rfonly") { rFonly = rFonly === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
+  else if (act === "rfav") { const p = players.find(x => x.id === auth?.player); if (p) setDoc("players", p.id, { fav: { [b.dataset.k]: !(p.fav || {})[b.dataset.k] } }); }
+  else if (act === "rord" && auth) {
+    const [prof, rid] = b.dataset.k.split(":");
+    addDoc("orders", { by: auth.player, prof, rid, n: String(gcat[prof]?.r?.[rid]?.n || "").slice(0, 120), st: "open" });
+    toast("Заявка создана. Её видно в блоке «Заявки на крафт» наверху.");
+  }
+  else if (act === "rordtake" && auth) setDoc("orders", id, { st: "taken", taker: auth.player });
+  else if (act === "rorddone") setDoc("orders", id, { st: "done", doneAt: Date.now() });
+  else if (act === "rordfree") setDoc("orders", id, { st: "open", taker: "" });
+  else if (act === "rorddel") setDoc("orders", id, { deleted: true });
   else if (act === "rfq") { const v = b.dataset.v; rFq.has(v) ? rFq.delete(v) : rFq.add(v); renderRecipes(); }
   else if (act === "rfkind") { rFkind = rFkind === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
   else if (act === "rfreset") {
-    rFq.clear(); rFkind = "";
+    rFq.clear(); rFkind = ""; rFonly = "";
     for (const el of $("#rfilt").querySelectorAll("input, select")) el.value = "";
     renderRecipes();
   }
@@ -3121,7 +3150,7 @@ function renderStats() {
 }
 // Recipes: grecipes/{slug} lists what each character knows, gcat/{Profession} has the names, categories and reagents.
 // Filters read the crafted item's tooltip lines (slot, "Requires Level N", "+N Stat"), all from Blizzard's API.
-let grec = {}, gcat = {}, rProf = "", rDrawn = "", rFkind = "", rKnown = "known"; // rKnown: known | un (nobody knows it) | all
+let grec = {}, gcat = {}, rProf = "", rDrawn = "", rFkind = "", rFonly = "", rKnown = "known"; // rKnown: known | un (nobody knows it) | all
 const rFq = new Set(), rOptH = {};
 const R_ALL = "*"; // the "Все" chip
 const R_Q = [["POOR", "Серое"], ["COMMON", "Белое"], ["UNCOMMON", "Зелёное"], ["RARE", "Синее"], ["EPIC", "Фиолетовое"], ["LEGENDARY", "Оранжевое"]];
@@ -3150,7 +3179,8 @@ function renderRecipes() {
   const mem = guild?.members || {}, q = $("#rq").value.trim().toLowerCase();
   const f = { cat: $("#rf-cat").value, slot: $("#rf-slot").value, stat: $("#rf-stat").value, who: $("#rf-who").value, sort: $("#rsort").value || "cat",
     il0: rNum("rf-il0"), il1: rNum("rf-il1"), rl0: rNum("rf-rl0"), rl1: rNum("rf-rl1") };
-  const key = [q, rProf, rKnown, JSON.stringify(f), [...rFq].join(), rFkind, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at),
+  const meP = auth && !readOnly ? players.find(p => p.id === auth.player) || null : null, fav = meP?.fav || {};
+  const key = [q, rProf, rKnown, rFonly, auth?.player, auth?.admin, readOnly, JSON.stringify(fav), orders.map(o => [o.id, o.st, o.taker, o.note].join(":")).join(), JSON.stringify(f), [...rFq].join(), rFkind, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at),
     players.map(p => `${p.id}:${p.char}+${altsOf(p).join("+")}`).join()].join("|");
   if (key === rDrawn) return; // the list can be long: redraw only when the data or the filter changed
   rDrawn = key;
@@ -3177,6 +3207,37 @@ function renderRecipes() {
   }
   const cnt = pr => all.filter(x => x.pr === pr).length, known = all.filter(x => !x.un);
   const inMode = x => rKnown === "all" || (rKnown === "un") === x.un, nMode = pr => all.filter(x => (!pr || x.pr === pr) && inMode(x)).length;
+  // craft orders: for me (one of my characters knows the recipe), mine, the rest; finished ones folded
+  const rk = x => `${x.pr}:${x.id}`, rmap = new Map(all.map(x => [rk(x), x])), ordBy = {};
+  const live_ = orders.filter(o => o.st !== "done").sort((a, b) => (b.at || 0) - (a.at || 0));
+  for (const o of live_) (ordBy[`${o.prof}:${o.rid}`] ||= []).push(o);
+  const myChars = new Set(meP ? [meP.char, ...altsOf(meP)].filter(Boolean) : []);
+  const crafters_ = o => by[o.prof]?.[o.rid] || [], iCan = o => crafters_(o).some(sl => myChars.has(sl));
+  const ordCard = o => {
+    const x = rmap.get(`${o.prof}:${o.rid}`), rr = x?.r || {}, who = crafters_(o), own = meP && (o.by === meP.id || auth.admin);
+    let d = ""; try { d = new Date(o.at).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); } catch {}
+    const st = o.st === "done" ? `<b class="rost done">Готово</b>` : o.st === "taken" ? `<b class="rost taken">Взял ${esc(nameOf(o.taker))}</b>` : `<b class="rost">Ждёт мастера</b>`;
+    const btn = (a, t, c = "") => `<button type="button" class="rob${c}" data-act="${a}" data-id="${esc(o.id)}">${t}</button>`, bs = [];
+    if (meP && o.st === "open" && (iCan(o) || auth.admin)) bs.push(btn("rordtake", "Беру", " pri"));
+    if (meP && o.st === "taken" && (o.taker === meP.id || own)) bs.push(btn("rorddone", "Готово", " pri"));
+    if (meP && o.st === "taken" && (o.taker === meP.id || auth.admin)) bs.push(btn("rordfree", "Отказаться"));
+    if (own && o.st !== "done") bs.push(btn("rorddel", "Отменить"));
+    return `<div class="rrow rord${rr.iq ? " rq-" + esc(rr.iq) : ""}"><span class="ri">${bimg(rr.icon) ? `<img src="${bimg(rr.icon)}" alt="" loading="lazy">` : ""}</span>
+      <div><b class="rn">${esc(o.n || x?.n || "Рецепт")}</b> <small class="rinl">${esc(o.prof)}</small>
+      <small>от <b>${esc(nameOf(o.by))}</b>${d ? ` · ${d}` : ""} · ${st}</small>
+      ${meP && o.by === meP.id && o.st !== "done" ? `<input class="ronote" data-ord="${esc(o.id)}" maxlength="200" placeholder="Комментарий: на что, свои материалы…" value="${esc(o.note || "")}" aria-label="Комментарий к заявке">`
+        : o.note ? `<small class="rds">«${esc(o.note)}»</small>` : ""}
+      <small>${who.length ? `Умеют: ${esc(who.map(name).sort((a, b) => a.localeCompare(b)).join(", "))}` : "Пока никто в гильдии не умеет"}</small></div>
+      <div class="rw">${bs.join("")}</div></div>`;
+  };
+  const forMe = meP ? live_.filter(o => o.by !== meP.id && (iCan(o) || o.taker === meP.id)) : [], myO = meP ? live_.filter(o => o.by === meP.id) : [];
+  const rest = live_.filter(o => !forMe.includes(o) && !myO.includes(o));
+  const done = orders.filter(o => o.st === "done").sort((a, b) => (b.doneAt || b.at || 0) - (a.doneAt || a.at || 0)).slice(0, 20);
+  const grp = (t, l, empty) => l.length || empty ? `<h4 class="cc-h4">${t}${l.length ? ` · ${l.length}` : ""}</h4>${l.length ? l.map(ordCard).join("") : `<p class="gnote">${empty}</p>`}` : "";
+  $("#rorders").innerHTML = (meP ? grp("Мне заказали", forMe, "У твоих персонажей пока ничего не заказали.") + grp("Мои заявки", myO, "Ты пока ничего не заказал.")
+      : `<p class="gnote">Чтобы заказывать рецепты и брать заявки, войди: ссылка «I'm kute expat» внизу справа.</p>`)
+    + grp(meP ? "Остальные заявки" : "Заявки гильдии", rest, meP ? "" : "Открытых заявок нет.")
+    + (done.length ? `<details class="gtable"><summary>Выполненные · ${done.length}</summary>${done.map(ordCard).join("")}</details>` : "");
   // who has the profession, for the recipes nobody knows yet
   const hasProf = {};
   for (const [sl, c] of Object.entries(gchars)) if (mem[sl]) for (const p of Object.keys(c.profs || {})) (hasProf[p] ||= []).push(sl);
@@ -3207,14 +3268,15 @@ function renderRecipes() {
     ...[...scopeWho].filter(s => !owned.has(s)).sort((a, b) => name(a).localeCompare(name(b))).map(s => ["c:" + s, name(s)])], "Кто угодно");
   const qs = R_Q.filter(([k]) => scope.some(x => x.r.iq === k));
   $("#rf-q").innerHTML = qs.map(([k, t]) => `<button type="button" class="rq-${k}" data-act="rfq" data-v="${k}" aria-pressed="${rFq.has(k)}"><i></i>${t}</button>`).join("");
+  $("#rf-only").innerHTML = [...(meP ? [["fav", "★ Избранное"]] : []), ["ord", "С заявками"]].map(([k, t]) => `<button type="button" data-act="rfonly" data-v="${k}" aria-pressed="${rFonly === k}">${t}</button>`).join("");
   $("#rf-kind").innerHTML = [["item", "Предмет"], ["ench", "Чары, без предмета"]].map(([k, t]) => `<button type="button" data-act="rfkind" data-v="${k}" aria-pressed="${rFkind === k}">${t}</button>`).join("");
   // the filters themselves
   const whoSet = f.who.startsWith("p:") ? new Set(pChars(live.find(p => p.id === f.who.slice(2)) || {})) : f.who.startsWith("c:") ? new Set([f.who.slice(2)]) : null;
   const inR = (v, lo, hi) => (lo == null && hi == null) || (v != null && (lo == null || v >= lo) && (hi == null || v <= hi));
   const rows = scope.filter(x => (!q || [x.r.n, x.r.i, x.r.ds, ...x.re.map(y => y[0])].some(t => String(t || "").toLowerCase().includes(q)))
     && (!f.cat || x.cat === f.cat) && (!rFq.size || rFq.has(x.r.iq)) && inR(x.m.il, f.il0, f.il1) && inR(x.m.rl, f.rl0, f.rl1)
-    && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || rKnown === "un" || x.who.some(s => whoSet.has(s))));
-  const nf = [f.cat, f.slot, f.stat, rKnown !== "un" && f.who, rFkind, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
+    && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || rKnown === "un" || x.who.some(s => whoSet.has(s))) && (rFonly !== "fav" || fav[rk(x)]) && (rFonly !== "ord" || ordBy[rk(x)]));
+  const nf = [f.cat, f.slot, f.stat, rKnown !== "un" && f.who, rFkind, rFonly, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
   $("#rfn").textContent = nf ? ` · ${nf}` : "";
   const multi = q || rProf === R_ALL, by2 = (a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n);
   rows.sort(f.sort === "il" ? (a, b) => (b.m.il ?? -1) - (a.m.il ?? -1) || a.n.localeCompare(b.n)
@@ -3228,7 +3290,13 @@ function renderRecipes() {
     const meta = [x.m.il ? `ур. предмета ${x.m.il}` : "", x.m.rl ? `нужен ${x.m.rl} ур.` : "", x.m.slot, x.m.stats.length ? x.m.stats.map(t => "+" + t).join(", ") : "", multi && f.sort !== "cat" ? x.pr : ""].filter(Boolean).join(" · ");
     html += `<div class="rrow${x.r.iq ? " rq-" + esc(x.r.iq) : ""}"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
       <div><b class="rn${tip ? " rtip" : ""}"${tip ? tip.replace(' tabindex="0"', "") : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}<a class="rwh" href="${esc(wh)}" target="_blank" rel="noopener" aria-label="${esc(x.n)} на Wowhead">Wowhead ↗</a>
-      ${meta ? `<small class="rmeta">${esc(meta)}</small>` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small></div>
+      ${meta ? `<small class="rmeta">${esc(meta)}</small>` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small>${(() => {
+        const os = ordBy[rk(x)] || [], mo = meP && os.find(o => o.by === meP.id);
+        const a = (meP ? `<button type="button" class="rfav" data-act="rfav" data-k="${esc(rk(x))}" aria-pressed="${!!fav[rk(x)]}" aria-label="${esc(x.n)}: в избранное" title="В избранное">★</button>`
+          + (mo ? `<button type="button" class="rordb on" data-act="rorddel" data-id="${esc(mo.id)}">Отменить заявку</button>` : `<button type="button" class="rordb" data-act="rord" data-k="${esc(rk(x))}">Заказать</button>`) : "")
+          + os.filter(o => o !== mo).map(o => `<span class="rordtag">заявка от ${esc(nameOf(o.by))}</span>`).join("");
+        return a ? `<div class="racts">${a}</div>` : "";
+      })()}</div>
       <div class="rw">${x.un ? `<small class="rnone">Никто не знает${hasProf[x.pr]?.length ? `. Профессия есть у: ${esc(hasProf[x.pr].map(name).sort((a, b) => a.localeCompare(b)).join(", "))}` : ""}</small>`
         : x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}">${esc(name(sl))}</button>`).join("")}</div></div>`;
   }
@@ -3239,6 +3307,7 @@ function renderRecipes() {
 $("#rq").addEventListener("input", renderRecipes);
 for (const ev of ["input", "change"]) $("#rfilt").addEventListener(ev, renderRecipes);
 $("#rsort").addEventListener("change", renderRecipes);
+$("#rorders").addEventListener("change", e => { const i = e.target.closest("[data-ord]"); if (i) setDoc("orders", i.dataset.ord, { note: i.value.trim().slice(0, 200) }); });
 if (matchMedia("(max-width: 899px)").matches) $("#rfilt").open = false; // phones: filters folded under one button
 // Character sheet: full-body render with the gear around it, like the official armory.
 const G_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
@@ -3672,7 +3741,7 @@ async function boot() {
     loaded = true; errNote = "";
     render();
   }, () => { offline = true; loaded = true; render(); });
-  for (const [c, set] of [["wants", v => { wants = v; }], ["deaths", v => { deaths = v; }], ["tasks", v => { tasks = v; }], ["goals", v => { goals = v; }]])
+  for (const [c, set] of [["wants", v => { wants = v; }], ["deaths", v => { deaths = v; }], ["tasks", v => { tasks = v; }], ["goals", v => { goals = v; }], ["orders", v => { orders = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
   for (const [c, set] of [["bets", v => { bets = v; }], ["rolls", v => { rolls = v; }], ["pays", v => { pays = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
