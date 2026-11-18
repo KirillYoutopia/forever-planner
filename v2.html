@@ -531,21 +531,21 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 #cc-prog .z { color: var(--muted); }
 .cc-bk td:nth-child(n+3), .cc-bk th:nth-child(n+3) { text-align: right; }
 /* character list on the left of the card (wide screens); narrower ones keep the select in the card head */
-.cc-list { display: none; }
+.cc-side { display: none; }
 @media (min-width: 1200px) {
   #gc-box { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
   #gc-box > .empty { grid-column: 1 / -1; }
-  .cc-list { display: block; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; padding-right: 4px; }
+  .cc-side { display: block; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; padding-right: 4px; }
   .cc-pick { display: none; }
 }
 .cc-lg { margin: 12px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .cc-lg:first-child { margin-top: 0; }
-.cc-list button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px; border: 0; border-radius: 6px; background: none; color: var(--fg); text-align: left; cursor: pointer; font: inherit; font-size: 13px; }
-.cc-list button:hover { background: var(--cell); }
-.cc-list button[aria-current] { background: color-mix(in srgb, var(--lc) 18%, var(--cell)); font-weight: 700; }
-.cc-list img, .cc-list i { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 2px solid var(--lc); background: var(--panel-2); }
-.cc-list span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cc-list small { color: var(--muted); font-size: 12px; }
+.cc-side button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px; border: 0; border-radius: 6px; background: none; color: var(--fg); text-align: left; cursor: pointer; font: inherit; font-size: 13px; }
+.cc-side button:hover { background: var(--cell); }
+.cc-side button[aria-current] { background: color-mix(in srgb, var(--lc) 18%, var(--cell)); font-weight: 700; }
+.cc-side img, .cc-side i { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 2px solid var(--lc); background: var(--panel-2); }
+.cc-side span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-side small { color: var(--muted); font-size: 12px; }
 .cc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .cc-av { width: 72px; height: 72px; flex: none; border-radius: 12px; border: 3px solid var(--cc); overflow: hidden; background: var(--panel-2); }
 .cc-av img { width: 100%; height: 100%; display: block; }
@@ -574,6 +574,14 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .cc-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 32px; }
 .cc-bars { display: grid; gap: 10px; }
 .cc-list { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.cc-h4 { margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
+.cc-achs { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.cc-ach { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--cell); border: 1px solid var(--line); min-width: 0; font-size: 12px; }
+.cc-ach img, .cc-ach i { width: 36px; height: 36px; flex: none; border-radius: 6px; border: 1px solid var(--gold); background: var(--panel-2); }
+.cc-ach div { min-width: 0; }
+.cc-ach b { display: block; font-size: 13px; }
+.cc-ach span { display: block; color: var(--fg); opacity: .85; }
+.cc-ach small { display: block; color: var(--muted); margin-top: 2px; }
 .cc-list li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .cc-list small { color: var(--muted); white-space: nowrap; }
 .cc-list.dot li { border: 0; padding: 2px 0; justify-content: flex-start; gap: 8px; }
@@ -2921,7 +2929,7 @@ const gChip = (s, extra = "") => `<button type="button" class="gpc" data-act="gc
 // is the source wherever such a counter exists. The Spelunker achievements (gchars.dg, full list in guild/dungeons) cover
 // every dungeon and wing, but they are account-wide: a twink shows its main's numbers. They supply the list of dungeons
 // and, for dungeons without a boss counter, a count per account, labelled as such. Level ranges come from DUNGEONS.
-let gdung = null, gzones = {}; // gzones/{slug}: quest progress per zone, { z: [[zone, completed, total]], other }
+let gdung = null, gach = null, gzones = {}; // gzones/{slug}: quest progress per zone, { z: [[zone, completed, total]], other }
 const DG_ALIAS = { "Ragefire Chasm or Hall of Thanes": "rfc", "Scarlet Monastery: Graveyard": "smgy", "Scarlet Monastery: Library": "smlib", "Scarlet Monastery: Armory": "smarm",
   "Scarlet Monastery: Cathedral": "smcath", "Scarlet Monastery": "smcath", "The Temple of Atal'Hakkar": "st", "Lower Blackrock Spire": "lbrs", "Upper Blackrock Spire": "ubrs",
   "Maraudon": "mara_wg", "Stratholme: Live": "strat", "Stratholme: Dead": "strat", "Dire Maul: East": "dmaul", "Dire Maul: North": "dmaul", "Dire Maul: West": "dmaul", "The Shaper's Terrace": "shapers" };
@@ -3205,11 +3213,21 @@ function cardProgress(box, slug) {
 }
 function cardSections(c, slug) {
   let html = "";
-  // achievements: account-wide, newest first
-  const ach = Array.isArray(c.ach) ? [...c.ach].reverse() : [];
-  const achLi = ([n, at]) => { let d = ""; try { d = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" }).format(new Date(at)); } catch {} return `<li><span>${esc(n)}</span>${d ? `<small>${d}</small>` : ""}</li>`; };
-  html += cSec("Достижения", ach.length ? cTiles([["Получено", fmtN(ach.length)]]) + `<ul class="cc-list">${ach.slice(0, 8).map(achLi).join("")}</ul>`
-    + cMore(ach.length - 8, plural(ach.length - 8, "достижение", "достижения", "достижений"), `<ul class="cc-list">${ach.slice(8).map(achLi).join("")}</ul>`)
+  // achievements: account-wide; newest first, then by category. Icon, category, description and points: guild/achinfo
+  const ach = (Array.isArray(c.ach) ? [...c.ach].reverse() : []).map(([n, at, id]) => ({ n, at, ...(gach?.a?.[id] || {}) }));
+  const achCard = a => {
+    let d = ""; try { d = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric" }).format(new Date(a.at)); } catch {}
+    const meta = [d, +a.p > 0 ? `${fmtN(a.p)} ${plural(+a.p, "очко", "очка", "очков")}` : ""].filter(Boolean).join(" · ");
+    return `<div class="cc-ach">${bimg(a.icon) ? `<img src="${bimg(a.icon)}" alt="" loading="lazy">` : "<i></i>"}<div><b>${esc(a.n)}</b>${a.d ? `<span>${esc(a.d)}</span>` : ""}${meta ? `<small>${meta}</small>` : ""}</div></div>`;
+  };
+  const cats = new Map();
+  for (const a of ach) { const k = a.c || "Прочее"; cats.has(k) ? cats.get(k).push(a) : cats.set(k, [a]); }
+  const pts = ach.reduce((n, a) => n + (+a.p || 0), 0);
+  html += cSec("Достижения", ach.length ? cTiles([["Получено", fmtN(ach.length)], ["Очки", pts ? fmtN(pts) : null], ["Категорий", gach ? fmtN(cats.size) : null]])
+    + `<h4 class="cc-h4">Последние</h4><div class="cc-achs">${ach.slice(0, 6).map(achCard).join("")}</div>`
+    + (gach ? [...cats].sort((x, y) => (x[0] === "Прочее") - (y[0] === "Прочее") || y[1].length - x[1].length || x[0].localeCompare(y[0]))
+      .map(([k, l]) => `<details class="gtable"><summary>${esc(k)} · ${fmtN(l.length)}</summary><div class="cc-achs">${l.map(achCard).join("")}</div></details>`).join("")
+      : cMore(ach.length - 6, plural(ach.length - 6, "достижение", "достижения", "достижений"), `<div class="cc-achs">${ach.slice(6).map(achCard).join("")}</div>`))
     : `<p class="empty">Достижений пока нет.</p>`, "общие на аккаунт");
   // reputation: standing in its colour
   const reps = Array.isArray(c.reps) ? c.reps : [];
@@ -3267,7 +3285,7 @@ function renderGSheet() {
     return;
   }
   const own = ownerOf(gOpen), last = glevels.reduce((a, d) => d.id > a ? d.id : a, "");
-  const key = [gOpen, c.at, gzones[gOpen]?.at, grec[gOpen]?.at, last, Object.keys(gchars).map(s => s + ":" + (mem[s]?.level || "")).join(), Object.values(gcat).map(x => x.at).join(),
+  const key = [gOpen, c.at, gach?.at, gzones[gOpen]?.at, grec[gOpen]?.at, last, Object.keys(gchars).map(s => s + ":" + (mem[s]?.level || "")).join(), Object.values(gcat).map(x => x.at).join(),
     fameAll.map(f => f.id + (f.deleted ? "-" : "+") + f.title + f.icon).join(), players.map(p => `${p.id}:${p.name}:${p.char || ""}+${altsOf(p).join("+")}`).join(),
     auth?.player, auth?.admin, readOnly, offline, cTab].join("|");
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
@@ -3292,7 +3310,7 @@ function renderGSheet() {
     .filter(([, l]) => l.length);
   const picker = groups.map(([t, l]) => `<optgroup label="${t}">${l.map(opt).join("")}</optgroup>`).join("");
   // the same list on the left of the card, on wide screens
-  const sideList = `<nav class="cc-list" aria-label="Персонажи гильдии">${groups.map(([t, l]) => `<p class="cc-lg">${t}</p>${l.map(x => {
+  const sideList = `<nav class="cc-side" aria-label="Персонажи гильдии">${groups.map(([t, l]) => `<p class="cc-lg">${t}</p>${l.map(x => {
     const xc = gchars[x], col = CLS[BCLS[mem[x].cls]]?.color || "var(--line)";
     return `<button type="button" data-act="gchar" data-id="${esc(x)}"${x === gOpen ? ' aria-current="true"' : ""} style="--lc: ${col}">${
       bimg(xc?.avatar) ? `<img src="${bimg(xc.avatar)}" alt="" loading="lazy">` : "<i></i>"}<span>${esc(gName(x))}</span><small>${+mem[x].level}</small></button>`;
@@ -3359,7 +3377,7 @@ function renderGSheet() {
         const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
         return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
       }).join("")}</div>`).join("")}</details>`}</div>`;
-  box.querySelector(".cc-list [aria-current]")?.scrollIntoView({ block: "nearest" });
+  box.querySelector(".cc-side [aria-current]")?.scrollIntoView({ block: "nearest" });
   for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
   if (refocus) box.querySelector(refocus)?.focus();
   if (cTab === "prog") cardProgress(box, gOpen); else card3d(box, gOpen);
@@ -3524,6 +3542,7 @@ async function boot() {
   db.collection("gcat").onSnapshot(snap => { gcat = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.doc("news/forever").onSnapshot(sn => { news = sn.exists ? sn.data() : null; got.add("news"); renderNews(); }, () => {});
   db.doc("guild/dungeons").onSnapshot(sn => { gdung = sn.exists ? sn.data() : null; render(); }, () => {});
+  db.doc("guild/achinfo").onSnapshot(sn => { gach = sn.exists ? sn.data() : null; render(); }, () => {});
   db.collection("gzones").onSnapshot(snap => { gzones = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
