@@ -13,7 +13,10 @@ Static site + Supabase. No claude.ai account needed: anyone with the link can vi
    - Local test: `python -m http.server` in this folder → http://localhost:8000
 
 ## Files
-- `index.html` – the page (unchanged UI/logic)
+- `index.html` – the site (guild, character cards, professions, planning and the rest)
+- `old.html` – the previous version of the site, kept as it was
+- `v2.html` – redirect to `index.html` for old links
+- `supabase/functions/modelviewer` – Edge Function proxying Wowhead's 3D model viewer files
 - `store.js` – Supabase adapter (same API the page used on claude.ai)
 - `config.js` – your Supabase URL + anon key
 - `supabase.sql` – schema + seed data

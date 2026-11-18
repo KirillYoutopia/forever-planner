@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Marcellus&display=swap">
 <style>html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>try { const t = localStorage.getItem("wf-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch {} // before CSS paints: no flash of the other theme</script>
 <style>
 /* Layout: one column of panels, dark tooltip-slate world with bronze accent; grids are the Excel sheet made live. */
 :root {
@@ -45,17 +46,13 @@
 
   /* party frames: game-UI look, dark in both themes */
   --frame-bg: #0d0b08f0;
-  --frame-bg-2: #0d0b08c0;
   --frame-line: #5a4a2a;
   --frame-fg: #f1ece0;
   --frame-muted: #b7b0a2;
-  --frame-shade: #00000040;
   --gold: #c9a24a;
   --doll-1: #6a3418;  /* character sheet backdrop, same in both themes */
   --doll-2: #170c08;
-  --mana: #2f6fd0;
-  --rage: #c8352d;
-  --energy: #e3c234;
+  --doll-edge: #07080b; /* edge of the class-coloured backdrop behind the 3D model, same in both themes */
 
   /* soon tab: XP bar, raid border, gravestones (same in both themes) */
   --xp: #9b59d0;
@@ -65,6 +62,7 @@
   --q-rare: #3d8fe8;
   --q-epic: #b45cf5;
   --q-leg: #ff8000;
+  --tint: 100%; /* how much class/standing colour goes into text */
   --stone: #4a5059;
   --stone-2: #2a2e34;
   --stone-line: #5d646e;
@@ -103,6 +101,7 @@
     --q-rare: #0058b8;
     --q-epic: #7a1fc2;
     --q-leg: #b35a00;
+    --tint: 50%; /* how much class/standing colour goes into text */
   }
 }
 :root[data-theme="light"] {
@@ -137,6 +136,7 @@
   --q-rare: #0058b8;
   --q-epic: #7a1fc2;
   --q-leg: #b35a00;
+  --tint: 50%; /* how much class/standing colour goes into text */
 }
 
 * { box-sizing: border-box; }
@@ -150,35 +150,92 @@ body {
 }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
-/* squad: in-game style party frames, pinned mid-screen just left of .wrap (wide screens only) */
-.squad { --gut: calc((100vw - 1120px) / 2); --fw: clamp(170px, calc(var(--gut) - 40px), 300px);
-  position: fixed; top: 50%; left: max(12px, calc(var(--gut) - var(--fw) - 48px)); transform: translateY(-50%);
-  display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 1; }
-.pframe { width: var(--fw); display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; color: var(--frame-fg);
-  background: linear-gradient(90deg, var(--frame-bg), var(--frame-bg-2)); border: 1px solid var(--frame-line); border-radius: 40px 8px 8px 40px; }
-.pframe .por { width: 58px; height: 58px; flex: none; border-radius: 50%; border: 3px solid var(--gold); overflow: hidden; background: var(--panel-2); }
-.pframe .por img { width: 100%; height: 100%; display: block; }
-.pframe .meta { flex: 1; min-width: 0; }
-.pframe .nm { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
-.pframe .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pframe .nm img { width: 16px; height: 16px; border-radius: 3px; flex: none; }
-.pframe .bar { height: 9px; margin-top: 4px; border-radius: 2px; background: var(--c); box-shadow: inset 0 -3px 0 var(--frame-shade); }
-.pframe .bar.res { height: 6px; background: var(--res); }
-.pframe .sub { font-size: 11px; color: var(--frame-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pframe.e { opacity: .55; }
-.pframe.e .por { border-color: var(--frame-line); }
-.pframe.e .bar { background: var(--frame-line); }
-@media (min-width: 1800px) {
-  .squad { gap: 14px; }
-  .pframe { gap: 14px; padding: 6px 14px 6px 6px; }
-  .pframe .por { width: 76px; height: 76px; }
-  .pframe .nm { font-size: 16px; }
-  .pframe .nm img { width: 22px; height: 22px; }
-  .pframe .bar { height: 12px; margin-top: 6px; }
-  .pframe .bar.res { height: 8px; }
-  .pframe .sub { font-size: 12.5px; margin-top: 4px; }
+/* sidebar navigation: a fixed column from 900px, a drawer behind ☰ on phones */
+:root { --sw: 0px; }
+.side { position: fixed; inset: 0 auto 0 0; width: 232px; z-index: 20; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line);
+  padding: 20px 12px 72px; display: flex; flex-direction: column; gap: 2px; }
+.side-brand { padding: 0 10px 10px; }
+.side-cd { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: baseline; margin: 0 2px 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); text-decoration: none; font-size: 12px; }
+.side-cd span { color: var(--muted); white-space: nowrap; }
+.side { scrollbar-width: thin; }
+.side > * { flex-shrink: 0; } /* a short screen scrolls the sidebar instead of squashing the theme switch */
+.side-brand .eyebrow { white-space: nowrap; }
+.side-cd b { font: 400 14px/1.3 var(--font-display); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.side-cd:hover { border-color: var(--accent); }
+.side-brand b { font: 400 22px/1.2 var(--font-display); }
+.side .ng { margin: 14px 10px 4px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.side button { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent;
+  padding: 7px 10px; min-height: 36px; border-radius: 6px; font-weight: 500; }
+.side button:hover:not(:disabled) { background: var(--panel-2); }
+.side button[aria-pressed="true"] { background: var(--panel-2); color: var(--accent); font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); }
+.side .soon { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 10px; padding: 0 6px; }
+.side .theme { margin: auto 0 0; padding: 0; display: flex; }
+.side .theme button { flex: 1; justify-content: center; min-height: 32px; padding: 4px 6px; border-radius: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.side .theme button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.mbar { display: none; }
+.nbadge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.nbadge[hidden] { display: none; }
+.burger { position: relative; }
+.burger .nbadge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; font-size: 11px; line-height: 18px; }
+.burger { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); font-size: 18px; }
+.brand { font: 400 20px var(--font-display); }
+@media (min-width: 900px) {
+  :root { --sw: 232px; }
+  body { padding-left: calc(var(--sw) + 24px); }
+  .side-bd { display: none; }
 }
-@media (max-width: 1519px) { .squad { display: none; } }
+@media (max-width: 899px) {
+  .mbar { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 15; margin: -28px -16px 16px; padding: 8px 16px;
+    background: var(--bg); border-bottom: 1px solid var(--line); }
+  .side { width: min(280px, 85vw); transform: translateX(-100%); visibility: hidden; transition: transform .2s, visibility .2s; }
+  .side.open { transform: none; visibility: visible; transition: transform .2s, visibility 0s; } /* visible at once, so focus can move in */
+  .side-bd { position: fixed; inset: 0; z-index: 19; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+}
+
+/* overview tiles */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.kpi span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.kpi b { display: block; font: 600 26px/1.2 var(--font-body); margin: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi small { color: var(--muted); font-size: 12px; }
+/* day by day table: a cell tints with the levels gained that day (--k, 0..1) */
+.gdays table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.gdays th, .gdays td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+.gdays thead th { white-space: nowrap; font-size: 13px; }
+.gdays th small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+.gdays tbody th { white-space: nowrap; font-weight: 600; position: sticky; left: 0; background: var(--panel); z-index: 1; }
+.gdays td { min-width: 120px; background: color-mix(in srgb, var(--accent) calc(var(--k, 0) * 24%), transparent); }
+.gdays td b { display: block; font-size: 13px; }
+.gdays td span { display: block; color: var(--muted); white-space: nowrap; }
+.gdays .dd { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.gdays .dz { color: var(--muted); }
+.gdays .dsum th, .gdays .dsum td { border-bottom: 2px solid var(--line); }
+/* guild composition: vertical bars, class colours from CLASSES */
+.ovg { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 28px; }
+.ovc h3, .ovh { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--fg); text-transform: none; letter-spacing: 0; }
+.ovc h3 small { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.vbars { display: flex; align-items: stretch; gap: 6px; height: 180px; }
+.vb { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.vb.dim { opacity: .35; }
+.vb:hover .va i { filter: brightness(1.15); }
+.vb[aria-pressed="true"] span:last-child { color: var(--fg); font-weight: 700; }
+.ovbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 16px; }
+.ovbar .seg button { padding: 5px 10px; min-height: 32px; font-size: 12px; }
+.ovchip { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 14px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.ovnote { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.idle { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.vb b { font-size: 12px; min-height: 16px; font-variant-numeric: tabular-nums; }
+.va { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.va i { display: block; width: 100%; min-height: 2px; background: var(--c); border-radius: 3px 3px 0 0; box-shadow: inset 0 0 0 1px var(--line); }
+.vb img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+.vb span { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ov2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px 28px; margin-top: 22px; }
+@media (max-width: 760px) { .ov2 { grid-template-columns: 1fr; } }
+.evt { font-size: 11px; font-weight: 700; border-radius: 3px; padding: 1px 6px; }
+.evt.ein { background: color-mix(in srgb, var(--healer) 20%, transparent); color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); }
+.evt.eout { background: color-mix(in srgb, var(--ban-bg) 20%, transparent); color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.evt.e60 { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled, select:disabled { cursor: not-allowed; opacity: .55; }
@@ -186,7 +243,6 @@ button:disabled, select:disabled { cursor: not-allowed; opacity: .55; }
 .mute { color: var(--muted); }
 
 /* header */
-.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
 .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
 h1 { font: 400 34px/1.1 var(--font-display); letter-spacing: .02em; margin: 2px 0 0; text-wrap: balance; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); }
@@ -320,6 +376,51 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .road figcaption { font-size: 12px; color: var(--muted); padding: 8px 12px; }
 .lb { position: fixed; inset: 0; z-index: 70; background: rgba(5, 8, 12, .9); overflow: auto; cursor: zoom-out; padding: 16px; }
 .lb img { display: block; width: max(100%, 900px); height: auto; margin: 0 auto; border-radius: 6px; }
+.lb.char { padding: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 55%, var(--doll-1), var(--doll-2) 78%); }
+.lb.char, #gc-box .gdoll { background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--cc, var(--doll-1)) 55%, var(--doll-edge)), var(--doll-edge) 78%); }
+.lb.char img { width: 100%; height: 100%; max-width: none; object-fit: contain; border-radius: 0; transform: scale(1.3); transform-origin: 50% 50%; } /* the render has wide empty margins, as in the doll */
+@media (orientation: portrait) { .lb.char img { object-fit: cover; transform: none; } } /* tall screens: fill the height, the cut sides are empty anyway */
+.m3df { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; border: 0; color-scheme: normal; }
+.gfig:not(.m3d) .m3df { pointer-events: none; } /* while loading, a click still opens the picture */
+.lb.m3d img, .gfig.m3d img { visibility: hidden; }
+.g3d-full { display: none; position: absolute; right: 4px; bottom: 4px; z-index: 2; width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--frame-line); background: var(--doll-edge); color: var(--frame-muted); font-size: 16px; cursor: zoom-in; }
+.gfig.m3d .g3d-full { display: block; }
+.lb-x { display: none; position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 18px; cursor: pointer; }
+.lb.char .lb-x { display: block; }
+/* news */
+.news2 { grid-template-columns: 1fr 1fr; margin-top: 0; }
+@media (max-width: 760px) { .news2 { grid-template-columns: 1fr; } }
+.news { list-style: none; margin: 0; padding: 0; }
+.news li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.news a { color: var(--fg); font-weight: 600; text-decoration: none; }
+.news a:hover { color: var(--accent); text-decoration: underline; }
+.news small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+/* full roster table */
+.rsearch { margin-left: auto; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-width: 180px; }
+.rtab { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.rtab th, .rtab td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; vertical-align: top; }
+.rtab thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.rtab thead button { border: 0; background: none; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; font-weight: 700; }
+.rtab thead th[aria-sort] { color: var(--accent); }
+.rtab tbody th { position: sticky; left: 0; z-index: 1; background: var(--panel); font-weight: 600; }
+.rtab small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.rtab small.up { color: var(--fg); font-weight: 600; }
+.rtab .rn, .rtab .rn .glink { color: color-mix(in srgb, var(--c) var(--tint), var(--fg)); }
+.rtab .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rtab td.idle { color: color-mix(in srgb, var(--ban-bg) var(--tint), var(--fg)); }
+.rtab tbody tr:hover td, .rtab tbody tr:hover th { background: var(--panel-2); }
+.ri16 { width: 16px; height: 16px; border-radius: 50%; vertical-align: -3px; margin-right: 6px; }
+.badge { display: inline-block; margin-left: 6px; border-radius: 3px; padding: 0 6px; font-size: 11px; font-weight: 700; }
+.badge.ok { background: color-mix(in srgb, var(--healer) 20%, transparent); color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); }
+.badge.miss { background: color-mix(in srgb, var(--dps) 20%, transparent); color: color-mix(in srgb, var(--dps) var(--tint), var(--fg)); }
+/* the character card takes the class colour (--cc, set on #gc-box) */
+#gc-box { --accent: color-mix(in srgb, var(--cc, var(--gold)) var(--tint), var(--fg)); border-color: color-mix(in srgb, var(--cc, var(--line)) 35%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cc, var(--panel)) 12%, var(--panel)), var(--panel) 420px); }
+#gc-box .cc-sec > .gsec { color: color-mix(in srgb, var(--cc) var(--tint), var(--fg)); }
+#gc-box .cc-sec > .gsec::after { background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 50%, transparent), transparent); }
+#gc-box .gtiles div, #gc-box .cc-facts div { border-top: 2px solid color-mix(in srgb, var(--cc) 45%, var(--line)); }
+.gfig-btn { position: absolute; inset: 0; border: 0; padding: 0; background: none; cursor: zoom-in; }
+
 
 /* calendar */
 .best { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
@@ -395,14 +496,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .wit.q0 { --q: var(--q-poor); } .wit.q2 { --q: var(--q-unc); } .wit.q3 { --q: var(--q-rare); } .wit.q4 { --q: var(--q-epic); } .wit.q5 { --q: var(--q-leg); }
 .whs { font-size: 12px; color: var(--muted); margin-left: 6px; }
 /* guild tab: roster + day-by-day level chart */
-.gr { display: grid; grid-template-columns: minmax(130px, 1.2fr) minmax(110px, .9fr) minmax(80px, 2fr) 40px 84px; gap: 10px; align-items: center; padding: 7px 4px; border-radius: 6px; }
-.gr + .gr { border-top: 1px solid var(--line); }
-.gr .gc b { color: var(--fg); font-weight: 600; }
-.gr > b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gr .gc { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gr .n { font: 400 22px/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
-.gr .gd { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.gr .gd.up { color: var(--fg); font-weight: 600; }
 .gbar { height: 8px; background: var(--track); border-radius: 0 4px 4px 0; overflow: hidden; }
 .gbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
 .gkey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c, transparent); margin-right: 8px; vertical-align: middle; }
@@ -427,21 +520,99 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gtable th, .gtable td { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
 .gtable th { font-weight: 600; color: var(--muted); }
 .gtable th:first-child, .gtable td:first-child { text-align: left; }
-@media (max-width: 640px) {
-  .gr { grid-template-columns: minmax(0, 1fr) 36px 78px; gap: 6px 10px; }
-  .gr .gc { grid-column: 1; grid-row: 2; padding-left: 22px; }
-  .gr .gbar { grid-column: 1 / -1; grid-row: 3; }
-  .gr .n { grid-row: 1 / span 2; grid-column: 2; }
-  .gr .gd { grid-row: 1 / span 2; grid-column: 3; }
-}
 /* guild character sheet: paper doll with gear around the render */
 .glink { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .glink:hover { text-decoration-color: var(--accent); }
-.sheet.gcs { width: min(560px, calc(100vw - 16px)); }
-.gcs .sheet-head { margin-bottom: 4px; }
-.gcs .sheet-head h3 { font-size: 22px; }
 .gsub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
 .gsub b { color: var(--fg); }
+/* character card: class colour (--cc) on the avatar ring, the name and the class word; --tint keeps coloured text readable in the light theme */
+.cc-tabs { margin: 16px 0 4px; }
+#cc-prog .gplot { margin-top: 8px; }
+.cc-bk { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.cc-bk th, .cc-bk td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.cc-bk th { color: var(--muted); font-weight: 600; }
+#cc-prog .up { color: var(--healer); font-weight: 700; }
+#cc-prog .z { color: var(--muted); }
+.cc-bk td:nth-child(n+3), .cc-bk th:nth-child(n+3) { text-align: right; }
+/* character list on the left of the card (wide screens); narrower ones keep the select in the card head */
+.cc-side { display: none; }
+@media (min-width: 1200px) {
+  #gc-box { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
+  #gc-box > .empty { grid-column: 1 / -1; }
+  .cc-side { display: block; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; padding-right: 4px; }
+  .cc-pick { display: none; }
+}
+.cc-lg { margin: 12px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cc-lg:first-child { margin-top: 0; }
+.cc-side button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px; border: 0; border-radius: 6px; background: none; color: var(--fg); text-align: left; cursor: pointer; font: inherit; font-size: 13px; }
+.cc-side button:hover { background: var(--cell); }
+.cc-side button[aria-current] { background: color-mix(in srgb, var(--lc) 18%, var(--cell)); font-weight: 700; }
+.cc-side img, .cc-side i { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 2px solid var(--lc); background: var(--panel-2); }
+.cc-side span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-side small { color: var(--muted); font-size: 12px; }
+.cc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.cc-av { width: 72px; height: 72px; flex: none; border-radius: 12px; border: 3px solid var(--cc); overflow: hidden; background: var(--panel-2); }
+.cc-av img { width: 100%; height: 100%; display: block; }
+.cc-who { flex: 1; min-width: 200px; }
+.cc-who h2 { margin: 0 0 2px; font: 400 28px/1.15 var(--font-display); color: color-mix(in srgb, var(--cc) var(--tint), var(--fg)); }
+.cc-who .gsub { margin: 0; line-height: 1.7; }
+.tint, .grep small b.tint { color: color-mix(in srgb, var(--c, var(--cc)) var(--tint), var(--fg)); }
+.cc-facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cc-facts div { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; min-width: 110px; }
+.cc-facts span { display: block; font-size: 12px; color: var(--muted); }
+.cc-facts b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.cc-facts small { font-weight: 500; color: var(--muted); }
+.cc-pick select { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; max-width: 100%; }
+.cc-top { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 4px 28px; margin-top: 18px; align-items: start; }
+.cc-sec { margin-top: 22px; }
+.cc-right .cc-sec:first-child { margin-top: 0; }
+.cc-sec > .gsec { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; }
+.cc-sec > .gsec::after { content: ""; flex: 1; height: 1px; align-self: center; background: linear-gradient(90deg, var(--line), transparent); }
+.cc-sec h4 { margin: 14px 0 8px; font-size: 13px; font-weight: 700; }
+.cc-big { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.cc-big div { background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; min-width: 120px; }
+.cc-big span { display: block; font-size: 12px; color: var(--muted); }
+.cc-big b { font: 400 30px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.cc-big div:nth-child(1) b { color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); }
+.cc-big div:nth-child(2) b { color: color-mix(in srgb, var(--gold) var(--tint), var(--fg)); }
+.cc-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 32px; }
+.cc-bars { display: grid; gap: 10px; }
+.cc-list { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.cc-h4 { margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
+.cc-achs { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.cc-ach { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--cell); border: 1px solid var(--line); min-width: 0; font-size: 12px; }
+.cc-ach img, .cc-ach i { width: 36px; height: 36px; flex: none; border-radius: 6px; border: 1px solid var(--gold); background: var(--panel-2); }
+.cc-ach div { min-width: 0; }
+.cc-ach b { display: block; font-size: 13px; }
+.cc-ach span { display: block; color: var(--fg); opacity: .85; }
+.cc-ach small { display: block; color: var(--muted); margin-top: 2px; }
+.cc-list li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.cc-list small { color: var(--muted); white-space: nowrap; }
+.cc-list.dot li { border: 0; padding: 2px 0; justify-content: flex-start; gap: 8px; }
+.cc-list.dot li::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--gold); }
+.cgear { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; margin-top: 10px; }
+.cgear > div { display: flex; align-items: center; gap: 10px; padding: 5px 8px 5px 5px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); min-width: 0; }
+.cgear .ci { width: 34px; height: 34px; flex: none; border: 2px solid var(--q, var(--line)); border-radius: 4px; overflow: hidden; background: var(--frame-bg); }
+.cgear .ci img { width: 100%; height: 100%; display: block; }
+.cgear span:last-child { min-width: 0; line-height: 1.3; }
+.cgear b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: color-mix(in srgb, var(--q, var(--fg)) var(--tint), var(--fg)); }
+.cgear small { display: block; font-size: 11px; color: var(--muted); }
+.cgear small.en { color: color-mix(in srgb, var(--healer) var(--tint), var(--fg)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cgear small.nen { opacity: .7; font-style: italic; }
+.cc-awards { display: flex; flex-wrap: wrap; gap: 6px; }
+.award { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); font-size: 12px; line-height: 1.3; }
+.award img { width: 28px; height: 28px; border-radius: 4px; flex: none; }
+.award small { display: block; color: var(--muted); }
+.cc-own { margin-top: 22px; }
+.cgear-d { margin-top: 22px; }
+.cgear-d > summary, .cc-own > summary { font: 400 16px/1.2 var(--font-display); color: var(--fg); letter-spacing: .02em; }
+.cc-profs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 28px; }
+.cc-all { margin-top: 22px; }
+.cdg { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+.cdgl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cprof { margin-bottom: 10px; }
+.cprof details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 4px; }
+@media (max-width: 760px) { .cc-top { grid-template-columns: 1fr; } }
 .gdoll { --gs: 46px; display: grid; grid-template-columns: var(--gs) minmax(0, 1fr) var(--gs); gap: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--frame-line); background: radial-gradient(ellipse at 50% 55%, var(--doll-1), var(--doll-2) 78%); }
 .gcol { display: flex; flex-direction: column; gap: 6px; }
 .gfig { position: relative; min-height: 0; overflow: hidden; }
@@ -481,11 +652,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gql small { color: var(--muted); }
 .gpm { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
 .gpm h3 { margin: 0 0 4px; font: 600 13px var(--font-body); color: var(--fg); letter-spacing: 0; text-transform: none; }
-.glist { font-size: 13px; }
-.glist div { display: grid; grid-template-columns: 86px minmax(0, 1fr) 28px; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); align-items: baseline; }
-.glist span:first-child { color: var(--muted); }
-.glist i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--q, var(--muted)); margin-right: 7px; }
-.glist b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 @media (max-width: 480px) { .gdoll { --gs: 38px; gap: 8px; padding: 8px; } }
 /* guild professions: who has what, with skill */
 .gpg { margin: 14px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -541,8 +707,55 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .rchips button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 13px; }
 .rchips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
 .rchips small { opacity: .7; margin-left: 4px; font-variant-numeric: tabular-nums; }
-.rrow { display: grid; grid-template-columns: 36px minmax(0, 1.4fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
-.rrow .ri { width: 36px; height: 36px; border-radius: 4px; border: 1px solid var(--line); background: var(--cell); overflow: hidden; }
+.rrow { display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.rrow .ri { width: 40px; height: 40px; border-radius: 6px; border: 2px solid var(--q, var(--line)); background: var(--cell); overflow: hidden; }
+.rrow .rn { color: color-mix(in srgb, var(--q, var(--fg)) var(--tint), var(--fg)); }
+.rrow .rwh { margin-left: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.rrow .rwh:hover { color: var(--accent); }
+.rrow small.rmeta { color: var(--fg); opacity: .8; }
+@media (max-width: 640px) { .rrow { grid-template-columns: 40px minmax(0, 1fr); } .rrow .rw { grid-column: 2; justify-content: flex-start; } }
+.rq-POOR { --q: var(--q-poor); } .rq-UNCOMMON { --q: var(--q-unc); } .rq-RARE { --q: var(--q-rare); } .rq-EPIC { --q: var(--q-epic); } .rq-LEGENDARY { --q: var(--q-leg); }
+.rq-COMMON { --q: var(--fg); }
+.rsort { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.rsort select, .rf select, .rf input { min-height: 36px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; font-size: 13px; }
+.rcat { margin-top: 10px; }
+.rfilt { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.rfilt summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.rfilt[open] summary { margin-bottom: 8px; }
+.rf { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+.rf select, .rf input { width: 100%; min-width: 0; }
+.rr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rchips.sm button { padding: 3px 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+.rchips.sm button i { width: 8px; height: 8px; border-radius: 50%; background: var(--q); }
+.rf-reset { width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
+.rf-reset:hover { border-color: var(--accent); }
+.rcount { margin: 0 0 4px; }
+.rknown small { opacity: .7; font-variant-numeric: tabular-nums; }
+.racts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 5px; }
+.rfav { min-width: 30px; min-height: 28px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; }
+.rfav[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+.rordb, .rob { min-height: 28px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); color: var(--fg); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.rordb:hover, .rob:hover, .rfav:hover { border-color: var(--accent); }
+.rordb.on { border-color: var(--accent); color: var(--accent); }
+.rob.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.rordtag { font-size: 12px; color: var(--accent); }
+.rost { color: var(--muted); } .rost.taken { color: var(--accent); } .rost.done { color: var(--healer); }
+.rinl { display: inline !important; }
+.ronote { display: block; width: 100%; max-width: 440px; min-height: 32px; margin: 5px 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); color: var(--fg); font: inherit; font-size: 13px; }
+#rorders .rw { gap: 6px; }
+.rrow .rnone { color: var(--muted); text-align: right; }
+@media (max-width: 640px) { .rrow .rnone { text-align: left; } }
+@media (min-width: 900px) {
+  .rcat { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .rfilt { position: sticky; top: 16px; margin: 0; max-height: calc(100vh - 32px); overflow-y: auto; }
+}
+.rsum { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 24px; margin-top: 12px; }
+.rqbar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--cell); }
+.rqbar i { background: var(--q); }
+.rqleg { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.rqleg li { display: flex; align-items: center; gap: 6px; }
+.rqleg i { width: 10px; height: 10px; border-radius: 50%; background: var(--q); }
+.rqleg b { font-variant-numeric: tabular-nums; }
 .rrow .ri img { display: block; width: 100%; height: 100%; }
 .rrow b { font-weight: 600; }
 .rrow small { display: block; color: var(--muted); font-size: 12px; }
@@ -551,7 +764,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .rrow .rw { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (max-width: 560px) { .rrow { grid-template-columns: 36px minmax(0, 1fr); } .rrow .rw { grid-column: 2; justify-content: flex-start; } }
 /* tavern, bets, hall of fame */
-@media (max-width: 720px) { .top .seg { max-width: 100%; overflow-x: auto; } .top .seg button { white-space: nowrap; flex: none; } }
 .rules summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; cursor: pointer; list-style: none; }
 .rules summary::-webkit-details-marker { display: none; }
 .rules summary h2::after { content: " ▾"; color: var(--muted); font-size: 14px; }
@@ -579,7 +791,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .kute { min-height: 0; padding: 5px 12px; font-size: 12px; }
 /* logged in: account controls tucked into the bottom-left corner (secondary feature) */
 @media (min-width: 900px) {
-  .foot:not(.out) { position: fixed; left: 12px; bottom: 8px; z-index: 3; padding: 0; justify-content: flex-start; gap: 6px 12px; font-size: 12px; }
+  .foot:not(.out) { position: fixed; left: 12px; bottom: 8px; z-index: 21; max-width: 208px; padding: 0; justify-content: flex-start; gap: 6px 12px; font-size: 12px; }
 }
 .on-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
 .on-lbl { font-weight: 700; }
@@ -705,9 +917,6 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .stone .q { font-size: 12px; font-style: italic; opacity: .7; margin-top: 8px; }
 .stone .del { position: absolute; top: 6px; right: 8px; border: 0; background: none; color: var(--stone-fg); opacity: .5; }
 .alive { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
-.pframe { position: relative; }
-.pframe .lvl { position: absolute; left: 44px; top: 44px; min-width: 22px; height: 22px; border-radius: 11px; padding: 0 4px; background: var(--frame-bg); border: 2px solid var(--gold); color: var(--frame-fg); font: 700 11px/18px var(--font-body); text-align: center; }
-@media (min-width: 1800px) { .pframe .lvl { left: 58px; top: 58px; min-width: 26px; height: 26px; font-size: 12px; line-height: 22px; } }
 @media (max-width: 560px) {
   .nx { grid-template-columns: 1fr auto; }
   .nx .dots { grid-column: 1 / -1; grid-row: 2; }
@@ -724,32 +933,66 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
 </head>
 <body>
-<div class="squad" id="squad" aria-hidden="true"></div>
+<header class="mbar">
+  <button type="button" class="burger" data-act="menu" aria-controls="side" aria-expanded="false" aria-label="Меню">☰<span class="nbadge dot" id="nb-menu" hidden></span></button>
+  <span class="brand">Kute Expats</span>
+</header>
+<div class="side-bd" data-act="menu" hidden></div>
+<nav class="side" id="side" aria-label="Разделы">
+  <div class="side-brand"><div class="eyebrow">Гильдия WoW Forever</div><b>Kute Expats</b></div>
+  <a class="side-cd" href="#soon" title="Отсчёт и дорожная карта"><span>До рейдов</span><b id="scd-r">--</b><span>До Hardcore</span><b id="scd-h">--</b></a>
+  <div class="ng">Гильдия</div>
+  <button type="button" data-act="nav" data-nav="home" aria-pressed="true">Обзор</button>
+  <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">По дням</button>
+  <button type="button" data-act="nav" data-nav="fame" aria-pressed="false">Зал славы</button>
+  <div class="ng">Игроки</div>
+  <button type="button" data-act="nav" data-nav="char" aria-pressed="false">Карточка игрока</button>
+  <div class="ng">Активности</div>
+  <button type="button" data-act="nav" data-nav="dungeons" aria-pressed="false">Подземелья</button>
+  <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Профессии<span class="nbadge" id="nb-recipes" hidden></span></button>
+  <button type="button" data-act="nav" data-nav="pvp" aria-pressed="false">PvP</button>
+  <button type="button" data-act="nav" data-nav="stats" aria-pressed="false">Статистика</button>
+  <div class="ng">Игра</div>
+  <button type="button" data-act="nav" data-nav="news" aria-pressed="false">Новости</button>
+  <div class="ng">Таверна</div>
+  <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Дуэли и кошелёк</button>
+  <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
+  <div class="ng">Планы</div>
+  <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
+  <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
+  <button type="button" data-act="nav" data-nav="plan" aria-pressed="false">Планирование (старое)</button>
+  <div class="seg theme" role="group" aria-label="Тема">
+    <button type="button" data-act="theme" data-t="" aria-pressed="true">Авто</button>
+    <button type="button" data-act="theme" data-t="dark" aria-pressed="false">Тёмная</button>
+    <button type="button" data-act="theme" data-t="light" aria-pressed="false">Светлая</button>
+  </div>
+</nav>
 <div class="wrap">
-  <header class="top">
-    <div>
-      <div class="eyebrow">Гильдия WoW Forever</div>
-      <h1>Kute Expats</h1>
-    </div>
-    <div class="seg" role="group" aria-label="Раздел">
-      <button type="button" data-act="nav" data-nav="home" aria-pressed="true">Главная</button>
-      <button type="button" data-act="nav" data-nav="calendar" aria-pressed="false">Календарь сессий</button>
-      <button type="button" data-act="nav" data-nav="soon" aria-pressed="false">Скоро</button>
-      <button type="button" data-act="nav" data-nav="guild" aria-pressed="false">Гильдия</button>
-      <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Рецепты</button>
-      <button type="button" data-act="nav" data-nav="pvp" aria-pressed="false">PvP</button>
-      <button type="button" data-act="nav" data-nav="dungeons" aria-pressed="false">Подземелья</button>
-      <button type="button" data-act="nav" data-nav="stats" aria-pressed="false">Статистика</button>
-      <button type="button" data-act="nav" data-nav="tavern" aria-pressed="false">Таверна</button>
-      <button type="button" data-act="nav" data-nav="bets" aria-pressed="false">Ставки</button>
-      <button type="button" data-act="nav" data-nav="fame" aria-pressed="false">Зал славы</button>
-      <button type="button" data-act="nav" data-nav="plan" aria-pressed="false">Планирование (старое)</button>
-    </div>
-  </header>
 
   <div id="note"></div>
 
-  <section class="band" aria-label="Обратный отсчёт и дорожная карта" data-view="home">
+  <section class="panel" aria-labelledby="h-news" data-view="news" hidden>
+    <div class="panel-head"><h2 id="h-news">Новости WoW Forever</h2><span class="cap">Синие посты Blizzard и новости с Wowhead, обновляется каждые 30 минут. Ссылки открываются на Wowhead</span></div>
+    <div id="news-list"></div>
+  </section>
+
+  <section class="panel" id="gc-box" data-view="char" aria-labelledby="gc-title" hidden></section>
+
+  <div class="kpis" id="kpis" data-view="home"></div>
+
+  <section class="panel" aria-labelledby="h-ov" data-view="home">
+    <div class="panel-head"><h2 id="h-ov">Состав гильдии</h2><div class="seg" role="group" aria-label="Кого считать в классах и расах" id="ov-f"></div></div>
+    <div class="ovbar" id="ov-bar"></div>
+    <div class="ovg" id="ovg"></div>
+    <div class="ov2"><div><h3 class="ovh">Размер гильдии по дням</h3><div id="ov-size"></div></div><div><h3 class="ovh">Изменения состава</h3><div id="ov-ev"></div></div></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-guild" data-view="home">
+    <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span><input id="rsearch" class="rsearch" type="search" maxlength="40" placeholder="Поиск по имени" aria-label="Поиск по имени персонажа" autocomplete="off"></div>
+    <div id="groster"></div>
+  </section>
+
+  <section class="band" aria-label="Обратный отсчёт и дорожная карта" data-view="soon" hidden>
     <div class="cds">
       <div class="cd">
         <h3>До открытия рейдов</h3>
@@ -871,14 +1114,24 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <section class="panel" aria-labelledby="h-guild" data-view="home guild">
-    <div class="panel-head"><h2 id="h-guild">Гильдия</h2><span class="cap" id="guild-cap"></span></div>
-    <div id="groster"></div>
+  <section class="panel" aria-labelledby="h-rsum" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-rsum">Профессии в цифрах</h2><span class="cap">Рецепты, которые знают персонажи гильдии</span></div>
+    <div id="rsum"></div>
   </section>
 
-  <section class="panel" aria-labelledby="h-gprofs" data-view="home">
+  <section class="panel" aria-labelledby="h-orders" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-orders">Заявки на крафт</h2><span class="cap">Нужен предмет или чары? Найди рецепт в каталоге ниже и нажми «Заказать»</span></div>
+    <div id="rorders"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-gprofs" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
     <div id="gprofs"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-days" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-days">Что сделали по дням</h2><span class="cap">Разница с предыдущим днём, по снимкам на конец дня (Центральная Европа). Персонажи с 10 уровня</span></div>
+    <div class="gdays" id="gdays"></div>
   </section>
 
   <section class="panel" aria-labelledby="h-gchart" data-view="guild" hidden>
@@ -894,9 +1147,25 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
   <section class="panel" aria-labelledby="h-recipes" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-recipes">Рецепты гильдии</h2><span class="cap" id="recipes-cap"></span></div>
-    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off"></div>
+    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off">
+      <div class="seg rknown" id="rknown" role="group" aria-label="Какие рецепты"></div>
+      <label class="rsort"><span>Порядок</span><select id="rsort"><option value="cat">По категориям</option><option value="il">Уровень предмета ↓</option><option value="rl">Требуемый уровень ↑</option><option value="n">По названию</option></select></label></div>
     <div class="rchips" id="rprofs" role="group" aria-label="Профессия"></div>
-    <div id="rlist"></div>
+    <div class="rcat">
+      <details class="rfilt" id="rfilt" open><summary>Фильтры<span id="rfn"></span></summary>
+        <label class="rf"><span>Категория</span><select id="rf-cat"></select></label>
+        <div class="rf"><span>Качество</span><div class="rchips sm" id="rf-q" role="group" aria-label="Качество"></div></div>
+        <div class="rf"><span>Уровень предмета</span><div class="rr"><input id="rf-il0" type="number" min="0" max="300" inputmode="numeric" placeholder="от" aria-label="Уровень предмета от"><input id="rf-il1" type="number" min="0" max="300" inputmode="numeric" placeholder="до" aria-label="Уровень предмета до"></div></div>
+        <div class="rf"><span>Требуемый уровень</span><div class="rr"><input id="rf-rl0" type="number" min="0" max="60" inputmode="numeric" placeholder="от" aria-label="Требуемый уровень от"><input id="rf-rl1" type="number" min="0" max="60" inputmode="numeric" placeholder="до" aria-label="Требуемый уровень до"></div></div>
+        <label class="rf"><span>Слот</span><select id="rf-slot"></select></label>
+        <label class="rf"><span>Характеристика</span><select id="rf-stat"></select></label>
+        <label class="rf"><span>Кто умеет</span><select id="rf-who"></select></label>
+        <div class="rf"><span>Что получается</span><div class="rchips sm" id="rf-kind" role="group" aria-label="Что получается"></div></div>
+        <div class="rf"><span>Показать только</span><div class="rchips sm" id="rf-only" role="group" aria-label="Показать только"></div></div>
+        <button type="button" class="rf-reset" data-act="rfreset">Сбросить фильтры</button>
+      </details>
+      <div id="rlist"></div>
+    </div>
   </section>
 
   <section class="panel" aria-labelledby="h-pvp" data-view="pvp" hidden>
@@ -1036,14 +1305,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   </section>
 </div>
 <footer class="foot" id="auth-foot"></footer>
-<div class="lb" id="lb" data-act="unzoom" hidden><img src="roadmap.png" alt="Дорожная карта World of Warcraft Forever 2026–2027, крупно"></div>
+<div class="lb" id="lb" data-act="unzoom" hidden><button type="button" class="lb-x" data-act="unzoom" aria-label="Закрыть">✕</button><img src="roadmap.png" alt="Дорожная карта World of Warcraft Forever 2026–2027, крупно"></div>
 <div class="sheet-bd" id="sheet-bd" data-act="close" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1" hidden></div>
 <div id="tip" hidden></div>
 <div id="gtt" role="tooltip" hidden></div>
 <div class="toast" id="toast" role="alert" hidden></div>
-<div class="sheet-bd" id="gc-bd" data-act="gcclose" hidden></div>
-<div class="sheet gcs" id="gc-box" role="dialog" aria-modal="true" aria-labelledby="gc-title" tabindex="-1" hidden></div>
 <div class="sheet-bd" id="auth-bd" data-act="authclose" hidden></div>
 <div class="sheet" id="auth-box" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1" hidden></div>
 
@@ -1151,7 +1418,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSquad(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderStats(); renderRecipes(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderStats(); renderRecipes(); renderOrderBadge(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -1211,28 +1478,8 @@ function renderGrid() {
   </tr>`).join("");
   $("#grid").innerHTML = `<table class="grid">${head}<tbody>${rows}</tbody></table>`;
 }
-/* ---------- squad ---------- */
-// Official game icons from the Wowhead CDN (as forevermains.com does). Skyborne has no portrait yet, so it gets the Feather Fall icon.
-const ICON = n => `https://wow.zamimg.com/images/wow/icons/large/${n}.jpg`;
-const PORTRAIT = { Human: "human_male", Dwarf: "dwarf_male", Gnome: "gnome_male", "Night Elf": "nightelf_female", Orc: "orc_male", Undead: "undead_male", Tauren: "tauren_male", Troll: "troll_male" };
-const RESOURCE = { Warrior: "var(--rage)", Rogue: "var(--energy)" }; // everyone else: mana
-function portrait(p) {
-  const r = RACE[p.main?.race], race = r ? r.name || r.id : "";
-  const face = race === "Skyborne" ? "spell_magic_featherfall" : PORTRAIT[race] ? "achievement_character_" + PORTRAIT[race] : p.main?.cls ? "classicon_" + p.main.cls.toLowerCase() : "";
-  return face ? `<img src="${ICON(face)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : "";
-}
-function renderSquad() {
-  $("#squad").innerHTML = players.map(p => {
-    const ch = charOf(p), av = ch ? bimg(gchars[p.char]?.avatar) : "";
-    const c = CLS[ch ? BCLS[ch.cls] : p.main?.cls], por = av ? `<img src="${av}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : portrait(p);
-    if (!c) return `<div class="pframe e"><div class="por">${por}</div><div class="meta"><div class="nm"><span>${esc(p.name)}</span></div><div class="bar"></div><div class="sub">персонаж не привязан</div></div></div>`;
-    const r = RACE[p.main?.race], role = c.id === p.main?.cls ? (p.main.role === "pie" && effRole(p) ? "pie" : effRole(p)) : "";
-    const sub = [ch ? BRACE[ch.race] : r && (r.name || r.id), c.id].filter(Boolean).join(" ") + (role ? " · " + roleLabel(role) : "");
-    return `<div class="pframe" style="--c:${c.color};--res:${RESOURCE[c.id] || "var(--mana)"}"><div class="por">${por}</div>${lvlOf(p) ? `<span class="lvl">${lvlOf(p)}</span>` : ""}<div class="meta">
-      <div class="nm"><span>${online.some(m => m.player === p.id) ? `<i class="on-dot" title="на сайте"></i>` : ""}${esc(p.name)}</span><img src="${ICON("classicon_" + c.id.toLowerCase())}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></div>
-      <div class="bar"></div><div class="bar res"></div><div class="sub">${esc(sub)}</div></div></div>`;
-  }).join("");
-}
+// Game icons from Blizzard's own render server, by icon name or file id (56 px, like the API's icons).
+const ICON = n => `https://render.worldofwarcraft.com/eu/icons/56/${encodeURIComponent(n)}.jpg`;
 function renderChars() {
   const ro = readOnly || offline;
   if (!players.length) { $("#chars").innerHTML = `<p class="empty">Добавь игроков в таблице приоритетов.</p>`; return; }
@@ -1513,7 +1760,7 @@ const DUNGEONS = [
 const RAIDS = [ // WoW Forever, открываются 9 декабря
   { id: "barrow", name: "Barrow Deeps", size: 10 }, { id: "hyjal", name: "Hyjal Summit", size: 20 }, { id: "ony", name: "Onyxia's Lair", size: 40 },
 ];
-let wants = [], deaths = [], tasks = [], goals = [];
+let wants = [], deaths = [], tasks = [], goals = [], orders = []; // orders: craft orders on the "Профессии" page
 const live = docs => docs.map(d => ({ id: d.id, ...d.data() })).filter(x => !x.deleted);
 // A player's level comes from their linked guild character (players.char = character slug); the old manual level is the fallback.
 const altsOf = p => Object.keys(p?.alts || {}).filter(s => p.alts[s] && s !== p.char); // twinks: players.alts = { slug: true }
@@ -2082,13 +2329,27 @@ document.addEventListener("click", e => {
     renderSheet();
   }
   else if (act === "close") closeSheet();
+  else if (act === "nav" && b.dataset.nav === "char") { menu(false); openCard(gOpen || cardDefault()); }
   else if (act === "nav") {
     view = VIEWS.includes(b.dataset.nav) ? b.dataset.nav : "home";
     try { history.replaceState(null, "", "#" + view); } catch {}
+    menu(false);
     applyView();
+    scrollTo(0, 0);
   }
-  else if (act === "zoom") $("#lb").hidden = false;
-  else if (act === "unzoom") $("#lb").hidden = true;
+  else if (act === "rsort") { // first click: natural direction, second: reversed, third: back to the default order
+    const k = b.dataset.k, d0 = R_ASC.includes(k) ? 1 : -1;
+    rSort = rSort.k !== k ? { k, dir: d0 } : rSort.dir === d0 ? { k, dir: -d0 } : { k: "", dir: 1 };
+    renderGuild();
+  }
+  else if (act === "ovpick") { ovF[b.dataset.k] = String(ovF[b.dataset.k]) === b.dataset.v ? "" : b.dataset.v; renderGuild(); }
+  else if (act === "ovact") { ovF.act = b.dataset.v; renderGuild(); }
+  else if (act === "ovclr") { ovF = { cls: "", race: "", lvl: "", act: "", sex: "", role: "" }; renderGuild(); }
+  else if (act === "ovf") { ovAll = b.dataset.v === "true"; renderGuild(); }
+  else if (act === "menu") menu(!$("#side").classList.contains("open"));
+  else if (act === "theme") setTheme(b.dataset.t);
+  else if (act === "zoom") { $("#lb img").src = b.dataset.src || "roadmap.png"; $("#lb").classList.toggle("char", !!b.dataset.src); $("#lb").hidden = false; if (b.dataset.slug) show3d(b.dataset.slug); }
+  else if (act === "unzoom") { $("#lb").hidden = true; close3d(); }
   else if (act === "calmore") { calWeeks = Math.min(12, calWeeks + 4); render(); }
   else if (act === "av" && sheet) { setAvail(sheet.date, b.dataset.v); closeSheet(); }
   else if (act === "avclear" && sheet) { setAvail(sheet.date, ""); closeSheet(); }
@@ -2123,9 +2384,28 @@ document.addEventListener("click", e => {
   else if (act === "login") openAuth("pick");
   else if (act === "authpick") openAuth("pass", { player: id });
   else if (act === "authclose") closeAuth();
-  else if (act === "gchar") { gOpen = id; gDrawn = ""; renderGSheet(); $("#gc-box").scrollTop = 0; $("#gc-box").focus(); }
-  else if (act === "gcclose") closeG();
+  else if (act === "gchar") openCard(id);
+  else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
+  else if (act === "rknown") { rKnown = b.dataset.v; renderRecipes(); }
+  else if (act === "rfonly") { rFonly = rFonly === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
+  else if (act === "rfav") { const p = players.find(x => x.id === auth?.player); if (p) setDoc("players", p.id, { fav: { [b.dataset.k]: !(p.fav || {})[b.dataset.k] } }); }
+  else if (act === "rord" && auth) {
+    const [prof, rid] = b.dataset.k.split(":");
+    addDoc("orders", { by: auth.player, prof, rid, n: String(gcat[prof]?.r?.[rid]?.n || "").slice(0, 120), st: "open" });
+    toast("Заявка создана. Её видно в блоке «Заявки на крафт» наверху.");
+  }
+  else if (act === "rordtake" && auth) setDoc("orders", id, { st: "taken", taker: auth.player });
+  else if (act === "rorddone") setDoc("orders", id, { st: "done", doneAt: Date.now() });
+  else if (act === "rordfree") setDoc("orders", id, { st: "open", taker: "" });
+  else if (act === "rorddel") setDoc("orders", id, { deleted: true });
+  else if (act === "rfq") { const v = b.dataset.v; rFq.has(v) ? rFq.delete(v) : rFq.add(v); renderRecipes(); }
+  else if (act === "rfkind") { rFkind = rFkind === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
+  else if (act === "rfreset") {
+    rFq.clear(); rFkind = ""; rFonly = "";
+    for (const el of $("#rfilt").querySelectorAll("input, select")) el.value = "";
+    renderRecipes();
+  }
   else if ((act === "gown" || act === "galt") && p && gOpen) { // link or unlink the open character as a player's main or twink; one player per character
     const slug = gOpen, main = act === "gown", on = main ? p.char === slug : altsOf(p).includes(slug);
     if (!on) for (const x of players) { // take it away from whoever had it, in either role
@@ -2176,7 +2456,7 @@ document.addEventListener("change", e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.matches?.("input.nm")) e.target.blur();
-  if (e.key === "Escape") { $("#lb").hidden = true; if (sheet) closeSheet(); if (authUI) closeAuth(); if (gOpen) closeG(); }
+  if (e.key === "Escape") { $("#lb").hidden = true; close3d(); menu(false); if (sheet) closeSheet(); if (authUI) closeAuth(); }
 });
 document.addEventListener("focusout", () => setTimeout(() => { if (dirty && !editing()) render(); }, 0));
 
@@ -2266,11 +2546,34 @@ document.addEventListener("pointerleave", () => { tip.hidden = true; });
 /* ---------- guild: levels from Blizzard's API, synced hourly on the server (guild_sync in supabase.sql) ---------- */
 const PROF_ID = new Set(PROFS.map(p => p.id));
 const BCLS = { 1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage", 9: "Warlock", 11: "Druid" };
-const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "Skyborne", 96: "Skyborne" };
+const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "High Order Skyborne", 96: "Windshaper Skyborne" }; // the API names; 95 is Alliance, 96 Horde
 const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, later characters are grey
 let guild = null, glevels = [], gchars = {}, gOpen = "", gDrawn = "";
 const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
 const dayShort = k => `${+k.slice(8, 10)} ${MON[+k.slice(5, 7) - 1]}`;
+// GearScore the way GearScoreLite / TacoTip compute it (the Forever armories show the same numbers):
+// per item floor(((ilvl - A) / B) * slot weight * 1.8618 * quality scale), green and better only; hunters weight ranged up, melee down.
+const GS_SLOT = { HEAD: 1, NECK: .5625, SHOULDER: .75, CHEST: 1, WAIST: .75, LEGS: 1, FEET: .75, WRIST: .5625, HANDS: .75, FINGER_1: .5625, FINGER_2: .5625,
+  TRINKET_1: .5625, TRINKET_2: .5625, BACK: .5625, MAIN_HAND: 1, OFF_HAND: 1, RANGED: .3164 };
+const GS_RARITY = { UNCOMMON: 2, RARE: 3, EPIC: 4, LEGENDARY: 5 };
+const gsTable = (l, r) => r === 4 && l < 100 ? [.25, 1.6275] : r === 4 && l < 168 ? [26, 1.2] : r === 3 && l < 148 ? [.75, 1.8] : r === 2 && l < 138 ? [8, 2] : l <= 120 ? [0, 2.25]
+  : { 4: [91.45, .65], 3: [81.375, .8125], 2: [73, 1] }[r];
+function gearScore(c, cls) {
+  let gs = 0;
+  for (const [slot, it] of Object.entries(c?.items || {})) {
+    let r = GS_RARITY[it?.q], w = GS_SLOT[slot], q = 1;
+    const l = +it?.lvl, tip = (Array.isArray(it.tip) ? it.tip : []).map(x => Array.isArray(x) ? x[0] : "");
+    if (!r || !w || !l) continue;
+    if (r === 5) { r = 4; q = 1.3; }
+    if (slot === "MAIN_HAND" && tip.includes("Two-Hand")) w = 2;
+    const [A, B] = gsTable(l, r);
+    let v = Math.max(0, Math.floor((l - A) / B * w * 1.8618 * q));
+    if (cls === 3) v *= slot === "RANGED" ? 5.3224 : slot === "MAIN_HAND" || (slot === "OFF_HAND" && (tip.includes("One-Hand") || tip.includes("Off Hand"))) ? .3164 : 1;
+    gs += v;
+  }
+  return Math.floor(gs);
+}
+console.assert(gearScore({ items: { HEAD: { q: "RARE", lvl: 60 }, MAIN_HAND: { q: "EPIC", lvl: 66, tip: [["Two-Hand", "", "Mace"]] } } }) === 61 + 150, "gearScore self-check");
 function guildData() {
   const days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id) && d.lv && typeof d.lv === "object").sort((a, b) => a.id < b.id ? -1 : 1);
   const mem = guild?.members || {};
@@ -2291,7 +2594,7 @@ function renderGuild() {
     const msg = got.has("guild") ? "Данных пока нет: синхронизация с Blizzard ещё не настроена." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
     $("#guild-cap").textContent = "";
     $("#groster").innerHTML = `<p class="empty">${msg}</p>`;
-    $("#gchart").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; $("#gpcharts").innerHTML = "";
+    $("#gchart").innerHTML = $("#gdays").innerHTML = `<p class="empty">${msg}</p>`; $("#gtable").innerHTML = ""; $("#gpcharts").innerHTML = "";
     $("#gprofs").innerHTML = `<p class="empty">${msg}</p>`;
     return;
   }
@@ -2305,17 +2608,280 @@ function renderGuild() {
     const base = g.days.find(d => dayNum(d.id) >= from && d.lv[m.slug] > 0);
     return base && base !== lastDay ? m.level - base.lv[m.slug] : null;
   };
-  const owner = {}; // character slug -> player name; twinks are marked
-  for (const p of players) { if (p.char) owner[p.char] = p.name; for (const s of altsOf(p)) owner[s] ||= `${p.name}, твинк`; }
-  $("#groster").innerHTML = list.map(m => {
-    const c = CLS[BCLS[m.cls]], d = delta(m);
-    return `<div class="gr" data-g="${esc(m.slug)}"><b><i class="gkey" style="--c:${g.color[m.slug] || "transparent"}"></i>${gchars[m.slug] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}" aria-haspopup="dialog">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}</b>
-      <span class="gc">${c ? cdot(c) : ""}${esc(BCLS[m.cls] || "?")} · ${esc(BRACE[m.race] || "?")}${owner[m.slug] ? ` · <b>${esc(owner[m.slug])}</b>` : ""}</span>
-      <span class="gbar" role="img" aria-label="${+m.level || 0} из 60"><span style="width:${Math.min(100, m.level / 60 * 100)}%"></span></span>
-      <span class="n">${+m.level || "—"}</span>
-      <span class="gd ${d > 0 ? "up" : ""}">${d == null ? "" : d > 0 ? `+${d} за 7 дн.` : "—"}</span></div>`;
-  }).join("") + `<p class="gnote">Данные из Blizzard API, обновляются раз в час. Уровень меняется после того, как персонаж вышел из игры. Нажми на имя, чтобы открыть персонажа (с ${G_MIN} уровня).</p>`;
+  const owner = {}, core = new Set(), alt = new Set(); // character slug -> player name; twinks are marked
+  for (const p of players) {
+    if (p.char) { owner[p.char] = p.name; core.add(p.char); }
+    for (const s of altsOf(p)) if (!core.has(s)) { owner[s] ||= `${p.name}, твинк`; alt.add(s); }
+  }
+  const upAll = list.filter(m => m.level >= G_MIN);
+  renderRoster(g, list, core, alt, owner, delta);
+  renderKpis(g, upAll, core);
+  renderOverview(g);
+  renderDays(g);
   renderGChart(g);
+}
+// 3D model in the full-screen view of a character: Wowhead's viewer (the same build as armorywowforever.com), its files
+// through our proxy (supabase/functions/modelviewer), since Wowhead's server refuses other sites. Data: gchars/{slug}.mdl.
+// Without WebGL, model data or the proxy, the Blizzard picture stays.
+const MV = WF_CONFIG.supabaseUrl + "/functions/v1/modelviewer/", MV_VER = "35ee72d";
+// The viewer runs in its own frame: it needs jQuery as the global $, which on this page is the query helper.
+// Removing a frame frees its model and WebGL context. The card has one (inline), the full-screen view another; the files
+// come from the browser cache the second time. The card's model is drawn only while visible and the full screen is closed.
+let mvFull = null;
+const mvIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(x => { try { x.target.contentWindow.mvOn = x.isIntersecting; } catch {} })) : null;
+function frame3d(slug, full) {
+  const m = guild?.members?.[slug], c = gchars[slug], it = c?.mdl?.it;
+  // shortcut: Skyborne (race 95/96) has no model id we know, it keeps the picture; add it once Wowhead's viewer has one
+  if (!m || !(+m.race >= 1 && +m.race <= 8) || !Array.isArray(it) || !it.length) return null;
+  try { const t = document.createElement("canvas"); if (!(t.getContext("webgl2") || t.getContext("webgl"))) return null; } catch { return null; }
+  const cfg = JSON.stringify({ mv: MV, ver: MV_VER, items: it, id: +m.race * 2 - 1 + (c.gender === "FEMALE" ? 1 : 0), cz: c.mdl.cz || [],
+    full, zoom: full ? 0 : -1 }).replace(/</g, "\\u003c"); // zoom: the viewer's default (1) is a bit close
+  const f = Object.assign(document.createElement("iframe"), { className: "m3df", title: `${gName(slug)}: 3D-модель, её можно вращать` });
+  f.srcdoc = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}#m{width:100%;height:100%;cursor:grab}</style>
+<div id="m"></div><script>
+const C = ${cfg}, lb = parent.document.getElementById("lb");
+const load = src => new Promise((ok, no) => document.head.append(Object.assign(document.createElement("script"), { src, onload: ok, onerror: no })));
+addEventListener("keydown", e => { if (e.key === "Escape") parent.document.querySelector("#lb:not([hidden]) .lb-x")?.click(); });
+// in the card the wheel scrolls the page instead of zooming the model
+addEventListener("dblclick", e => e.stopPropagation(), true); // the viewer's own full screen shows the model without its backdrop
+if (!C.full) addEventListener("wheel", e => { e.stopPropagation(); e.preventDefault(); parent.scrollBy(0, e.deltaY); }, { capture: true, passive: false });
+(async () => {
+  await load("https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js");
+  window.WH = { debug() {}, defaultAnimation: "Stand", WebP: { getImageExtension: () => ".webp" } };
+  await load(C.mv + "deployment/viewer/" + C.ver + "/viewer.min.js?v=2"); // ?v: Cloudflare in front of Supabase kept a 404 from before the function existed
+  const el = document.getElementById("m");
+  const v = new ZamModelViewer({ type: 2, contentPath: C.mv, container: jQuery(el), aspect: el.clientWidth / el.clientHeight, hd: false,
+    items: C.items, models: { id: C.id, type: 16 }, charCustomization: { options: C.cz } });
+  frameElement.parentElement.classList.add("m3d"); // the picture underneath is hidden only once the viewer is up
+  const tune = () => {
+    const r = v.renderer;
+    if (!r) return setTimeout(tune, 100);
+    r.zoom.target = C.zoom;
+    const draw = r.draw.bind(r);
+    r.draw = t => { if (window.mvOn !== false && (C.full || lb.hidden)) draw(t); };
+  };
+  tune();
+})().catch(e => console.warn("3D model unavailable", e));
+<\/script>`;
+  return f;
+}
+function show3d(slug) {
+  close3d();
+  $("#lb").requestFullscreen?.().catch(() => {}); // the real full screen, backdrop included; the view still works without it
+  $("#lb").style.setProperty("--cc", $("#gc-box").style.getPropertyValue("--cc"));
+  mvFull = frame3d(slug, true);
+  if (mvFull) $("#lb").append(mvFull);
+}
+function close3d() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  $("#lb").classList.remove("m3d");
+  mvFull?.remove();
+  mvFull = null;
+}
+// leaving the full screen (Esc) closes the view too
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && mvFull && !$("#lb").hidden) { $("#lb").hidden = true; close3d(); } });
+// the card's own model, put in after each redraw of the card
+function card3d(box, slug) {
+  mvIO?.disconnect();
+  const g = box.querySelector(".gfig"), f = g && frame3d(slug, false);
+  if (!f) return;
+  g.append(f);
+  mvIO?.observe(f);
+}
+
+// News from Wowhead's WoW Forever feeds: news/forever, filled by news_sync() in supabase.sql every 30 minutes.
+let news = null;
+function renderNews() {
+  const el = $("#news-list"), items = Array.isArray(news?.items) ? news.items : [];
+  if (!items.length) {
+    el.innerHTML = `<p class="empty">${got.has("news") ? "Новостей пока нет: лента появится в течение получаса после обновления базы." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…"}</p>`;
+    return;
+  }
+  const when = ts => { try { return ts ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(+ts)) : ""; } catch { return ""; } };
+  const col = (kind, title) => {
+    const list = items.filter(x => Array.isArray(x) && x[3] === kind && /^https:\/\/www\.wowhead\.com\//.test(x[1] || "")); // only Wowhead links, as the server stores them
+    return `<div><h3 class="ovh">${title}</h3>${list.length ? `<ul class="news">${list.map(([t, link, ts]) =>
+      `<li><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a><small>${when(ts)}</small></li>`).join("")}</ul>` : `<p class="gnote">Пока пусто.</p>`}</div>`;
+  };
+  el.innerHTML = `<div class="ov2 news2">${col("blue", "Синие посты")}${col("news", "Новости Wowhead")}</div>`;
+}
+// Full roster as a table, like the old TBC dashboard: the overview filters and the 10+/all switch apply, headers sort, the box above searches by name.
+let rSort = { k: "", dir: 1 }; // k "": core → twinks → guild, then level
+const R_COLS = [["name", "Персонаж"], ["cls", "Класс"], ["race", "Раса"], ["lvl", "Ур."], ["il", "ilvl"], ["gs", "GS"], ["spec", "Таланты"], ["ench", "Зачарования"], ["hk", "HK"], ["rank", "Ранг"], ["since", "В гильдии"], ["seen", "Был в игре"]];
+const R_ASC = ["name", "cls", "race", "spec", "ench", "rank", "seen"]; // these sort ascending on the first click, the rest descending
+const enchOf = c => { // {n enchanted, of enchantable}; null until a sync has stored enchantments (gender came with it)
+  const it = c?.items || {}, sl = Object.keys(it).filter(t => enchantable(t, it[t]));
+  return sl.length && (c.gender || sl.some(t => it[t].en)) ? { n: sl.filter(t => it[t].en).length, of: sl.length } : null;
+};
+function renderRoster(g, list, core, alt, owner, delta) {
+  const q = $("#rsearch").value.trim().toLowerCase(), last = g.days[g.days.length - 1];
+  const first = {}; // first daily snapshot with the character: "days in the guild" as far as our data goes
+  for (const d of g.days) for (const sl of Object.keys(d.lv)) if (!(sl in first)) first[sl] = d.id;
+  const rows = list.filter(m => (ovAll || m.level >= G_MIN) && ovMatch(m) && (!q || g.name(m.slug).toLowerCase().includes(q))).map(m => {
+    const c = gchars[m.slug];
+    return { m, c, gs: c?.items ? gearScore(c, +m.cls) : null, il: +c?.ilvl || null, e: enchOf(c), hk: c?.pvp?.hk ?? null, seen: seenDays(m.slug),
+      since: first[m.slug] && last ? dayNum(last.id) - dayNum(first[m.slug]) : null, grp: core.has(m.slug) ? 0 : alt.has(m.slug) ? 1 : 2 };
+  });
+  const val = { name: r => g.name(r.m.slug), cls: r => BCLS[r.m.cls] || "", race: r => BRACE[r.m.race] || "", lvl: r => +r.m.level, il: r => r.il, gs: r => r.gs,
+    spec: r => specText(r.c?.sp) || null, ench: r => r.e ? r.e.of - r.e.n : null, hk: r => r.hk, rank: r => r.m.rank ?? null, since: r => r.since, seen: r => r.seen };
+  const byDefault = (a, b) => a.grp - b.grp || b.m.level - a.m.level || g.name(a.m.slug).localeCompare(g.name(b.m.slug));
+  rows.sort(!rSort.k ? byDefault : (a, b) => { // empty values always last
+    const x = val[rSort.k](a), y = val[rSort.k](b);
+    if (x == null || y == null) return x == null && y == null ? byDefault(a, b) : x == null ? 1 : -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * rSort.dir || byDefault(a, b);
+  });
+  const ago = d => { const n = Math.floor(d); return n < 1 ? "сегодня" : n === 1 ? "вчера" : n + " дн. назад"; };
+  const tr = r => {
+    const { m, c } = r, cls = CLS[BCLS[m.cls]], d = delta(m), who = owner[m.slug] || (r.grp === 2 ? "гильдия" : ""), ri = raceIcon(BRACE[m.race]);
+    return `<tr data-g="${esc(m.slug)}"><th scope="row" class="rn" style="--c:${cls ? cls.color : "var(--fg)"}">${c ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(m.slug)}">${esc(g.name(m.slug))}</button>` : esc(g.name(m.slug))}<small>${esc(who)}</small></th>
+      <td>${cls ? cdot(cls) : ""}${esc(BCLS[m.cls] || "?")}</td>
+      <td>${ri ? `<img class="ri16" src="${ICON(ri)}" alt="" loading="lazy">` : ""}${esc(BRACE[m.race] || "?")}</td>
+      <td class="num"><b>${+m.level || "—"}</b>${d > 0 ? `<small class="up">+${d} за 7 дн.</small>` : ""}</td>
+      <td class="num">${r.il ?? "—"}</td><td class="num">${r.gs == null ? "—" : fmtN(r.gs)}</td>
+      <td>${specText(c?.sp) || "—"}${specText(c?.sp2) ? `<small>второй: ${specText(c.sp2)}</small>` : ""}</td>
+      <td>${r.e ? `${r.e.n}/${r.e.of}<span class="badge ${r.e.n === r.e.of ? "ok" : "miss"}">${r.e.n === r.e.of ? "Готово" : `Не хватает ${r.e.of - r.e.n}`}</span>` : "—"}</td>
+      <td class="num">${r.hk == null ? "—" : fmtN(r.hk)}</td><td class="num">${m.rank == null ? "—" : +m.rank === 0 ? "Глава" : +m.rank}</td>
+      <td class="num">${r.since == null ? "—" : `${r.since} дн.`}</td>
+      <td class="${r.seen != null && r.seen >= IDLE_DAYS ? "idle" : ""}">${r.seen == null ? "—" : ago(r.seen)}</td></tr>`;
+  };
+  $("#groster").innerHTML = (ovOn() || q ? `<p class="ovnote">Показано ${rows.length} из ${list.length}.${ovOn() ? ` <button type="button" class="glink" data-act="ovclr">Сбросить фильтры</button>` : ""}</p>` : "")
+    + (rows.length ? `<div class="scroll"><table class="rtab"><thead><tr>${R_COLS.map(([k, t]) => `<th scope="col"${rSort.k === k ? ` aria-sort="${rSort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="rsort" data-k="${k}">${t}${rSort.k === k ? (rSort.dir > 0 ? " ↑" : " ↓") : ""}</button></th>`).join("")}</tr></thead>
+      <tbody>${rows.map(tr).join("")}</tbody></table></div>` : `<p class="empty">Никто не подходит под фильтр.</p>`)
+    + `<p class="gnote">Данные Blizzard API, обновляются раз в час, уровень меняется после выхода персонажа из игры. Нажми на заголовок, чтобы отсортировать, ещё раз, чтобы развернуть, третий раз, чтобы вернуть обычный порядок. «В гильдии»: дней по нашим снимкам (с ${g.days[0] ? dayShort(g.days[0].id) : "—"}). Ранг: номер ранга в гильдии, названий API не отдаёт.${ovAll ? "" : ` Персонажи ниже ${G_MIN} уровня скрыты переключателем «${G_MIN}+» выше.`}</p>`;
+}
+$("#rsearch").addEventListener("input", () => renderGuild());
+// Day by day: what each character gained since the previous synced day. Plain differences of the daily snapshots
+// (glevels: lv, pr, hk, pd); a value missing on either day counts as nothing, so a new profession or a first sync shows no jump.
+function renderDays(g) {
+  const el = $("#gdays"), days = g.days, mem = g.mem;
+  if (days.length < 2) { el.innerHTML = `<p class="empty">Нужна история хотя бы за два дня.</p>`; return; }
+  const last = days[days.length - 1], lvl = s => +last.lv[s] || +mem[s]?.level || 0;
+  const core = new Set(players.map(p => p.char).filter(Boolean)), alts = new Set(players.flatMap(altsOf));
+  const rank = s => core.has(s) ? 0 : alts.has(s) ? 1 : 2;
+  const cols = Object.keys(mem).filter(s => lvl(s) >= G_MIN).sort((a, b) => rank(a) - rank(b) || lvl(b) - lvl(a) || g.name(a).localeCompare(g.name(b)));
+  const up = (a, b) => a != null && b != null && +a > +b ? +a - +b : 0;
+  const gain = (d, p, s) => !(+p.lv[s] > 0) ? null : { // null: no baseline, the character was not synced the day before
+    lv: up(d.lv[s], p.lv[s]), hk: up(d.hk?.[s], p.hk?.[s]), pd: up(d.pd?.[s], p.pd?.[s]), dt: up(d.dt?.[s], p.dt?.[s]), il: up(d.il?.[s], p.il?.[s]),
+    pr: Object.entries(d.pr?.[s] || {}).map(([n, v]) => [n, up(v, p.pr?.[s]?.[n])]).filter(x => x[1] > 0) };
+  let today = "";
+  try { today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()); } catch {}
+  const rows = [];
+  for (let i = days.length - 1; i > 0 && rows.length < 21; i--) rows.push({ d: days[i], p: days[i - 1], cells: cols.map(s => gain(days[i], days[i - 1], s)) });
+  // last 7 calendar days, summed
+  const week = rows.filter(r => dayNum(last.id) - dayNum(r.d.id) < 7), sum = cols.map((s, k) => {
+    const cs = week.map(r => r.cells[k]).filter(Boolean);
+    if (!cs.length) return null;
+    const pr = {};
+    for (const c of cs) for (const [n, v] of c.pr) pr[n] = (pr[n] || 0) + v;
+    const tot = k => cs.reduce((a, c) => a + c[k], 0);
+    return { lv: tot("lv"), hk: tot("hk"), pd: tot("pd"), dt: tot("dt"), il: tot("il"), pr: Object.entries(pr) };
+  });
+  const cell = c => {
+    if (!c) return `<td class="dz">—</td>`;
+    const bits = [c.lv ? `<b>+${c.lv} ${plural(c.lv, "уровень", "уровня", "уровней")}</b>` : "",
+      ...[...c.pr].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<span>${esc(n)} +${fmtN(v)}</span>`),
+      c.hk ? `<span title="Почётные убийства">HK +${fmtN(c.hk)}</span>` : "",
+      c.il ? `<span>ilvl +${fmtN(c.il)}</span>` : "",
+      c.dt ? `<span class="dd">${fmtN(c.dt)} ${plural(c.dt, "смерть", "смерти", "смертей")}${c.pd ? `, от игроков ${fmtN(c.pd)}` : ""}</span>`
+        : c.pd ? `<span class="dd">${fmtN(c.pd)} ${plural(c.pd, "смерть", "смерти", "смертей")} от игроков</span>` : ""].filter(Boolean);
+    return bits.length ? `<td style="--k:${Math.min(1, c.lv / 3)}">${bits.join("")}</td>` : `<td class="dz">·</td>`;
+  };
+  const label = r => { const gap = dayNum(r.d.id) - dayNum(r.p.id);
+    return r.d.id === today ? `${dayShort(r.d.id)}<small>сегодня, ещё идёт</small>` : gap > 1 ? `${dayShort(r.d.id)}<small>за ${gap} ${plural(gap, "день", "дня", "дней")}: синхронизации не было</small>` : dayShort(r.d.id); };
+  el.innerHTML = `<div class="scroll"><table><thead><tr><th>День</th>${cols.map(s => { const p = ownerOf(s);
+      return `<th data-g="${esc(s)}"><button type="button" class="glink" data-act="gchar" data-id="${esc(s)}">${esc(g.name(s))}</button><small>${p ? esc(p.name) + (p.char === s ? "" : ", твинк") : "гильдия"} · ${lvl(s)}</small></th>`; }).join("")}</tr></thead>
+    <tbody><tr class="dsum"><th scope="row">7 дней</th>${sum.map(cell).join("")}</tr>${rows.map(r => `<tr><th scope="row">${label(r)}</th>${r.cells.map(cell).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="gnote">«—»: персонажа ещё не было в снимке предыдущего дня. «·»: в этот день без изменений (или персонаж не выходил из игры: профиль обновляется после выхода). Все смерти и ilvl считаются с 16 ноября, раньше снимок хранил только смерти от других игроков.</p>`;
+}
+// Overview tiles. "Today" is the last synced day against the calendar day before it; a gap in the sync gives no number rather than a multi-day sum.
+// Guild composition (as in the armory and the old TBC dashboard): classes, races, level brackets, size over time, joins and leaves.
+// Everything comes from the roster and the daily snapshots (glevels.lv holds every member of that day).
+let ovAll = false; // false: level 10+ only; true: everyone, banks included
+const OV_BRACKETS = [[1, 9], [10, 19], [20, 29], [30, 39], [40, 49], [50, 59], [60, 60]];
+let ovF = { cls: "", race: "", lvl: "", act: "", sex: "", role: "" }; // overview filters (a click on a bar, the activity buttons); they combine with AND
+// Role from the talent tree with the most points (gchars.sp, from /specializations). Feral can tank or deal damage, so it stays "Feral".
+const TREE_ROLE = { Protection: "tank", Holy: "heal", Discipline: "heal", Restoration: "heal", "Feral Combat": "feral" };
+const ROLE_RU = { tank: "Танк", heal: "Лекарь", dps: "Боец", feral: "Feral: танк или боец" };
+const roleOf = s => { const t = gchars[s]?.sp?.[0]; return Array.isArray(t) && +t[1] > 0 ? TREE_ROLE[t[0]] || "dps" : ""; };
+const specText = sp => (Array.isArray(sp) ? sp : []).filter(t => Array.isArray(t) && +t[1] > 0).map(t => `${esc(t[0])} ${+t[1]}`).join(" / ");
+// Slots every character can enchant in Classic; the off hand only when it holds a weapon or a shield.
+const ENCH_SLOTS = ["BACK", "CHEST", "WRIST", "HANDS", "FEET", "MAIN_HAND"];
+const enchantable = (slot, it) => ENCH_SLOTS.includes(slot) || (slot === "OFF_HAND" && (Array.isArray(it?.tip) ? it.tip : []).some(l => Array.isArray(l) && (["One-Hand", "Off Hand"].includes(l[0]) || l[2] === "Shield")));
+const IDLE_DAYS = 14;
+const seenDays = s => { const t = +gchars[s]?.login; return t ? (Date.now() - t) / 864e5 : null; }; // null: no profile (below level 10)
+const ACT = { today: ["За сутки", d => d < 1], week: ["За 7 дней", d => d < 7], idle: [`Неактивны ${IDLE_DAYS}+ дн.`, d => d >= IDLE_DAYS] };
+// Race icons: the classic race portraits. The API has no race icons at all; for Skyborne we use its racial Wind Blessed (file 463565, from the API).
+const RACE_ICON = { Human: "human_male", Dwarf: "dwarf_male", Gnome: "gnome_male", "Night Elf": "nightelf_female", Orc: "orc_male", Undead: "undead_male", Tauren: "tauren_male", Troll: "troll_male" };
+const raceIcon = r => RACE_ICON[r] ? "achievement_character_" + RACE_ICON[r] : /Skyborne$/.test(r) ? "463565" : "";
+const lvlBracket = l => OV_BRACKETS.findIndex(([a, b]) => l >= a && l <= b);
+function ovMatch(m, skip) { // skip: the chart being drawn ignores its own filter, so its other bars stay visible
+  if (skip !== "cls" && ovF.cls && BCLS[m.cls] !== ovF.cls) return false;
+  if (skip !== "race" && ovF.race && BRACE[m.race] !== ovF.race) return false;
+  if (skip !== "lvl" && ovF.lvl !== "" && lvlBracket(m.level) !== +ovF.lvl) return false;
+  if (skip !== "sex" && ovF.sex && gchars[m.slug]?.gender !== ovF.sex) return false;
+  if (skip !== "role" && ovF.role && roleOf(m.slug) !== ovF.role) return false;
+  if (skip !== "act" && ovF.act) { const d = seenDays(m.slug); if (d == null || !ACT[ovF.act][1](d)) return false; }
+  return true;
+}
+const ovOn = () => !!(ovF.cls || ovF.race || ovF.lvl !== "" || ovF.act || ovF.sex || ovF.role);
+const slugName = s => s.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "); // left members are no longer in the roster
+function renderOverview(g) {
+  const all = Object.entries(g.mem).map(([slug, m]) => ({ slug, ...m })), ms = ovAll ? all : all.filter(m => m.level >= G_MIN);
+  $("#ov-f").innerHTML = [[false, `${G_MIN}+`], [true, "Все"]].map(([v, t]) => `<button type="button" data-act="ovf" data-v="${v}" aria-pressed="${ovAll === v}">${t}</button>`).join("");
+  const bars = (k, rows, title) => {
+    const max = Math.max(1, ...rows.map(r => r.n));
+    return `<div class="ovc"><h3>${title}</h3><div class="vbars">${rows.map(r => { const on = String(ovF[k]) === String(r.v);
+      return `<button type="button" class="vb${ovF[k] !== "" && !on ? " dim" : ""}" data-act="ovpick" data-k="${k}" data-v="${esc(String(r.v))}" aria-pressed="${on}" aria-label="${esc(r.label)}: ${r.n}"><b>${r.n || ""}</b><span class="va"><i style="height:${r.n / max * 100}%;--c:${r.color}"></i></span>${r.icon ? `<img src="${ICON(r.icon)}" alt="" loading="lazy">` : ""}<span>${esc(r.label)}</span></button>`; }).join("")}</div></div>`;
+  };
+  const count = (k, f) => ms.filter(m => ovMatch(m, k) && f(m)).length;
+  const classes = CLASSES.map(c => ({ v: c.id, label: c.id, n: count("cls", m => BCLS[m.cls] === c.id), color: c.color, icon: "classicon_" + c.id.toLowerCase() }));
+  const raceNames = [...new Set(Object.values(BRACE))];
+  const races = raceNames.map(r => ({ v: r, label: r, n: count("race", m => BRACE[m.race] === r), color: "var(--accent)", icon: raceIcon(r) })).filter(r => r.n > 0 || ovF.race === r.v);
+  const levels = OV_BRACKETS.map(([a, b], i) => ({ v: i, label: a === b ? String(a) : `${a}–${b}`, n: count("lvl", m => lvlBracket(m.level) === i), color: "var(--accent)" }));
+  const sexes = [["MALE", "Мужской", "var(--s1)"], ["FEMALE", "Женский", "var(--s5)"]].map(([v, label, color]) => ({ v, label, n: count("sex", m => gchars[m.slug]?.gender === v), color }));
+  const roles = [["tank", "Танки", "var(--tank)"], ["heal", "Лекари", "var(--healer)"], ["dps", "Бойцы", "var(--dps)"], ["feral", "Feral", "var(--accent)"]]
+    .map(([v, label, color]) => ({ v, label, n: count("role", m => roleOf(m.slug) === v), color })).filter(r => r.n > 0 || ovF.role === r.v || r.v !== "feral");
+  const chips = [["cls", ovF.cls], ["race", ovF.race], ["lvl", ovF.lvl !== "" ? levels[+ovF.lvl]?.label : ""], ["sex", sexes.find(x => x.v === ovF.sex)?.label], ["role", roles.find(x => x.v === ovF.role)?.label]].filter(x => x[1]);
+  $("#ov-bar").innerHTML = `<div class="seg" role="group" aria-label="Активность">${[["", "Все"], ...Object.entries(ACT).map(([k, [t]]) => [k, t])].map(([k, t]) => `<button type="button" data-act="ovact" data-v="${k}" aria-pressed="${ovF.act === k}">${t}</button>`).join("")}</div>`
+    + chips.map(([k, t]) => `<button type="button" class="ovchip" data-act="ovpick" data-k="${k}" data-v="${esc(String(ovF[k]))}" aria-label="Убрать фильтр ${esc(t)}">${esc(t)} ✕</button>`).join("")
+    + (ovOn() ? `<button type="button" class="glink" data-act="ovclr">Сбросить фильтры</button>` : `<span class="gnote">Нажми на столбец, чтобы отфильтровать состав ниже</span>`);
+  // size per day and membership changes from consecutive snapshots
+  const days = g.days, ev = [];
+  for (let i = 1; i < days.length; i++) {
+    const a = days[i - 1].lv, b = days[i].lv;
+    for (const s of Object.keys(b)) if (!(s in a)) ev.push([days[i].id, s, "in"]);
+    for (const s of Object.keys(a)) if (!(s in b)) ev.push([days[i].id, s, "out"]);
+    for (const s of Object.keys(b)) if (s in a && +a[s] < 60 && +b[s] >= 60) ev.push([days[i].id, s, "60"]);
+  }
+  const nm = s => g.mem[s] ? g.name(s) : slugName(s);
+  const evHtml = ev.length ? `<ul class="cc-list">${ev.reverse().slice(0, 12).map(([d, s, t]) => `<li><span>${g.mem[s] && gchars[s] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(s)}">${esc(nm(s))}</button>` : esc(nm(s))}</span><span><span class="evt e${t}">${t === "in" ? "вступил" : t === "out" ? "ушёл" : "60 уровень"}</span> <small>${dayShort(d)}</small></span></li>`).join("")}</ul>`
+    : `<p class="gnote">Пока без изменений${days.length ? ` с ${dayShort(days[0].id)}` : ""}: история начинается с первого дневного снимка.</p>`;
+  const el = $("#ov-size"), W = Math.max(280, Math.round(el.clientWidth) || 520);
+  if (days.length) {
+    const series = [["size", "Всего", "var(--s1)", lv => Object.keys(lv).length], ["size10", `${G_MIN}+`, "var(--s2)", lv => Object.values(lv).filter(v => +v >= G_MIN).length], ["size60", "60", "var(--s3)", lv => Object.values(lv).filter(v => +v >= 60).length]]
+      .map(([slug, name, color, f]) => ({ slug, name, color, pts: days.map((d, i) => ({ i, lv: f(d.lv) })) }));
+    const { hi, step } = niceTop(Math.max(...series[0].pts.map(p => p.lv)));
+    el.innerHTML = gKeys(series) + lineChart("gsize", days, series, { W, H: 200, lo: 0, hi, step, label: "Размер гильдии по дням: всего, с 10 уровня и 60 уровня" }) + oneDay(days);
+  } else el.innerHTML = `<p class="empty">История начнётся после первой синхронизации.</p>`;
+  $("#ovg").innerHTML = bars("cls", classes, "Классы") + bars("race", races, "Расы") + bars("lvl", levels, "Уровни")
+    + bars("sex", sexes, `Пол <small>с ${G_MIN} уровня</small>`) + bars("role", roles, "Роли <small>по ветке с наибольшим числом талантов</small>");
+  $("#ov-ev").innerHTML = evHtml;
+}
+function renderKpis(g, up, core) {
+  const last = g.days[g.days.length - 1], prev = g.days[g.days.length - 2];
+  const gain = {};
+  if (last && prev && dayNum(last.id) - dayNum(prev.id) === 1)
+    for (const m of up) if (+prev.lv[m.slug] > 0) { const d = (+last.lv[m.slug] || m.level) - prev.lv[m.slug]; if (d > 0) gain[m.slug] = d; }
+  const sum = Object.values(gain).reduce((a, b) => a + b, 0);
+  const lead = Object.keys(gain).sort((a, b) => gain[b] - gain[a] || (core.has(b) - core.has(a)))[0];
+  const cl = up.filter(m => core.has(m.slug)), avg = cl.length ? cl.reduce((a, m) => a + m.level, 0) / cl.length : 0;
+  const day = last ? dayShort(last.id) : "", act = up.filter(m => seenDays(m.slug) != null && seenDays(m.slug) < IDLE_DAYS).length;
+  const tile = (t, v, s) => `<div class="kpi"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
+  $("#kpis").innerHTML = tile(`В гильдии ${G_MIN}+`, up.length, `из ${Object.keys(g.mem).length} в составе`)
+    + tile("Средний уровень Кора", cl.length ? avg.toFixed(1).replace(".", ",") : "—", cl.length ? `${cl.length} ${plural(cl.length, "персонаж", "персонажа", "персонажей")}` : "основные персонажи не выбраны")
+    + tile(`Активны за ${IDLE_DAYS} дней`, `${act} / ${up.length}`, `были в игре, персонажи ${G_MIN}+`)
+    + tile("Уровней за день", sum ? `+${sum}` : "—", prev ? day : "нужна история за два дня")
+    + tile("Лидер дня", lead ? esc(g.name(lead)) : "—", lead ? `+${gain[lead]} ${plural(gain[lead], "уровень", "уровня", "уровней")} · ${day}` : "пока никто не апнулся");
 }
 function renderGProfs(g) {
   // profession -> [{slug, s, max}], best first
@@ -2326,7 +2892,7 @@ function renderGProfs(g) {
   const row = (name, gap) => {
     const who = (by[name] || []).sort((a, b) => b.s - a.s || g.name(a.slug).localeCompare(g.name(b.slug)));
     return `<div class="gpr"><b>${esc(name)}</b><div>${who.length ? who.map(w =>
-      `<button type="button" class="gpc" data-act="gchar" data-id="${esc(w.slug)}" aria-haspopup="dialog"><b>${w.s}</b><small>/ ${w.max}</small>${esc(g.name(w.slug))}</button>`).join("")
+      `<button type="button" class="gpc" data-act="gchar" data-id="${esc(w.slug)}"><b>${w.s}</b><small>/ ${w.max}</small>${esc(g.name(w.slug))}</button>`).join("")
       : `<span class="none">${gap ? "никого" : "—"}</span>`}</div></div>`;
   };
   const known = new Set(PROFS.map(p => p.id)), extra = Object.keys(by).filter(n => !known.has(n)).sort();
@@ -2424,7 +2990,7 @@ function renderPvp() {
     .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
   const n = v => v == null ? `<span class="z">—</span>` : fmtN(v), plus = v => v == null ? `<span class="z">—</span>` : v > 0 ? `<span class="up">+${fmtN(v)}</span>` : `<span class="z">0</span>`;
   $("#pvp-table").innerHTML = `<table class="ptab"><thead><tr><th>Персонаж</th><th>Убийства</th><th>Сегодня</th><th>7 дней</th><th>В мире</th><th>На полях боя</th><th>Поля боя, победы : поражения</th><th>Смерти от игроков</th><th>Дуэли, победы : поражения</th><th>Ранг</th></tr></thead><tbody>${
-    rows.map(r => `<tr data-g="${esc(r.s)}"><td><i class="gkey" style="--c:${g.color[r.s] || "transparent"}"></i><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}" aria-haspopup="dialog">${esc(g.name(r.s))}</button></td>
+    rows.map(r => `<tr data-g="${esc(r.s)}"><td><i class="gkey" style="--c:${g.color[r.s] || "transparent"}"></i><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}">${esc(g.name(r.s))}</button></td>
       <td class="hk">${fmtN(r.hk)}</td><td>${plus(r.today)}</td><td>${plus(r.week)}</td><td>${n(r.world)}</td><td>${n(r.bg)}</td><td>${r.won + r.lost ? `${r.won} : ${r.lost}` : `<span class="z">—</span>`}</td>
       <td>${n(r.died)}</td><td>${r.duelW == null && r.duelL == null ? `<span class="z">—</span>` : `${r.duelW || 0} : ${r.duelL || 0}`}</td><td>${r.rank || `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table>`;
   // charts
@@ -2454,12 +3020,12 @@ function renderPvp() {
 // Dungeons, records and shared quests: all from gchars (ast = the game's counters, q.log = quest log).
 const astChars = () => Object.keys(gchars).filter(s => guild?.members?.[s] && Array.isArray(gchars[s].ast) && gchars[s].ast.length);
 const gName = s => { const m = guild?.members?.[s]; return m ? `${m.name}${m.surname ? " " + m.surname : ""}` : s; };
-const gChip = (s, extra = "") => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(s)}" aria-haspopup="dialog">${extra}${esc(gName(s))}</button>`;
+const gChip = (s, extra = "") => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(s)}">${extra}${esc(gName(s))}</button>`;
 // Dungeons. Per character the game only counts end-boss kills ("Edwin VanCleef Kills (Deadmines)" in gchars.ast), so that
 // is the source wherever such a counter exists. The Spelunker achievements (gchars.dg, full list in guild/dungeons) cover
 // every dungeon and wing, but they are account-wide: a twink shows its main's numbers. They supply the list of dungeons
 // and, for dungeons without a boss counter, a count per account, labelled as such. Level ranges come from DUNGEONS.
-let gdung = null, gzones = {}; // gzones/{slug}: quest progress per zone, { z: [[zone, completed, total]], other }
+let gdung = null, gach = null, gzones = {}; // gzones/{slug}: quest progress per zone, { z: [[zone, completed, total]], other }
 const DG_ALIAS = { "Ragefire Chasm or Hall of Thanes": "rfc", "Scarlet Monastery: Graveyard": "smgy", "Scarlet Monastery: Library": "smlib", "Scarlet Monastery: Armory": "smarm",
   "Scarlet Monastery: Cathedral": "smcath", "Scarlet Monastery": "smcath", "The Temple of Atal'Hakkar": "st", "Lower Blackrock Spire": "lbrs", "Upper Blackrock Spire": "ubrs",
   "Maraudon": "mara_wg", "Stratholme: Live": "strat", "Stratholme: Dead": "strat", "Dire Maul: East": "dmaul", "Dire Maul: North": "dmaul", "Dire Maul: West": "dmaul", "The Shaper's Terrace": "shapers" };
@@ -2515,7 +3081,7 @@ function renderDgs() {
       const who = [...d.acct].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
       return `<div class="dcard">${head(d, `<span class="tag">по аккаунту</span>`)}</div>
         <div class="big"><div><b>${who.length} / ${accts.length}</b>игроков прошли</div><div><b>${fmtN(d.total)}</b>${runsWord(d.total)}</div></div>
-        <div class="who">${who.map(([label, n, s]) => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(s)}" aria-haspopup="dialog"><b>${fmtN(n)}</b>${esc(label)}</button>`).join("")}</div>
+        <div class="who">${who.map(([label, n, s]) => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(s)}"><b>${fmtN(n)}</b>${esc(label)}</button>`).join("")}</div>
         <p class="fact">Число общее на аккаунт: кто из персонажей игрока ходил, игра не говорит.</p></div>`;
     }
     const who = Object.entries(d.runs).sort((a, b) => b[1] - a[1] || gName(a[0]).localeCompare(gName(b[0]))), top = who[0], all = who.length === chars.length, bosses = Object.entries(d.bosses);
@@ -2530,7 +3096,7 @@ function renderDgs() {
     chars.map(s => { const mine = own.filter(d => d.runs[s]).sort((a, b) => b.runs[s] - a.runs[s]);
       return { s, ent: astOf(gchars[s], "Total 5-player dungeons entered") || 0, n: mine.length, runs: mine.reduce((t, d) => t + d.runs[s], 0), died: astOf(gchars[s], "Total deaths in 5-player dungeons") || 0, fav: mine[0] }; })
       .sort((a, b) => b.ent - a.ent || b.runs - a.runs || gName(a.s).localeCompare(gName(b.s)))
-      .map(r => `<tr><td><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}" aria-haspopup="dialog">${esc(gName(r.s))}</button></td><td class="hk">${z(r.ent)}</td><td>${z(r.n)}</td><td>${z(r.runs)}</td><td>${z(r.died)}</td><td>${r.fav ? `${esc(r.fav.name)} · ${fmtN(r.fav.runs[r.s])}` : `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table>
+      .map(r => `<tr><td><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}">${esc(gName(r.s))}</button></td><td class="hk">${z(r.ent)}</td><td>${z(r.n)}</td><td>${z(r.runs)}</td><td>${z(r.died)}</td><td>${r.fav ? `${esc(r.fav.name)} · ${fmtN(r.fav.runs[r.s])}` : `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table>
     <p class="gnote">«Заходов» считает все подземелья. Остальные столбцы считают только те, где игра ведёт счёт по персонажу (убийства последнего босса).</p>` : "";
 }
 const FUN = [ // [counter name in the game data, title, what is counted]
@@ -2587,10 +3153,39 @@ function renderStats() {
   }).join("")}</tbody></table>` : `<p class="empty">${wait}</p>`;
 }
 // Recipes: grecipes/{slug} lists what each character knows, gcat/{Profession} has the names, categories and reagents.
-let grec = {}, gcat = {}, rProf = "", rDrawn = "";
+// Filters read the crafted item's tooltip lines (slot, "Requires Level N", "+N Stat"), all from Blizzard's API.
+let grec = {}, gcat = {}, rProf = "", rDrawn = "", rFkind = "", rFonly = "", rKnown = "known"; // rKnown: known | un (nobody knows it) | all
+const rFq = new Set(), rOptH = {};
+const R_ALL = "*"; // the "Все" chip
+const R_Q = [["POOR", "Серое"], ["COMMON", "Белое"], ["UNCOMMON", "Зелёное"], ["RARE", "Синее"], ["EPIC", "Фиолетовое"], ["LEGENDARY", "Оранжевое"]];
+const R_SLOT = /^(Head|Neck|Shoulder|Back|Chest|Shirt|Tabard|Wrist|Hands|Waist|Legs|Feet|Finger|Trinket|One-Hand|Two-Hand|Main Hand|Off Hand|Held In Off-hand|Ranged|Thrown|Shield|Bag|Quiver|Ammo Pouch|Relic|Projectile|Ammo)$/;
+function rMeta(r) {
+  let slot = "", rl = null;
+  const stats = [];
+  for (const [t, , right] of Array.isArray(r.tip) ? r.tip : []) {
+    const x = String(t || ""), m = /^Requires Level (\d+)$/.exec(x), st = /^\+\d+ (.+)$/.exec(x);
+    if (!slot && R_SLOT.test(x)) slot = right ? `${x} · ${right}` : x;
+    if (m) rl = +m[1];
+    if (st) stats.push(st[1]);
+  }
+  return { slot, rl, stats, il: +r.il > 0 ? +r.il : null, kind: r.i ? "item" : r.ok ? "ench" : "" };
+}
+// fills a static select only when its options change, keeping the choice
+function rOpts(id, list, all) {
+  const sel = $("#" + id), h = `<option value="">${all}</option>` + list.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}">${esc(t)}</option>`; }).join("");
+  if (rOptH[id] === h) return;
+  const v = sel.value;
+  sel.innerHTML = rOptH[id] = h;
+  sel.value = [...sel.options].some(o => o.value === v) ? v : "";
+}
+const rNum = id => { const v = $("#" + id).value.trim(); return v === "" || !Number.isFinite(+v) ? null : +v; };
 function renderRecipes() {
   const mem = guild?.members || {}, q = $("#rq").value.trim().toLowerCase();
-  const key = [q, rProf, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at), players.map(p => p.char).join()].join("|");
+  const f = { cat: $("#rf-cat").value, slot: $("#rf-slot").value, stat: $("#rf-stat").value, who: $("#rf-who").value, sort: $("#rsort").value || "cat",
+    il0: rNum("rf-il0"), il1: rNum("rf-il1"), rl0: rNum("rf-rl0"), rl1: rNum("rf-rl1") };
+  const meP = auth && !readOnly ? players.find(p => p.id === auth.player) || null : null, fav = meP?.fav || {};
+  const key = [q, rProf, rKnown, rFonly, auth?.player, auth?.admin, readOnly, JSON.stringify(fav), orders.map(o => [o.id, o.st, o.taker, o.note].join(":")).join(), JSON.stringify(f), [...rFq].join(), rFkind, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at),
+    players.map(p => `${p.id}:${p.char}+${altsOf(p).join("+")}`).join()].join("|");
   if (key === rDrawn) return; // the list can be long: redraw only when the data or the filter changed
   rDrawn = key;
   // profession -> recipe id -> [character slug]
@@ -2604,32 +3199,130 @@ function renderRecipes() {
   const total = profs.reduce((n, pr) => n + Object.keys(by[pr]).length, 0);
   $("#recipes-cap").textContent = total ? `${total} ${plural(total, "рецепт", "рецепта", "рецептов")} у гильдии · данные Blizzard API, персонажи с ${G_MIN} уровня` : "";
   if (!profs.length) {
-    $("#rprofs").innerHTML = "";
+    $("#rprofs").innerHTML = $("#rsum").innerHTML = "";
     $("#rlist").innerHTML = `<p class="empty">${got.has("grecipes") ? "Рецептов пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…"}</p>`;
     return;
   }
-  if (!profs.includes(rProf)) rProf = profs[0];
-  $("#rprofs").innerHTML = profs.map(pr => `<button type="button" data-act="rprof" data-prof="${esc(pr)}" aria-pressed="${!q && pr === rProf}">${esc(pr)}<small>${Object.keys(by[pr]).length}</small></button>`).join("");
-  const rows = [];
-  for (const pr of q ? profs : [rProf]) for (const [id, who] of Object.entries(by[pr])) {
-    const r = info(pr, id), re = Array.isArray(r.re) ? r.re : [];
-    if (q && ![r.n, r.i, r.ds, ...re.map(x => x[0])].some(t => String(t || "").toLowerCase().includes(q))) continue;
-    rows.push({ pr, id, r, re, who, cat: r.c || "Другое", n: r.n || `Рецепт ${id}` });
+  if (rProf !== R_ALL && !profs.includes(rProf)) rProf = profs[0];
+  const all = [], row = (pr, id, who) => { const r = info(pr, id); return { pr, id, r, who, un: !who.length, re: Array.isArray(r.re) ? r.re : [], cat: r.c || "Другое", n: r.n || `Рецепт ${id}`, m: rMeta(r) }; };
+  for (const pr of profs) {
+    for (const [id, who] of Object.entries(by[pr])) all.push(row(pr, id, who));
+    for (const id of Object.keys(gcat[pr]?.r || {})) if (!by[pr][id] && (info(pr, id).n || "") !== pr) all.push(row(pr, id, []));
   }
-  rows.sort((a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n));
+  const cnt = pr => all.filter(x => x.pr === pr).length, known = all.filter(x => !x.un);
+  const inMode = x => rKnown === "all" || (rKnown === "un") === x.un, nMode = pr => all.filter(x => (!pr || x.pr === pr) && inMode(x)).length;
+  // craft orders: for me (one of my characters knows the recipe), mine, the rest; finished ones folded
+  const rk = x => `${x.pr}:${x.id}`, rmap = new Map(all.map(x => [rk(x), x])), ordBy = {};
+  const live_ = orders.filter(o => o.st !== "done").sort((a, b) => (b.at || 0) - (a.at || 0));
+  for (const o of live_) (ordBy[`${o.prof}:${o.rid}`] ||= []).push(o);
+  const myChars = new Set(meP ? [meP.char, ...altsOf(meP)].filter(Boolean) : []);
+  const crafters_ = o => by[o.prof]?.[o.rid] || [], iCan = o => crafters_(o).some(sl => myChars.has(sl));
+  const ordCard = o => {
+    const x = rmap.get(`${o.prof}:${o.rid}`), rr = x?.r || {}, who = crafters_(o), own = meP && (o.by === meP.id || auth.admin);
+    let d = ""; try { d = new Date(o.at).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); } catch {}
+    const st = o.st === "done" ? `<b class="rost done">Готово</b>` : o.st === "taken" ? `<b class="rost taken">Взял ${esc(nameOf(o.taker))}</b>` : `<b class="rost">Ждёт мастера</b>`;
+    const btn = (a, t, c = "") => `<button type="button" class="rob${c}" data-act="${a}" data-id="${esc(o.id)}">${t}</button>`, bs = [];
+    if (meP && o.st === "open" && (iCan(o) || auth.admin)) bs.push(btn("rordtake", "Беру", " pri"));
+    if (meP && o.st === "taken" && (o.taker === meP.id || own)) bs.push(btn("rorddone", "Готово", " pri"));
+    if (meP && o.st === "taken" && (o.taker === meP.id || auth.admin)) bs.push(btn("rordfree", "Отказаться"));
+    if (own && o.st !== "done") bs.push(btn("rorddel", "Отменить"));
+    return `<div class="rrow rord${rr.iq ? " rq-" + esc(rr.iq) : ""}"><span class="ri">${bimg(rr.icon) ? `<img src="${bimg(rr.icon)}" alt="" loading="lazy">` : ""}</span>
+      <div><b class="rn">${esc(o.n || x?.n || "Рецепт")}</b> <small class="rinl">${esc(o.prof)}</small>
+      <small>от <b>${esc(nameOf(o.by))}</b>${d ? ` · ${d}` : ""} · ${st}</small>
+      ${meP && o.by === meP.id && o.st !== "done" ? `<input class="ronote" data-ord="${esc(o.id)}" maxlength="200" placeholder="Комментарий: на что, свои материалы…" value="${esc(o.note || "")}" aria-label="Комментарий к заявке">`
+        : o.note ? `<small class="rds">«${esc(o.note)}»</small>` : ""}
+      <small>${who.length ? `Умеют: ${esc(who.map(name).sort((a, b) => a.localeCompare(b)).join(", "))}` : "Пока никто в гильдии не умеет"}</small></div>
+      <div class="rw">${bs.join("")}</div></div>`;
+  };
+  const forMe = meP ? live_.filter(o => o.by !== meP.id && (iCan(o) || o.taker === meP.id)) : [], myO = meP ? live_.filter(o => o.by === meP.id) : [];
+  const rest = live_.filter(o => !forMe.includes(o) && !myO.includes(o));
+  const done = orders.filter(o => o.st === "done").sort((a, b) => (b.doneAt || b.at || 0) - (a.doneAt || a.at || 0)).slice(0, 20);
+  const grp = (t, l, empty) => l.length || empty ? `<h4 class="cc-h4">${t}${l.length ? ` · ${l.length}` : ""}</h4>${l.length ? l.map(ordCard).join("") : `<p class="gnote">${empty}</p>`}` : "";
+  $("#rorders").innerHTML = (meP ? grp("Мне заказали", forMe, "У твоих персонажей пока ничего не заказали.") + grp("Мои заявки", myO, "Ты пока ничего не заказал.")
+      : `<p class="gnote">Чтобы заказывать рецепты и брать заявки, войди: ссылка «I'm kute expat» внизу справа.</p>`)
+    + grp(meP ? "Остальные заявки" : "Заявки гильдии", rest, meP ? "" : "Открытых заявок нет.")
+    + (done.length ? `<details class="gtable"><summary>Выполненные · ${done.length}</summary>${done.map(ordCard).join("")}</details>` : "");
+  // who has the profession, for the recipes nobody knows yet
+  const hasProf = {};
+  for (const [sl, c] of Object.entries(gchars)) if (mem[sl]) for (const p of Object.keys(c.profs || {})) (hasProf[p] ||= []).push(sl);
+  // summary: tiles, recipes per profession, quality of what the guild crafts
+  const crafters = new Set(known.flatMap(x => x.who)), qn = {};
+  for (const x of known) if (x.r.iq) qn[x.r.iq] = (qn[x.r.iq] || 0) + 1;
+  const qAll = Object.values(qn).reduce((a, b) => a + b, 0), cat = all.length > known.length; // the catalogue is loaded
+  const topOf = pr => { const n = {}; for (const w of Object.values(by[pr])) for (const s of w) n[s] = (n[s] || 0) + 1; return Object.entries(n).sort((a, b) => b[1] - a[1])[0]; };
+  $("#rsum").innerHTML = cTiles([["Изучено рецептов", fmtN(total)], ["В каталоге", cat ? fmtN(all.length) : null], ["Каталог закрыт", cat ? `${Math.floor(total / all.length * 100)}%` : null],
+      ["Мастеров", fmtN(crafters.size)], ["Синих и лучше", fmtN((qn.RARE || 0) + (qn.EPIC || 0) + (qn.LEGENDARY || 0))]])
+    + `<div class="rsum"><div><h4 class="cc-h4">${cat ? "Изучено из каталога профессии" : "Рецептов по профессиям"}</h4>${profs.map(pr => { const n = Object.keys(by[pr]).length, m = cnt(pr), t = topOf(pr);
+        return cBar(`<button type="button" class="glink" data-act="rprof" data-prof="${esc(pr)}">${esc(pr)}</button>`, `<b>${fmtN(n)}</b>${cat ? ` из ${fmtN(m)}` : ""}${t ? ` · больше всех ${esc(name(t[0]))} (${fmtN(t[1])})` : ""}`, cat ? n / m * 100 : n / Math.max(...profs.map(p => Object.keys(by[p]).length)) * 100, "var(--accent)"); }).join("")}</div>
+      ${qAll ? `<div><h4 class="cc-h4">Качество создаваемых предметов</h4><div class="rqbar">${R_Q.filter(([k]) => qn[k]).map(([k, t]) => `<i class="rq-${k}" style="flex:${qn[k]}" title="${t}: ${qn[k]}"></i>`).join("")}</div>
+        <ul class="rqleg">${R_Q.filter(([k]) => qn[k]).map(([k, t]) => `<li class="rq-${k}"><i></i>${t}<b>${fmtN(qn[k])}</b></li>`).join("")}</ul></div>` : ""}</div>`;
+  $("#rknown").innerHTML = [["known", "Изученные", known.length], ["un", "Неизученные", all.length - known.length], ["all", "Все", all.length]].map(([v, t, n]) =>
+    `<button type="button" data-act="rknown" data-v="${v}" aria-pressed="${rKnown === v}">${t} <small>${fmtN(n)}</small></button>`).join("");
+  $("#rprofs").innerHTML = [[R_ALL, "Все", nMode("")], ...profs.map(pr => [pr, pr, nMode(pr)]).filter(([v, , n]) => n || v === rProf)].map(([v, t, n]) =>
+    `<button type="button" data-act="rprof" data-prof="${esc(v)}" aria-pressed="${(q ? R_ALL : rProf) === v}">${esc(t)}<small>${n}</small></button>`).join("");
+  // filter options come from what is in scope (the chosen profession, or every profession while searching)
+  const scope = all.filter(x => inMode(x) && (q || rProf === R_ALL || x.pr === rProf)), uniq = l => [...new Set(l.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  rOpts("rf-cat", uniq(scope.map(x => x.cat)), "Любая");
+  rOpts("rf-slot", uniq(scope.map(x => x.m.slot)), "Любой");
+  rOpts("rf-stat", uniq(scope.flatMap(x => x.m.stats)), "Любая");
+  const scopeWho = new Set(scope.flatMap(x => x.who)), live = players.filter(p => !p.deleted);
+  const pChars = p => [p.char, ...altsOf(p)].filter(s => scopeWho.has(s)), owned = new Set(live.flatMap(pChars));
+  $("#rf-who").disabled = rKnown === "un"; // nobody knows these
+  rOpts("rf-who", [...live.filter(p => pChars(p).length).map(p => ["p:" + p.id, `${p.name} (все персонажи)`]),
+    ...[...scopeWho].filter(s => !owned.has(s)).sort((a, b) => name(a).localeCompare(name(b))).map(s => ["c:" + s, name(s)])], "Кто угодно");
+  const qs = R_Q.filter(([k]) => scope.some(x => x.r.iq === k));
+  $("#rf-q").innerHTML = qs.map(([k, t]) => `<button type="button" class="rq-${k}" data-act="rfq" data-v="${k}" aria-pressed="${rFq.has(k)}"><i></i>${t}</button>`).join("");
+  $("#rf-only").innerHTML = [...(meP ? [["fav", "★ Избранное"]] : []), ["ord", "С заявками"]].map(([k, t]) => `<button type="button" data-act="rfonly" data-v="${k}" aria-pressed="${rFonly === k}">${t}</button>`).join("");
+  $("#rf-kind").innerHTML = [["item", "Предмет"], ["ench", "Чары, без предмета"]].map(([k, t]) => `<button type="button" data-act="rfkind" data-v="${k}" aria-pressed="${rFkind === k}">${t}</button>`).join("");
+  // the filters themselves
+  const whoSet = f.who.startsWith("p:") ? new Set(pChars(live.find(p => p.id === f.who.slice(2)) || {})) : f.who.startsWith("c:") ? new Set([f.who.slice(2)]) : null;
+  const inR = (v, lo, hi) => (lo == null && hi == null) || (v != null && (lo == null || v >= lo) && (hi == null || v <= hi));
+  const rows = scope.filter(x => (!q || [x.r.n, x.r.i, x.r.ds, ...x.re.map(y => y[0])].some(t => String(t || "").toLowerCase().includes(q)))
+    && (!f.cat || x.cat === f.cat) && (!rFq.size || rFq.has(x.r.iq)) && inR(x.m.il, f.il0, f.il1) && inR(x.m.rl, f.rl0, f.rl1)
+    && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || rKnown === "un" || x.who.some(s => whoSet.has(s))) && (rFonly !== "fav" || fav[rk(x)]) && (rFonly !== "ord" || ordBy[rk(x)]));
+  const nf = [f.cat, f.slot, f.stat, rKnown !== "un" && f.who, rFkind, rFonly, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
+  $("#rfn").textContent = nf ? ` · ${nf}` : "";
+  const multi = q || rProf === R_ALL, by2 = (a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n);
+  rows.sort(f.sort === "il" ? (a, b) => (b.m.il ?? -1) - (a.m.il ?? -1) || a.n.localeCompare(b.n)
+    : f.sort === "rl" ? (a, b) => (a.m.rl ?? 99) - (b.m.rl ?? 99) || a.n.localeCompare(b.n)
+    : f.sort === "n" ? (a, b) => a.n.localeCompare(b.n) : by2);
   let html = "", head = "";
   for (const x of rows.slice(0, 300)) {
-    const h = q ? `${x.pr} · ${x.cat}` : x.cat;
-    if (h !== head) { head = h; html += `<div class="gpg">${esc(h)}</div>`; }
+    if (f.sort === "cat") { const h = multi ? `${x.pr} · ${x.cat}` : x.cat; if (h !== head) { head = h; html += `<div class="gpg">${esc(h)}</div>`; } }
     const tip = Array.isArray(x.r.tip) && x.r.tip.length ? ` data-rid="${esc(x.pr)}:${esc(x.id)}" tabindex="0"` : "";
-    html += `<div class="rrow"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
-      <div><b${tip ? tip.replace(' tabindex="0"', "") + ' class="rtip"' : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small></div>
-      <div class="rw">${x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}" aria-haspopup="dialog">${esc(name(sl))}</button>`).join("")}</div></div>`;
+    const wh = +x.r.iid > 0 ? `https://www.wowhead.com/forever/item=${+x.r.iid}` : `https://www.wowhead.com/forever/search?q=${encodeURIComponent(x.n)}`;
+    const meta = [x.m.il ? `ур. предмета ${x.m.il}` : "", x.m.rl ? `нужен ${x.m.rl} ур.` : "", x.m.slot, x.m.stats.length ? x.m.stats.map(t => "+" + t).join(", ") : "", multi && f.sort !== "cat" ? x.pr : ""].filter(Boolean).join(" · ");
+    html += `<div class="rrow${x.r.iq ? " rq-" + esc(x.r.iq) : ""}"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
+      <div><b class="rn${tip ? " rtip" : ""}"${tip ? tip.replace(' tabindex="0"', "") : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}<a class="rwh" href="${esc(wh)}" target="_blank" rel="noopener" aria-label="${esc(x.n)} на Wowhead">Wowhead ↗</a>
+      ${meta ? `<small class="rmeta">${esc(meta)}</small>` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small>${(() => {
+        const os = ordBy[rk(x)] || [], mo = meP && os.find(o => o.by === meP.id);
+        const a = (meP ? `<button type="button" class="rfav" data-act="rfav" data-k="${esc(rk(x))}" aria-pressed="${!!fav[rk(x)]}" aria-label="${esc(x.n)}: в избранное" title="В избранное">★</button>`
+          + (mo ? `<button type="button" class="rordb on" data-act="rorddel" data-id="${esc(mo.id)}">Отменить заявку</button>` : `<button type="button" class="rordb" data-act="rord" data-k="${esc(rk(x))}">Заказать</button>`) : "")
+          + os.filter(o => o !== mo).map(o => `<span class="rordtag">заявка от ${esc(nameOf(o.by))}</span>`).join("");
+        return a ? `<div class="racts">${a}</div>` : "";
+      })()}</div>
+      <div class="rw">${x.un ? `<small class="rnone">Никто не знает${hasProf[x.pr]?.length ? `. Профессия есть у: ${esc(hasProf[x.pr].map(name).sort((a, b) => a.localeCompare(b)).join(", "))}` : ""}</small>`
+        : x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}">${esc(name(sl))}</button>`).join("")}</div></div>`;
   }
-  $("#rlist").innerHTML = rows.length ? html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос.</p>` : "")
-    : `<p class="empty">Ничего не нашлось. Никто в гильдии пока не умеет делать «${esc(q)}».</p>`;
+  const unNote = rKnown !== "known" ? `<p class="gnote">Неизученные — остальные рецепты из каталога профессии в Blizzard API. Откуда берётся рецепт (тренер, продавец, добыча, задание), API не говорит: смотри на Wowhead, на странице предмета в разделе «Created by».${all.some(x => x.un && !x.r.ok) ? " Детали неизученных ещё загружаются, по порциям каждые 5 минут." : ""}</p>` : "";
+  $("#rlist").innerHTML = rows.length ? unNote + `<p class="gnote rcount">Найдено: ${fmtN(rows.length)}</p>` + html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос или фильтры.</p>` : "")
+    : unNote + `<p class="empty">${rKnown === "un" && !all.some(x => x.un) ? "Каталог профессий ещё не загружен: неизученные рецепты появятся после следующей загрузки." : q && !nf ? `Ничего не нашлось${rKnown === "known" ? `. Никто в гильдии пока не умеет делать «${esc(q)}»` : ""}.` : "Под эти фильтры ничего не подходит."}</p>`;
+}
+// Menu badge: craft orders waiting for me (open ones my main or twinks can craft, and the ones I took)
+function renderOrderBadge() {
+  const p = auth && !readOnly ? players.find(x => x.id === auth.player) : null, my = p ? [p.char, ...altsOf(p)].filter(Boolean) : [];
+  const can = o => my.some(sl => (grec[sl]?.r?.[o.prof] || []).some(id => String(id) === String(o.rid)));
+  const n = p ? orders.filter(o => o.by !== p.id && ((o.st === "open" && can(o)) || (o.st === "taken" && o.taker === p.id))).length : 0;
+  const t = n ? `${n} ${plural(n, "заявка ждёт", "заявки ждут", "заявок ждут")} тебя` : "";
+  for (const el of [$("#nb-recipes"), $("#nb-menu")]) { el.hidden = !n; el.textContent = n || ""; el.title = t; }
+  $("#nb-recipes").setAttribute("aria-label", t);
+  $(".burger").setAttribute("aria-label", n ? `Меню, ${t}` : "Меню");
 }
 $("#rq").addEventListener("input", renderRecipes);
+for (const ev of ["input", "change"]) $("#rfilt").addEventListener(ev, renderRecipes);
+$("#rsort").addEventListener("change", renderRecipes);
+$("#rorders").addEventListener("change", e => { const i = e.target.closest("[data-ord]"); if (i) setDoc("orders", i.dataset.ord, { note: i.value.trim().slice(0, 200) }); });
+if (matchMedia("(max-width: 899px)").matches) $("#rfilt").open = false; // phones: filters folded under one button
 // Character sheet: full-body render with the gear around it, like the official armory.
 const G_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
 const G_RIGHT = ["HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2"];
@@ -2639,12 +3332,190 @@ const G_SLOT = { HEAD: "Голова", NECK: "Шея", SHOULDER: "Плечи", B
   MAIN_HAND: "Правая рука", OFF_HAND: "Левая рука", RANGED: "Дальний бой" };
 const G_Q = ["POOR", "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"];
 const bimg = u => /^https:\/\/render\.worldofwarcraft\.com\/[\w./-]+$/.test(u || "") ? u : ""; // only Blizzard's image server
+const G_POWER = { Mana: "Мана", Rage: "Ярость", Energy: "Энергия", Focus: "Концентрация" };
+const fmtN = n => (+n || 0).toLocaleString("ru-RU");
+// Character card (#char/<slug>): header, the gear doll with a foldable item list on the left, stats, PvP, summary,
+// professions and awards on the right, then one section after another (achievements, reputation, quests, PvP, dungeons).
+const ownerOf = s => players.find(p => p.char === s) || players.find(p => altsOf(p).includes(s)) || null;
+function cardDefault() { // the viewer's own main, else the highest core character, else the highest character with a sheet
+  const mem = guild?.members || {}, has = s => s && gchars[s] && mem[s];
+  const own = players.find(p => p.id === auth?.player)?.char;
+  if (has(own)) return own;
+  const lv = s => +mem[s]?.level || 0;
+  return players.map(p => p.char).filter(has).sort((a, b) => lv(b) - lv(a))[0] || Object.keys(gchars).filter(has).sort((a, b) => lv(b) - lv(a))[0] || "";
+}
+function openCard(slug) { gTipHide(); location.hash = slug ? "char/" + encodeURIComponent(slug) : "char"; } // hashchange → readHash → applyView; Back returns to the previous page
+const cTiles = rows => `<div class="gtiles">${rows.filter(r => r[1] != null).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
+const cBar = (label, right, w, col) => `<div class="grep"><div><span>${label}</span><small>${right}</small></div><i style="--c:${col};--w:${Math.min(100, Math.max(0, w))}%"></i></div>`;
+const cNum = v => v == null ? null : fmtN(v);
+const cSec = (title, body, sub = "") => body ? `<section class="cc-sec"><h3 class="gsec">${title}${sub ? `<small>${sub}</small>` : ""}</h3>${body}</section>` : "";
+const B_HORDE = new Set([2, 5, 6, 8, 96]), B_ALLY = new Set([1, 3, 4, 7, 95]); // from playable-race: High Order Skyborne (95) is Alliance, Windshaper (96) Horde
+// Day-by-day counter of one character from glevels (hk, pd): [[day, gained]] for days that follow a synced day.
+function cDaily(slug, key) {
+  const days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id) && d[key]?.[slug] != null).sort((a, b) => a.id < b.id ? -1 : 1);
+  return days.slice(1).map((d, i) => [d.id, dayNum(d.id) - dayNum(days[i].id) === 1 ? Math.max(0, +d[key][slug] - +days[i][key][slug]) : null]);
+}
+const repColor = tier => tier >= 5 ? "var(--healer)" : tier === 4 ? "var(--second-bg)" : tier === 3 ? "var(--gold)" : "var(--ban-bg)";
+const cMore = (n, word, body) => n > 0 ? `<details class="gtable"><summary>Ещё ${n} ${word}</summary>${body}</details>` : "";
+// "Прогресс по дням" tab: this character's lines from the daily snapshots (glevels/{day}), which start on 2026-11-13;
+// item level and all deaths since 11-15, dungeon boss kills (bk) since 11-16. The game gives only today's totals.
+let cTab = "main";
+const BK_RE = /^(.*) kills \((.*)\)$/i; // "Edwin VanCleef Kills (Deadmines)", also "Bazzalan kills (Ragefire Chasm)"
+function cardProgress(box, slug) {
+  const el = box.querySelector("#cc-prog");
+  if (!el) return;
+  const c = gchars[slug] || {}, days = glevels.filter(d => /^\d{4}-\d\d-\d\d$/.test(d.id)).sort((a, b) => a.id < b.id ? -1 : 1);
+  const W = Math.max(280, Math.round(el.clientWidth) || 680), H = W < 480 ? 200 : 240, col = k => `var(--s${k % 8 + 1})`;
+  const pts = get => days.map((d, i) => ({ i, lv: get(d) })).filter(p => p.lv != null && Number.isFinite(+p.lv)).map(p => ({ i: p.i, lv: +p.lv }));
+  const since = p => p.length ? dayShort(days[p[0].i].id) : "";
+  // change over the last 7 days, or since the first snapshot when the history is shorter
+  const gain = p => {
+    if (p.length < 2) return null;
+    const last = p.at(-1), t = dayNum(days[last.i].id) - 7, base = [...p].reverse().find(x => dayNum(days[x.i].id) <= t);
+    return { v: last.lv - (base || p[0]).lv, label: base ? "За 7 дней" : `С ${since(p)}` };
+  };
+  const plus = g => g ? [g.label, g.v > 0 ? `+${fmtN(g.v)}` : fmtN(g.v)] : [null, null];
+  const chart = (id, series, label, scale) => {
+    series = series.filter(x => x.pts.length);
+    if (!series.length) return "";
+    const all = series.flatMap(x => x.pts.map(p => p.lv)), t = scale ? scale(all) : { lo: 0, ...niceTop(Math.max(...all)) };
+    return (series.length > 1 ? gKeys(series) : "") + lineChart("cc:" + id, days, series, { W, H, lo: t.lo, hi: t.hi, step: t.step, label });
+  };
+  const one = (name, p, color = "var(--cc)") => [{ slug: name, name, color, pts: p }];
+  const note = n => n < 2 ? `<p class="gnote">Пока есть данные только за один день. Линия появится завтра.</p>` : "";
+  let html = "";
+  // level
+  const lv = pts(d => d.lv?.[slug]);
+  html += cSec("Уровень", lv.length ? cTiles([["Сейчас", fmtN(lv.at(-1).lv)], plus(gain(lv)), ["История с", since(lv)]])
+    + chart("lv", one("Уровень", lv), "Уровень персонажа по дням", all => {
+      const lo = Math.max(0, Math.floor((Math.min(...all) - 1) / 5) * 5), hi = Math.max(lo + 5, Math.min(60, Math.ceil((Math.max(...all) + 1) / 5) * 5));
+      return { lo, hi, step: hi - lo > 30 ? 10 : 5 };
+    }) + note(lv.length) : "");
+  // professions: one line per profession this character has
+  const pnames = [...new Set(days.flatMap(d => Object.keys(d.pr?.[slug] || {})))].filter(n => days.some(d => +d.pr?.[slug]?.[n] > 0))
+    .sort((a, b) => (+c.profs?.[b]?.s || 0) - (+c.profs?.[a]?.s || 0) || a.localeCompare(b));
+  const pser = pnames.map((n, k) => ({ slug: n, name: n, color: col(k), pts: pts(d => d.pr?.[slug]?.[n]) }));
+  html += cSec("Профессии", pser.length ? cTiles(pser.map(x => { const g = gain(x.pts); return [esc(x.name), `${fmtN(x.pts.at(-1).lv)}${g && g.v ? ` <small class="up">+${fmtN(g.v)}</small>` : ""}`]; }))
+    + chart("pr", pser, "Навык профессий по дням") + note(Math.max(...pser.map(x => x.pts.length))) : "", pser.length && gain(pser[0].pts) ? `зелёным: ${gain(pser[0].pts).label.toLowerCase()}` : "");
+  // PvP: honorable kills; deaths (all, and from other players)
+  const hk = pts(d => d.hk?.[slug]), pd = pts(d => d.pd?.[slug]), dt = pts(d => d.dt?.[slug]);
+  html += cSec("PvP", hk.length ? cTiles([["Почётные убийства", fmtN(hk.at(-1).lv)], plus(gain(hk)), ["Смертей от игроков", pd.length ? fmtN(pd.at(-1).lv) : null]])
+    + chart("hk", one("Почётные убийства", hk), "Почётные убийства нарастающим итогом по дням") + note(hk.length) : "");
+  html += cSec("Смерти", dt.length || pd.length ? chart("dt", [{ slug: "all", name: "Все смерти", color: "var(--s5)", pts: dt }, { slug: "pvp", name: "От игроков", color: "var(--s1)", pts: pd }],
+    "Смерти нарастающим итогом по дням") : "", "все смерти считаются с 15 ноября");
+  // item level
+  const il = pts(d => d.il?.[slug]);
+  html += cSec("Уровень предметов", il.length ? cTiles([["Сейчас", fmtN(il.at(-1).lv)], plus(gain(il))])
+    + chart("il", one("Уровень предметов", il), "Средний уровень предметов по дням") + note(il.length) : "", "с 15 ноября");
+  // quests completed and reputations (daily snapshots since 16 November)
+  const qd = pts(d => d.qd?.[slug]);
+  html += cSec("Задания", qd.length ? cTiles([["Выполнено", fmtN(qd.at(-1).lv)], plus(gain(qd))])
+    + chart("qd", one("Выполнено заданий", qd), "Выполненные задания нарастающим итогом по дням") + note(qd.length) : "", "с 16 ноября");
+  const rnames = [...new Set(days.flatMap(d => Object.keys(d.rp?.[slug] || {})))];
+  const rser = rnames.map(n => ({ n, p: pts(d => d.rp?.[slug]?.[n]) })).sort((x, y) => y.p.at(-1).lv - x.p.at(-1).lv || x.n.localeCompare(y.n))
+    .slice(0, 8).map((x, k) => ({ slug: x.n, name: x.n, color: col(k), pts: x.p }));
+  html += cSec("Репутация", rser.length ? cTiles(rser.map(x => { const g = gain(x.pts), st = (Array.isArray(c.reps) ? c.reps : []).find(r => r[0] === x.name)?.[1];
+      return [esc(x.name), `${esc(st || "")}${g && g.v ? ` <small class="up">+${fmtN(g.v)}</small>` : ""}` || "—"]; }))
+    + chart("rp", rser, "Репутация по дням, очки от начала шкалы", all => { // hostile factions go below zero: the axis starts on a step below the lowest value
+      const mn = Math.min(0, ...all), mx = Math.max(...all), t = niceTop(mx - mn), lo = Math.floor(mn / t.step) * t.step;
+      return { lo, hi: lo + Math.ceil((mx - lo) / t.step) * t.step, step: t.step };
+    })
+    + note(Math.max(...rser.map(x => x.pts.length))) : "", "8 самых высоких, с 16 ноября");
+  // dungeons: boss kills now (the game's statistics) and their history (daily snapshots since 16 November)
+  const bosses = (Array.isArray(c.ast) ? c.ast : []).filter(x => x[0] === "Dungeons & Raids / Boss Kills" && BK_RE.test(x[1]) && +x[2] > 0)
+    .map(x => { const [, boss, dg] = x[1].match(BK_RE); const p = pts(d => d.bk?.[slug]?.[x[1]]); return { stat: x[1], boss, dg, n: +x[2], g: gain(p) }; })
+    .sort((a, b) => b.n - a.n || a.dg.localeCompare(b.dg));
+  const bkSum = pts(d => d.bk?.[slug] ? Object.values(d.bk[slug]).reduce((n, v) => n + (+v || 0), 0) : null);
+  html += cSec("Подземелья", bosses.length ? cTiles([["Убито боссов", fmtN(bosses.reduce((n, b) => n + b.n, 0))], ["Подземелий", bosses.length && new Set(bosses.map(b => b.dg)).size], plus(gain(bkSum))])
+    + (bkSum.length ? chart("bk", one("Боссов убито", bkSum), "Убийства боссов подземелий нарастающим итогом по дням") + note(bkSum.length)
+      : `<p class="gnote">История по дням копится с 16 ноября: график появится после второй синхронизации.</p>`)
+    + `<div class="scroll"><table class="cc-bk"><thead><tr><th>Подземелье</th><th>Босс</th><th>Убит</th><th>Прирост</th></tr></thead><tbody>${bosses.map(b =>
+      `<tr><td>${esc(b.dg)}</td><td>${esc(b.boss)}</td><td>${fmtN(b.n)}</td><td>${b.g ? (b.g.v > 0 ? `<span class="up">+${fmtN(b.g.v)}</span>` : "0") : `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table></div>`
+    : `<p class="empty">Убитых боссов подземелий пока нет.</p>`, "по счётчикам убийств боссов в игре");
+  el.innerHTML = html || `<p class="empty">Истории по дням для этого персонажа пока нет.</p>`;
+}
+function cardSections(c, slug) {
+  let html = "";
+  // achievements: account-wide; newest first, then by category. Icon, category, description and points: guild/achinfo
+  const ach = (Array.isArray(c.ach) ? [...c.ach].reverse() : []).map(([n, at, id]) => ({ n, at, ...(gach?.a?.[id] || {}) }));
+  const achCard = a => {
+    let d = ""; try { d = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric" }).format(new Date(a.at)); } catch {}
+    const meta = [d, +a.p > 0 ? `${fmtN(a.p)} ${plural(+a.p, "очко", "очка", "очков")}` : ""].filter(Boolean).join(" · ");
+    return `<div class="cc-ach">${bimg(a.icon) ? `<img src="${bimg(a.icon)}" alt="" loading="lazy">` : "<i></i>"}<div><b>${esc(a.n)}</b>${a.d ? `<span>${esc(a.d)}</span>` : ""}${meta ? `<small>${meta}</small>` : ""}</div></div>`;
+  };
+  const cats = new Map();
+  for (const a of ach) { const k = a.c || "Прочее"; cats.has(k) ? cats.get(k).push(a) : cats.set(k, [a]); }
+  const pts = ach.reduce((n, a) => n + (+a.p || 0), 0);
+  html += cSec("Достижения", ach.length ? cTiles([["Получено", fmtN(ach.length)], ["Очки", pts ? fmtN(pts) : null], ["Категорий", gach ? fmtN(cats.size) : null]])
+    + `<h4 class="cc-h4">Последние</h4><div class="cc-achs">${ach.slice(0, 6).map(achCard).join("")}</div>`
+    + (gach ? [...cats].sort((x, y) => (x[0] === "Прочее") - (y[0] === "Прочее") || y[1].length - x[1].length || x[0].localeCompare(y[0]))
+      .map(([k, l]) => `<details class="gtable"><summary>${esc(k)} · ${fmtN(l.length)}</summary><div class="cc-achs">${l.map(achCard).join("")}</div></details>`).join("")
+      : cMore(ach.length - 6, plural(ach.length - 6, "достижение", "достижения", "достижений"), `<div class="cc-achs">${ach.slice(6).map(achCard).join("")}</div>`))
+    : `<p class="empty">Достижений пока нет.</p>`, "общие на аккаунт");
+  // reputation: standing in its colour
+  const reps = Array.isArray(c.reps) ? c.reps : [];
+  html += cSec("Репутация", reps.length ? `<div class="greps">${reps.map(([name, st, v, max, tier]) =>
+    `<div class="grep" style="--c:${repColor(tier)}"><div><span>${esc(name)}</span><small><b class="tint">${esc(st || "")}</b>${fmtN(v)} / ${fmtN(max)}</small></div><i style="--w:${max > 0 ? Math.min(100, Math.max(0, v / max * 100)) : 0}%"></i></div>`).join("")}</div>`
+    : `<p class="empty">Репутаций пока нет.</p>`);
+  // quests: the log on the left, zones on the right
+  const q = c.q && typeof c.q === "object" ? c.q : {}, log = Array.isArray(q.log) ? q.log : [];
+  const zones = Array.isArray(gzones[slug]?.z) ? gzones[slug].z : [];
+  const zbar = ([n, d, t]) => cBar(esc(n), `<b>${fmtN(d)}</b>/ ${fmtN(t)}`, t > 0 ? d / t * 100 : 0, "var(--healer)");
+  const qli = n => `<li><span>${esc(n)}</span></li>`;
+  html += cSec("Задания", `<div class="cc-big"><div><span>Выполнено</span><b>${fmtN(q.done ?? astOf(c, "Quests completed"))}</b></div><div><span>В журнале</span><b>${fmtN(log.length)}</b></div>${
+      astOf(c, "Quests abandoned") ? `<div><span>Брошено</span><b>${fmtN(astOf(c, "Quests abandoned"))}</b></div>` : ""}</div>
+    <div class="cc-2">
+      <div><h4>Журнал</h4>${log.length ? `<ul class="cc-list dot">${log.slice(0, 12).map(qli).join("")}</ul>${cMore(log.length - 12, plural(log.length - 12, "задание", "задания", "заданий"), `<ul class="cc-list dot">${log.slice(12).map(qli).join("")}</ul>`)}` : `<p class="gnote">Журнал пуст.</p>`}</div>
+      <div><h4>Больше всего в зонах</h4>${zones.length ? `<div class="cc-bars">${zones.slice(0, 8).map(zbar).join("")}</div>${cMore(zones.length - 8, plural(zones.length - 8, "зона", "зоны", "зон"), `<div class="cc-bars">${zones.slice(8).map(zbar).join("")}</div>`)}` : `<p class="gnote">Зоны ещё загружаются.</p>`}
+        ${+gzones[slug]?.other ? `<p class="gnote">Ещё ${fmtN(gzones[slug].other)} ${plural(+gzones[slug].other, "задание", "задания", "заданий")} вне зон: классовые, профессии, события.</p>` : ""}</div>
+    </div>`);
+  // PvP: battlegrounds and the last two weeks
+  const p = c.pvp && typeof c.pvp === "object" ? c.pvp : {}, hk = cDaily(slug, "hk"), pd = Object.fromEntries(cDaily(slug, "pd")), rows = hk.slice(-14).reverse();
+  const maps = Array.isArray(p.maps) ? p.maps : [];
+  html += cSec("PvP", (maps.length ? cTiles(maps.map(m => [esc(m[0]), `${+m[2] || 0} : ${+m[3] || 0}`])) : "")
+    + (rows.length ? `<div class="scroll"><table class="ptab"><thead><tr><th>День</th><th>Почётных убийств</th><th>Смертей от игроков</th></tr></thead><tbody>${
+      rows.map(([d, n]) => `<tr><td>${dayShort(d)}</td><td class="hk">${n == null ? "—" : fmtN(n)}</td><td>${pd[d] == null ? "—" : fmtN(pd[d])}</td></tr>`).join("")}</tbody></table></div>
+      <p class="gnote">«—»: в предыдущий день синхронизации не было, сравнить не с чем.</p>` : `<p class="gnote">История по дням появится после второго дня синхронизации.</p>`));
+  // dungeons: boss kills of this character, the account-wide Spelunker list after it
+  const by = {};
+  for (const [cat, name, qty] of Array.isArray(c.ast) ? c.ast : []) {
+    const m = /Boss Kills$/.test(cat) && /^(.*?)\s+kills\s+\((.+)\)$/i.exec(name);
+    if (m && +qty > 0) (by[m[2]] ||= []).push([m[1], +qty]);
+  }
+  const acct = (Array.isArray(c.dg) ? c.dg : []).filter(([n, a, done]) => n && (+a > 0 || done));
+  const names = Object.keys(by).sort((a, b) => (dgInfo(a) ? DUNGEONS.indexOf(dgInfo(a)) : 999) - (dgInfo(b) ? DUNGEONS.indexOf(dgInfo(b)) : 999) || a.localeCompare(b));
+  html += cSec("Подземелья", cTiles([["Заходов", cNum(astOf(c, "Total 5-player dungeons entered"))], ["Смертей в подземельях", cNum(astOf(c, "Total deaths in 5-player dungeons"))], ["С убитыми боссами", fmtN(names.length)]])
+    + (names.length ? `<div class="cdg">${names.map(n => `<div class="dcard"><h3>${esc(n)}</h3><div class="lr">${dgInfo(n) ? `уровни ${dgInfo(n).min}–${dgInfo(n).max}` : "&nbsp;"}</div>${
+      by[n].sort((a, b) => b[1] - a[1]).map(([b, k]) => `<div class="win"><span>${esc(b)}</span><b>${fmtN(k)}</b></div>`).join("")}</div>`).join("")}</div>` : `<p class="gnote">Убийств боссов подземелий пока нет.</p>`)
+    + (acct.length ? `<h4>Пройдено по аккаунту</h4><div class="cdgl">${acct.map(([n, a]) => `<span class="gpc"><b>${fmtN(Math.max(1, +a || 0))}</b>${esc(n)}</span>`).join("")}</div>
+      <p class="gnote">Счётчик общий на аккаунт: какой именно персонаж ходил, игра не говорит.</p>` : ""));
+  // every counter, folded
+  const ast = Array.isArray(c.ast) ? c.ast : [];
+  let head = "";
+  if (ast.length) html += `<details class="gtable cc-all" data-k="all"><summary>Все показатели: ${fmtN(ast.length)}</summary><div class="scroll"><table class="ptab"><tbody>${ast.map(([cat, name, qty, desc]) => (cat !== head ? `<tr><th colspan="2">${esc(head = cat)}</th></tr>` : "")
+    + `<tr><td>${esc(name)}${desc ? ` <small>${esc(desc)}</small>` : ""}</td><td class="hk">${fmtN(qty)}</td></tr>`).join("")}</tbody></table></div></details>`;
+  return html;
+}
 function renderGSheet() {
-  const box = $("#gc-box"), bd = $("#gc-bd"), c = gchars[gOpen], m = guild?.members?.[gOpen];
-  if (!gOpen || !c || !m) { gOpen = gDrawn = ""; box.hidden = bd.hidden = true; return; }
-  const key = `${gOpen}:${c.at}:${gzones[gOpen]?.at}:${m.level}:${players.map(p => (p.char || "") + "+" + altsOf(p).join("+")).join()}:${auth?.player}:${auth?.admin}:${readOnly}`;
+  const box = $("#gc-box");
+  if (view !== "char") return;
+  const mem = guild?.members || {};
+  if (!gOpen) gOpen = cardDefault(); // an unknown slug stays: the page says so instead of showing (and editing) someone else
+  const c = gchars[gOpen], m = mem[gOpen];
+  if (!c || !m) {
+    gDrawn = "";
+    box.innerHTML = `<p class="empty">${!got.has("guild") ? loaded && offline ? "Нет связи с базой данных." : "Загружаю…" : gOpen ? "У этого персонажа пока нет карточки: Blizzard отдаёт профиль с 10 уровня." : "Пока нет ни одного персонажа с карточкой."}</p>`;
+    return;
+  }
+  const own = ownerOf(gOpen), last = glevels.reduce((a, d) => d.id > a ? d.id : a, "");
+  const key = [gOpen, c.at, gach?.at, gzones[gOpen]?.at, grec[gOpen]?.at, last, Object.keys(gchars).map(s => s + ":" + (mem[s]?.level || "")).join(), Object.values(gcat).map(x => x.at).join(),
+    fameAll.map(f => f.id + (f.deleted ? "-" : "+") + f.title + f.icon).join(), players.map(p => `${p.id}:${p.name}:${p.char || ""}+${altsOf(p).join("+")}`).join(),
+    auth?.player, auth?.admin, readOnly, offline, cTab].join("|");
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
   gDrawn = key;
+  // keep open <details> and the focused control across the redraw (realtime updates, linking a character)
+  const opened = [...box.querySelectorAll("details[data-k][open]")].map(d => d.dataset.k), fa = box.contains(document.activeElement) ? document.activeElement : null;
+  const refocus = fa?.dataset?.act ? `[data-act="${fa.dataset.act}"]${fa.dataset.id ? `[data-id="${CSS.escape(fa.dataset.id)}"]` : ""}` : fa?.id ? "#" + CSS.escape(fa.id) : "";
   const items = c.items || {}, qc = it => G_Q.includes(it.q) ? "gq-" + it.q : "";
   const slot = t => {
     const it = items[t];
@@ -2653,63 +3524,87 @@ function renderGSheet() {
   };
   let login = "";
   try { if (c.login) login = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(c.login)); } catch {}
-  const name = `${m.name}${m.surname ? " " + m.surname : ""}`;
-  box.innerHTML = `<div class="sheet-head"><h3 id="gc-title">${esc(name)}</h3><button type="button" class="x" data-act="gcclose" aria-label="Закрыть">✕</button></div>
-    <p class="gsub"><b>${+m.level || "?"}</b> ${esc(BRACE[m.race] || "")} ${esc(BCLS[m.cls] || "")}${c.ilvl ? ` · уровень предметов <b>${+c.ilvl}</b>` : ""}${c.ruleset ? ` · ${esc(c.ruleset)}` : ""}${login ? ` · в игре: ${login}` : ""}${
-      Object.keys(c.profs || {}).length ? `<br>${Object.entries(c.profs).sort((a, b) => b[1].s - a[1].s).map(([n, v]) => `${esc(n)} <b>${+v.s || 0}</b>`).join(" · ")}` : ""}</p>
-    <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
-      <div class="gfig">${bimg(c.img) ? `<img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа">` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
-      <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
-    ${[["gown", "Основной персонаж:", p => p.char === gOpen], ["galt", "Твинк игрока:", p => altsOf(p).includes(gOpen)]].map(([act, label, has]) =>
+  const name = gName(gOpen), cls = CLS[BCLS[m.cls]], faction = B_HORDE.has(+m.race) ? "Horde" : B_ALLY.has(+m.race) ? "Alliance" : "";
+  // character picker: core → twinks → guild, level 10+ with a sheet
+  const core = new Set(players.map(p => p.char).filter(Boolean)), alts = new Set(players.flatMap(altsOf));
+  const all = Object.keys(gchars).filter(s => mem[s] && mem[s].level >= G_MIN).sort((a, b) => mem[b].level - mem[a].level || gName(a).localeCompare(gName(b)));
+  const opt = s => `<option value="${esc(s)}"${s === gOpen ? " selected" : ""}>${esc(gName(s))} · ${+mem[s].level}</option>`;
+  const groups = [["Кор", all.filter(s => core.has(s))], ["Твинки", all.filter(s => alts.has(s) && !core.has(s))], ["Гильдия", all.filter(s => !core.has(s) && !alts.has(s))]]
+    .filter(([, l]) => l.length);
+  const picker = groups.map(([t, l]) => `<optgroup label="${t}">${l.map(opt).join("")}</optgroup>`).join("");
+  // the same list on the left of the card, on wide screens
+  const sideList = `<nav class="cc-side" aria-label="Персонажи гильдии">${groups.map(([t, l]) => `<p class="cc-lg">${t}</p>${l.map(x => {
+    const xc = gchars[x], col = CLS[BCLS[mem[x].cls]]?.color || "var(--line)";
+    return `<button type="button" data-act="gchar" data-id="${esc(x)}"${x === gOpen ? ' aria-current="true"' : ""} style="--lc: ${col}">${
+      bimg(xc?.avatar) ? `<img src="${bimg(xc.avatar)}" alt="" loading="lazy">` : "<i></i>"}<span>${esc(gName(x))}</span><small>${+mem[x].level}</small></button>`;
+  }).join("")}`).join("")}</nav>`;
+  const sibs = own ? [own.char, ...altsOf(own)].filter(s => s && gchars[s] && mem[s]) : [];
+  const hkDay = cDaily(gOpen, "hk").at(-1), s = c.st && typeof c.st === "object" ? c.st : null;
+  // awards: the player's Hall of Fame entries plus guild records this character holds (FUN counters, first place)
+  const fame = own ? fameAll.filter(f => !f.deleted && f.who === own.id).sort((a, b) => (b.at || 0) - (a.at || 0)) : [];
+  const chars = astChars(), recs = FUN.filter(([stat]) => {
+    const v = astOf(c, stat) || 0;
+    return v > 0 && chars.every(x => (astOf(gchars[x], stat) || 0) <= v);
+  });
+  const award = (icon, title, sub) => `<span class="award"><img src="${ICON(icon)}" alt="" loading="lazy"><span><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></span>`;
+  // professions with this character's recipes folded under each
+  const profs = Object.entries(c.profs || {}).sort((a, b) => (+b[1].s || 0) - (+a[1].s || 0)), known = grec[gOpen]?.r || {};
+  const profHtml = profs.map(([n, v]) => {
+    const ids = (Array.isArray(known[n]) ? known[n] : []).map(id => gcat[n]?.r?.[id]?.n || `Рецепт ${id}`).filter(r => r !== n).sort();
+    return `<div class="cprof">${cBar(esc(n), `<b>${fmtN(v.s)}</b>/ ${fmtN(v.max)}`, +v.max > 0 ? v.s / v.max * 100 : 0, "var(--accent)")}${
+      ids.length ? `<details data-k="prof:${esc(n)}"><summary>${ids.length} ${plural(ids.length, "рецепт", "рецепта", "рецептов")}</summary><div class="cdgl">${ids.map(r => `<span class="gpc">${esc(r)}</span>`).join("")}</div></details>` : ""}</div>`;
+  }).join("");
+  const gear = [...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]);
+  // Enchantments are known only after a sync that stores them (gender arrived with it); before that, say nothing rather than "none".
+  const enKnown = !!c.gender || gear.some(t => items[t].en);
+  const ench = { n: gear.filter(t => enchantable(t, items[t]) && items[t].en).length, of: enKnown ? gear.filter(t => enchantable(t, items[t])).length : 0 };
+  const facts = [["GearScore", fmtN(gearScore(c, +m.cls))], ["Уровень предметов", c.ilvl ? fmtN(c.ilvl) : "—"], ["Был в игре", login || "—"], ["Игрок", own ? `${esc(own.name)} <small>${own.char === gOpen ? "основной" : "твинк"}</small>` : "—"]];
+  box.style.setProperty("--cc", cls ? cls.color : "var(--gold)"); // the whole card takes the class colour
+  box.innerHTML = `${sideList}<div class="cc-main"><div class="cc-head">
+      <div class="cc-av">${bimg(c.avatar) ? `<img src="${bimg(c.avatar)}" alt="">` : ""}</div>
+      <div class="cc-who"><h2 id="gc-title">${esc(name)}</h2>
+        <p class="gsub">Уровень <b>${+m.level || "?"}</b> · ${esc(BRACE[m.race] || "")} <span class="tint">${esc(BCLS[m.cls] || "")}</span>${faction ? ` · ${faction}` : ""}${
+          specText(c.sp) ? `<br>Таланты: <b>${specText(c.sp)}</b>${roleOf(gOpen) ? ` · ${ROLE_RU[roleOf(gOpen)]}` : ""}${specText(c.sp2) ? ` · второй набор: ${specText(c.sp2)}` : ""}` : ""}${
+          sibs.length > 1 ? `<br>Персонажи игрока: ${sibs.map(x => x === gOpen ? `<b>${esc(gName(x))}</b>` : `<button type="button" class="glink" data-act="gchar" data-id="${esc(x)}">${esc(gName(x))}</button>`).join(" · ")}` : ""}</p></div>
+      <div class="cc-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
+      <label class="cc-pick"><span class="seg-label">Другой персонаж</span><select id="cc-sel" aria-label="Открыть карточку другого персонажа">${picker}</select></label>
+    </div>
+    <div class="cc-tabs"><div class="seg" role="group" aria-label="Раздел карточки">${[["main", "Персонаж"], ["prog", "Прогресс по дням"]].map(([v, t]) =>
+      `<button type="button" data-act="ctab" data-v="${v}" aria-pressed="${cTab === v}">${t}</button>`).join("")}</div></div>
+    ${cTab === "prog" ? `<div id="cc-prog"></div>` : `<div class="cc-top">
+      <div class="cc-left">
+        <div class="gdoll"><div class="gcol">${G_LEFT.map(slot).join("")}</div>
+          <div class="gfig">${bimg(c.img) ? `<button type="button" class="gfig-btn" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="Открыть персонажа на весь экран"><img src="${bimg(c.img)}" alt="${esc(name)}: внешний вид персонажа"></button><button type="button" class="g3d-full" data-act="zoom" data-slug="${esc(gOpen)}" data-src="${bimg(c.img)}" aria-label="3D-модель на весь экран" title="На весь экран">⤢</button>` : `<p>Blizzard ещё не нарисовал этого персонажа. Обычно картинка появляется через несколько часов.</p>`}</div>
+          <div class="gcol">${G_RIGHT.map(slot).join("")}</div><div class="gbot">${G_BOTTOM.map(slot).join("")}</div></div>
+      </div>
+      <div class="cc-right">
+        ${s ? cSec("Характеристики", cTiles([["Здоровье", cNum(s.hp)], [G_POWER[s.pt] || esc(s.pt || "Ресурс"), cNum(s.pw)],
+          ["Сила", cNum(s.str)], ["Ловкость", cNum(s.agi)], ["Выносливость", cNum(s.sta)], ["Интеллект", cNum(s.int)], ["Дух", cNum(s.spi)], ["Броня", cNum(s.arm)],
+          ["Сила атаки", cNum(s.ap)], ["Сила заклинаний", cNum(s.sp)], ["Крит ближний", s.mc == null ? null : fmtN(+(+s.mc).toFixed(2)) + "%"], ["Крит заклинаний", s.sc == null ? null : fmtN(+(+s.sc).toFixed(2)) + "%"], ["Уклонение", s.dg == null ? null : fmtN(+(+s.dg).toFixed(2)) + "%"]])) : ""}
+        ${cSec("PvP", cTiles([["Почётные убийства", fmtN(c.pvp?.hk ?? 0)], ["За день", hkDay?.[1] == null ? "—" : fmtN(hkDay[1])], ["Смертей от игроков", cNum(astOf(c, "Total deaths from other players")) ?? "—"], ["Ранг", fmtN(c.pvp?.rank ?? 0)]]))}
+        ${cSec("Сводка", cTiles([["Заданий", cNum(c.q?.done ?? astOf(c, "Quests completed")) ?? "—"], ["Заходов в подземелья", cNum(astOf(c, "Total 5-player dungeons entered")) ?? "—"],
+          ["Смертей", cNum(astOf(c, "Total deaths")) ?? "—"], ["Достижений", fmtN(Array.isArray(c.ach) ? c.ach.length : 0)],
+          ["Зачаровано", ench.of ? `${ench.n} / ${ench.of}` : null]]))}
+      </div>
+    </div>
+    ${gear.length ? `<details class="gtable cgear-d" data-k="gear"><summary>Экипировка списком</summary><div class="cgear">${gear.map(t => { const it = items[t];
+      return `<div class="${qc(it)}" data-slot="${t}" tabindex="0"><span class="ci">${bimg(it.icon) ? `<img src="${bimg(it.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span><span><b>${esc(it.name)}</b><small>${G_SLOT[t]}${+it.lvl ? ` · ${+it.lvl}` : ""}</small>${it.en ? `<small class="en">✦ ${esc(it.en)}</small>` : enKnown && enchantable(t, it) ? `<small class="nen">без зачарования</small>` : ""}</span></div>`; }).join("")}</div></details>` : ""}
+    ${profHtml ? cSec("Профессии", `<div class="cc-profs">${profHtml}</div>` + `<button type="button" class="glink" data-act="nav" data-nav="recipes">Все рецепты гильдии →</button>`) : ""}
+    ${cSec("Награды", fame.length || recs.length ? `<div class="cc-awards">${
+      recs.map(([stat, title, unit]) => award("achievement_bg_topdps", title, `рекорд гильдии · ${fmtN(astOf(c, stat))} ${unit}`)).join("")
+      + fame.map(f => award(/^[a-z0-9_]{1,80}$/.test(f.icon || "") ? f.icon : "inv_misc_note_01", f.title, "Зал славы")).join("")}</div>`
+      : `<p class="gnote">Пока ни рекордов, ни записей в Зале славы.</p>`)}
+    ${cardSections(c, gOpen)}
+    <details class="gtable cc-own" data-k="own"><summary>Чей это персонаж</summary>${[["gown", "Основной персонаж:", p => p.char === gOpen], ["galt", "Твинк игрока:", p => altsOf(p).includes(gOpen)]].map(([act, label, has]) =>
       `<div class="gown"><span>${label}</span>${players.map(p => {
         const on = has(p), taken = !on && players.some(x => x.char === gOpen || altsOf(x).includes(gOpen));
         return `<button type="button" data-act="${act}" data-id="${esc(p.id)}" aria-pressed="${on}" ${readOnly || offline || !mine(p.id) || (taken && !auth?.admin) ? "disabled" : ""}>${esc(p.name)}</button>`;
-      }).join("")}</div>`).join("")}
-    ${gSheetMore(c)}
-    <h4 class="gsec">Экипировка</h4>
-    <div class="glist">${[...G_LEFT, ...G_RIGHT, ...G_BOTTOM].filter(t => items[t]).map(t => `<div data-slot="${t}"><span>${G_SLOT[t]}</span><span class="${qc(items[t])}"><i></i>${esc(items[t].name)}</span><b>${+items[t].lvl || ""}</b></div>`).join("")}</div>`;
-  box.hidden = bd.hidden = false;
+      }).join("")}</div>`).join("")}</details>`}</div>`;
+  box.querySelector(".cc-side [aria-current]")?.scrollIntoView({ block: "nearest" });
+  for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
+  if (refocus) box.querySelector(refocus)?.focus();
+  if (cTab === "prog") cardProgress(box, gOpen); else card3d(box, gOpen);
 }
-// Attributes, PvP, reputations and quests of the open character (gchars: st, pvp, reps, q).
-const G_POWER = { Mana: "Мана", Rage: "Ярость", Energy: "Энергия", Focus: "Концентрация" };
-const fmtN = n => (+n || 0).toLocaleString("ru-RU");
-function gSheetMore(c) {
-  const tiles = rows => `<div class="gtiles">${rows.filter(r => r[1] != null).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
-  const pct = v => v == null ? null : (+v || 0).toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + "%";
-  const num = v => v == null ? null : fmtN(v);
-  let html = "";
-  const s = c.st;
-  if (s && typeof s === "object") html += `<h4 class="gsec">Характеристики</h4>` + tiles([["Здоровье", num(s.hp)], [G_POWER[s.pt] || esc(s.pt || "Ресурс"), num(s.pw)],
-    ["Сила", num(s.str)], ["Ловкость", num(s.agi)], ["Выносливость", num(s.sta)], ["Интеллект", num(s.int)], ["Дух", num(s.spi)], ["Броня", num(s.arm)],
-    ["Сила атаки", num(s.ap)], ["Сила заклинаний", num(s.sp)], ["Крит в ближнем бою", pct(s.mc)], ["Крит заклинаний", pct(s.sc)], ["Уклонение", pct(s.dg)]]);
-  const p = c.pvp;
-  if (p && typeof p === "object") html += `<h4 class="gsec">PvP</h4>` + tiles([["Почётные убийства", num(p.hk ?? 0)], ["Ранг", num(p.rank ?? 0)],
-    ...(Array.isArray(p.maps) ? p.maps : []).map(m => [esc(m[0]), `${+m[2] || 0} : ${+m[3] || 0}`])]);
-  const reps = Array.isArray(c.reps) ? c.reps : [];
-  if (reps.length) html += `<h4 class="gsec">Репутация</h4><div class="greps">${reps.map(([name, st, v, max, tier]) => {
-    const col = tier >= 5 ? "var(--healer)" : tier === 4 ? "var(--second-bg)" : tier === 3 ? "var(--gold)" : "var(--ban-bg)";
-    return `<div class="grep"><div><span>${esc(name)}</span><small><b>${esc(st || "")}</b>${fmtN(v)} / ${fmtN(max)}</small></div><i style="--c:${col};--w:${max > 0 ? Math.min(100, Math.max(0, v / max * 100)) : 0}%"></i></div>`;
-  }).join("")}</div>`;
-  const q = c.q;
-  if (q && typeof q === "object") {
-    const log = Array.isArray(q.log) ? q.log : [];
-    html += `<h4 class="gsec">Задания</h4>` + tiles([["Выполнено", num(q.done)], ["В журнале", num(log.length)]])
-      + (log.length ? `<ul class="gql">${log.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
-    const zones = Array.isArray(gzones[gOpen]?.z) ? gzones[gOpen].z : [];
-    if (zones.length) {
-      const bar = ([n, d, t]) => `<div class="grep"><div><span>${esc(n)}</span><small><b>${fmtN(d)}</b>/ ${fmtN(t)}</small></div><i style="--c:var(--healer);--w:${t > 0 ? Math.min(100, d / t * 100) : 0}%"></i></div>`;
-      html += `<h4 class="gsec">Задания по зонам</h4><div class="greps">${zones.slice(0, 10).map(bar).join("")}</div>`
-        + (zones.length > 10 ? `<details class="gtable"><summary>Ещё ${zones.length - 10} ${plural(zones.length - 10, "зона", "зоны", "зон")}</summary><div class="greps gmore">${zones.slice(10).map(bar).join("")}</div></details>` : "")
-        + (+gzones[gOpen].other ? `<p class="gnote">Ещё ${fmtN(gzones[gOpen].other)} ${plural(+gzones[gOpen].other, "задание", "задания", "заданий")} вне зон: классовые, профессии, события.</p>` : "");
-    }
-  }
-  const ach = Array.isArray(c.ach) ? c.ach : [];
-  if (ach.length) html += `<h4 class="gsec">Достижения <small>общие на аккаунт</small></h4><ul class="gql">${[...ach].reverse().map(([n, at]) => {
-    let d = ""; try { d = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" }).format(new Date(at)); } catch {}
-    return `<li>${esc(n)}${d ? ` <small>${d}</small>` : ""}</li>`; }).join("")}</ul>`;
-  return html;
-}
-function closeG() { gOpen = ""; gTipHide(); renderGSheet(); }
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
 function gTipShow(el) {
   const tt = $("#gtt"), [rp, rid] = (el.dataset.rid || "").split(":"), rc = rid && gcat[rp]?.r?.[rid];
@@ -2761,7 +3656,7 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
@@ -2777,14 +3672,34 @@ window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTi
 /* ---------- views + countdown ---------- */
 function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = !el.dataset.view.split(" ").includes(view); });
-  document.querySelectorAll("[data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === view)));
-  const seg = $(".top .seg"), cur = seg.querySelector("[aria-pressed=\"true\"]");
-  if (cur && seg.scrollWidth > seg.clientWidth) seg.scrollLeft = cur.offsetLeft - seg.offsetLeft - 24; // keep the active tab visible on phones
+  document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === view)));
+  if (view === "char") { renderGSheet(); scrollTo(0, 0); }
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
   if (view === "pvp") renderPvp();
 }
-const VIEWS = ["home", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
-function readHash() { const h = location.hash.slice(1); view = VIEWS.includes(h) ? h : "home"; }
+function menu(on) { // phone drawer; on wide screens the sidebar is always shown and this only resets state
+  const was = $("#side").classList.contains("open");
+  $("#side").classList.toggle("open", on);
+  $(".side-bd").hidden = !on;
+  $(".burger").setAttribute("aria-expanded", String(on));
+  $(".wrap").inert = on;
+  if (on && !was) $("#side [aria-pressed=true]")?.focus();
+  else if (!on && was) $(".burger").focus();
+}
+// Theme: "" follows the system, "dark"/"light" force one; remembered per browser.
+function setTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  try { t ? localStorage.setItem("wf-theme", t) : localStorage.removeItem("wf-theme"); } catch {}
+  document.querySelectorAll("[data-act=theme]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || ""))));
+}
+setTheme(document.documentElement.dataset.theme || "");
+const VIEWS = ["home", "char", "news", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
+function readHash() { // #view, or #char/<slug> for a character card
+  const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h);
+  if (c) { view = "char"; try { gOpen = decodeURIComponent(c[1]); } catch { gOpen = ""; } }
+  else view = VIEWS.includes(h) ? h : "home";
+}
+$("#gc-box").addEventListener("change", e => { if (e.target.id === "cc-sel" && e.target.value) openCard(e.target.value); });
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
 function tick() {
@@ -2798,14 +3713,17 @@ function tick() {
     $("#cd-m").textContent = pad2(Math.floor(s % 3600 / 60));
     $("#cd-s").textContent = pad2(s % 60);
   }
+  $("#scd-r").textContent = left > 0 ? `${Math.floor(left / 864e5)} дн ${pad2(Math.floor(left % 864e5 / 36e5))}:${pad2(Math.floor(left % 36e5 / 6e4))}:${pad2(Math.floor(left % 6e4 / 1e3))}` : "открыты";
   const hc = HC_AT - Date.now();
   if (hc > 0) {
     const days = Math.ceil(hc / 864e5);
     $("#cd-hc-n").textContent = "≈ " + days;
     $("#cd-hc-u").textContent = plural(days, "день", "дня", "дней");
+    $("#scd-h").textContent = `≈ ${days} ${plural(days, "день", "дня", "дней")}`;
   } else {
     $("#cd-hc-n").textContent = "—";
     $("#cd-hc-u").textContent = "ориентир прошёл";
+    $("#scd-h").textContent = "—";
   }
 }
 function setLaunchNote() {
@@ -2837,7 +3755,7 @@ async function boot() {
     loaded = true; errNote = "";
     render();
   }, () => { offline = true; loaded = true; render(); });
-  for (const [c, set] of [["wants", v => { wants = v; }], ["deaths", v => { deaths = v; }], ["tasks", v => { tasks = v; }], ["goals", v => { goals = v; }]])
+  for (const [c, set] of [["wants", v => { wants = v; }], ["deaths", v => { deaths = v; }], ["tasks", v => { tasks = v; }], ["goals", v => { goals = v; }], ["orders", v => { orders = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
   for (const [c, set] of [["bets", v => { bets = v; }], ["rolls", v => { rolls = v; }], ["pays", v => { pays = v; }]])
     db.collection(c).onSnapshot(snap => { set(live(snap.docs)); got.add(c); render(); }, () => {});
@@ -2845,7 +3763,9 @@ async function boot() {
   db.doc("guild/roster").onSnapshot(s => { guild = s.exists ? s.data() : null; got.add("guild"); render(); }, () => {});
   db.collection("grecipes").onSnapshot(snap => { grec = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); got.add("grecipes"); render(); }, () => {});
   db.collection("gcat").onSnapshot(snap => { gcat = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
+  db.doc("news/forever").onSnapshot(sn => { news = sn.exists ? sn.data() : null; got.add("news"); renderNews(); }, () => {});
   db.doc("guild/dungeons").onSnapshot(sn => { gdung = sn.exists ? sn.data() : null; render(); }, () => {});
+  db.doc("guild/achinfo").onSnapshot(sn => { gach = sn.exists ? sn.data() : null; render(); }, () => {});
   db.collection("gzones").onSnapshot(snap => { gzones = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
