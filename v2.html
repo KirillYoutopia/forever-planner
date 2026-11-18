@@ -703,8 +703,40 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .rchips button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 13px; }
 .rchips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
 .rchips small { opacity: .7; margin-left: 4px; font-variant-numeric: tabular-nums; }
-.rrow { display: grid; grid-template-columns: 36px minmax(0, 1.4fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
-.rrow .ri { width: 36px; height: 36px; border-radius: 4px; border: 1px solid var(--line); background: var(--cell); overflow: hidden; }
+.rrow { display: grid; grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.rrow .ri { width: 40px; height: 40px; border-radius: 6px; border: 2px solid var(--q, var(--line)); background: var(--cell); overflow: hidden; }
+.rrow .rn { color: color-mix(in srgb, var(--q, var(--fg)) var(--tint), var(--fg)); }
+.rrow .rwh { margin-left: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.rrow .rwh:hover { color: var(--accent); }
+.rrow small.rmeta { color: var(--fg); opacity: .8; }
+@media (max-width: 640px) { .rrow { grid-template-columns: 40px minmax(0, 1fr); } .rrow .rw { grid-column: 2; justify-content: flex-start; } }
+.rq-POOR { --q: var(--q-poor); } .rq-UNCOMMON { --q: var(--q-unc); } .rq-RARE { --q: var(--q-rare); } .rq-EPIC { --q: var(--q-epic); } .rq-LEGENDARY { --q: var(--q-leg); }
+.rq-COMMON { --q: var(--fg); }
+.rsort { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.rsort select, .rf select, .rf input { min-height: 36px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; font-size: 13px; }
+.rcat { margin-top: 10px; }
+.rfilt { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.rfilt summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.rfilt[open] summary { margin-bottom: 8px; }
+.rf { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+.rf select, .rf input { width: 100%; min-width: 0; }
+.rr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rchips.sm button { padding: 3px 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+.rchips.sm button i { width: 8px; height: 8px; border-radius: 50%; background: var(--q); }
+.rf-reset { width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
+.rf-reset:hover { border-color: var(--accent); }
+.rcount { margin: 0 0 4px; }
+@media (min-width: 900px) {
+  .rcat { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .rfilt { position: sticky; top: 16px; margin: 0; max-height: calc(100vh - 32px); overflow-y: auto; }
+}
+.rsum { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 24px; margin-top: 12px; }
+.rqbar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--cell); }
+.rqbar i { background: var(--q); }
+.rqleg { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.rqleg li { display: flex; align-items: center; gap: 6px; }
+.rqleg i { width: 10px; height: 10px; border-radius: 50%; background: var(--q); }
+.rqleg b { font-variant-numeric: tabular-nums; }
 .rrow .ri img { display: block; width: 100%; height: 100%; }
 .rrow b { font-weight: 600; }
 .rrow small { display: block; color: var(--muted); font-size: 12px; }
@@ -1063,6 +1095,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
+  <section class="panel" aria-labelledby="h-rsum" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-rsum">Профессии в цифрах</h2><span class="cap">Рецепты, которые знают персонажи гильдии</span></div>
+    <div id="rsum"></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-gprofs" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
     <div id="gprofs"></div>
@@ -1086,9 +1123,23 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 
   <section class="panel" aria-labelledby="h-recipes" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-recipes">Рецепты гильдии</h2><span class="cap" id="recipes-cap"></span></div>
-    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off"></div>
+    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off">
+      <label class="rsort"><span>Порядок</span><select id="rsort"><option value="cat">По категориям</option><option value="il">Уровень предмета ↓</option><option value="rl">Требуемый уровень ↑</option><option value="n">По названию</option></select></label></div>
     <div class="rchips" id="rprofs" role="group" aria-label="Профессия"></div>
-    <div id="rlist"></div>
+    <div class="rcat">
+      <details class="rfilt" id="rfilt" open><summary>Фильтры<span id="rfn"></span></summary>
+        <label class="rf"><span>Категория</span><select id="rf-cat"></select></label>
+        <div class="rf"><span>Качество</span><div class="rchips sm" id="rf-q" role="group" aria-label="Качество"></div></div>
+        <div class="rf"><span>Уровень предмета</span><div class="rr"><input id="rf-il0" type="number" min="0" max="300" inputmode="numeric" placeholder="от" aria-label="Уровень предмета от"><input id="rf-il1" type="number" min="0" max="300" inputmode="numeric" placeholder="до" aria-label="Уровень предмета до"></div></div>
+        <div class="rf"><span>Требуемый уровень</span><div class="rr"><input id="rf-rl0" type="number" min="0" max="60" inputmode="numeric" placeholder="от" aria-label="Требуемый уровень от"><input id="rf-rl1" type="number" min="0" max="60" inputmode="numeric" placeholder="до" aria-label="Требуемый уровень до"></div></div>
+        <label class="rf"><span>Слот</span><select id="rf-slot"></select></label>
+        <label class="rf"><span>Характеристика</span><select id="rf-stat"></select></label>
+        <label class="rf"><span>Кто умеет</span><select id="rf-who"></select></label>
+        <div class="rf"><span>Что получается</span><div class="rchips sm" id="rf-kind" role="group" aria-label="Что получается"></div></div>
+        <button type="button" class="rf-reset" data-act="rfreset">Сбросить фильтры</button>
+      </details>
+      <div id="rlist"></div>
+    </div>
   </section>
 
   <section class="panel" aria-labelledby="h-pvp" data-view="pvp" hidden>
@@ -2310,6 +2361,13 @@ document.addEventListener("click", e => {
   else if (act === "gchar") openCard(id);
   else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
+  else if (act === "rfq") { const v = b.dataset.v; rFq.has(v) ? rFq.delete(v) : rFq.add(v); renderRecipes(); }
+  else if (act === "rfkind") { rFkind = rFkind === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
+  else if (act === "rfreset") {
+    rFq.clear(); rFkind = "";
+    for (const el of $("#rfilt").querySelectorAll("input, select")) el.value = "";
+    renderRecipes();
+  }
   else if ((act === "gown" || act === "galt") && p && gOpen) { // link or unlink the open character as a player's main or twink; one player per character
     const slug = gOpen, main = act === "gown", on = main ? p.char === slug : altsOf(p).includes(slug);
     if (!on) for (const x of players) { // take it away from whoever had it, in either role
@@ -3057,10 +3115,38 @@ function renderStats() {
   }).join("")}</tbody></table>` : `<p class="empty">${wait}</p>`;
 }
 // Recipes: grecipes/{slug} lists what each character knows, gcat/{Profession} has the names, categories and reagents.
-let grec = {}, gcat = {}, rProf = "", rDrawn = "";
+// Filters read the crafted item's tooltip lines (slot, "Requires Level N", "+N Stat"), all from Blizzard's API.
+let grec = {}, gcat = {}, rProf = "", rDrawn = "", rFkind = "";
+const rFq = new Set(), rOptH = {};
+const R_ALL = "*"; // the "Все" chip
+const R_Q = [["POOR", "Серое"], ["COMMON", "Белое"], ["UNCOMMON", "Зелёное"], ["RARE", "Синее"], ["EPIC", "Фиолетовое"], ["LEGENDARY", "Оранжевое"]];
+const R_SLOT = /^(Head|Neck|Shoulder|Back|Chest|Shirt|Tabard|Wrist|Hands|Waist|Legs|Feet|Finger|Trinket|One-Hand|Two-Hand|Main Hand|Off Hand|Held In Off-hand|Ranged|Thrown|Shield|Bag|Quiver|Ammo Pouch|Relic|Projectile|Ammo)$/;
+function rMeta(r) {
+  let slot = "", rl = null;
+  const stats = [];
+  for (const [t, , right] of Array.isArray(r.tip) ? r.tip : []) {
+    const x = String(t || ""), m = /^Requires Level (\d+)$/.exec(x), st = /^\+\d+ (.+)$/.exec(x);
+    if (!slot && R_SLOT.test(x)) slot = right ? `${x} · ${right}` : x;
+    if (m) rl = +m[1];
+    if (st) stats.push(st[1]);
+  }
+  return { slot, rl, stats, il: +r.il > 0 ? +r.il : null, kind: r.i ? "item" : r.ok ? "ench" : "" };
+}
+// fills a static select only when its options change, keeping the choice
+function rOpts(id, list, all) {
+  const sel = $("#" + id), h = `<option value="">${all}</option>` + list.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}">${esc(t)}</option>`; }).join("");
+  if (rOptH[id] === h) return;
+  const v = sel.value;
+  sel.innerHTML = rOptH[id] = h;
+  sel.value = [...sel.options].some(o => o.value === v) ? v : "";
+}
+const rNum = id => { const v = $("#" + id).value.trim(); return v === "" || !Number.isFinite(+v) ? null : +v; };
 function renderRecipes() {
   const mem = guild?.members || {}, q = $("#rq").value.trim().toLowerCase();
-  const key = [q, rProf, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at), players.map(p => p.char).join()].join("|");
+  const f = { cat: $("#rf-cat").value, slot: $("#rf-slot").value, stat: $("#rf-stat").value, who: $("#rf-who").value, sort: $("#rsort").value || "cat",
+    il0: rNum("rf-il0"), il1: rNum("rf-il1"), rl0: rNum("rf-rl0"), rl1: rNum("rf-rl1") };
+  const key = [q, rProf, JSON.stringify(f), [...rFq].join(), rFkind, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at),
+    players.map(p => `${p.id}:${p.char}+${altsOf(p).join("+")}`).join()].join("|");
   if (key === rDrawn) return; // the list can be long: redraw only when the data or the filter changed
   rDrawn = key;
   // profession -> recipe id -> [character slug]
@@ -3074,32 +3160,71 @@ function renderRecipes() {
   const total = profs.reduce((n, pr) => n + Object.keys(by[pr]).length, 0);
   $("#recipes-cap").textContent = total ? `${total} ${plural(total, "рецепт", "рецепта", "рецептов")} у гильдии · данные Blizzard API, персонажи с ${G_MIN} уровня` : "";
   if (!profs.length) {
-    $("#rprofs").innerHTML = "";
+    $("#rprofs").innerHTML = $("#rsum").innerHTML = "";
     $("#rlist").innerHTML = `<p class="empty">${got.has("grecipes") ? "Рецептов пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…"}</p>`;
     return;
   }
-  if (!profs.includes(rProf)) rProf = profs[0];
-  $("#rprofs").innerHTML = profs.map(pr => `<button type="button" data-act="rprof" data-prof="${esc(pr)}" aria-pressed="${!q && pr === rProf}">${esc(pr)}<small>${Object.keys(by[pr]).length}</small></button>`).join("");
-  const rows = [];
-  for (const pr of q ? profs : [rProf]) for (const [id, who] of Object.entries(by[pr])) {
-    const r = info(pr, id), re = Array.isArray(r.re) ? r.re : [];
-    if (q && ![r.n, r.i, r.ds, ...re.map(x => x[0])].some(t => String(t || "").toLowerCase().includes(q))) continue;
-    rows.push({ pr, id, r, re, who, cat: r.c || "Другое", n: r.n || `Рецепт ${id}` });
+  if (rProf !== R_ALL && !profs.includes(rProf)) rProf = profs[0];
+  const all = [];
+  for (const pr of profs) for (const [id, who] of Object.entries(by[pr])) {
+    const r = info(pr, id);
+    all.push({ pr, id, r, who, re: Array.isArray(r.re) ? r.re : [], cat: r.c || "Другое", n: r.n || `Рецепт ${id}`, m: rMeta(r) });
   }
-  rows.sort((a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n));
+  // summary: tiles, recipes per profession, quality of what the guild crafts
+  const crafters = new Set(all.flatMap(x => x.who)), qn = {};
+  for (const x of all) if (x.r.iq) qn[x.r.iq] = (qn[x.r.iq] || 0) + 1;
+  const qAll = Object.values(qn).reduce((a, b) => a + b, 0), maxP = Math.max(...profs.map(pr => Object.keys(by[pr]).length));
+  const topOf = pr => { const n = {}; for (const w of Object.values(by[pr])) for (const s of w) n[s] = (n[s] || 0) + 1; return Object.entries(n).sort((a, b) => b[1] - a[1])[0]; };
+  $("#rsum").innerHTML = cTiles([["Рецептов", fmtN(total)], ["Профессий", fmtN(profs.length)], ["Мастеров", fmtN(crafters.size)],
+      ["Синих и лучше", fmtN((qn.RARE || 0) + (qn.EPIC || 0) + (qn.LEGENDARY || 0))], ["Чар и без предмета", fmtN(all.filter(x => x.m.kind === "ench").length)]])
+    + `<div class="rsum"><div><h4 class="cc-h4">Рецептов по профессиям</h4>${profs.map(pr => { const n = Object.keys(by[pr]).length, t = topOf(pr);
+        return cBar(`<button type="button" class="glink" data-act="rprof" data-prof="${esc(pr)}">${esc(pr)}</button>`, `<b>${fmtN(n)}</b>${t ? ` · больше всех ${esc(name(t[0]))} (${fmtN(t[1])})` : ""}`, n / maxP * 100, "var(--accent)"); }).join("")}</div>
+      ${qAll ? `<div><h4 class="cc-h4">Качество создаваемых предметов</h4><div class="rqbar">${R_Q.filter(([k]) => qn[k]).map(([k, t]) => `<i class="rq-${k}" style="flex:${qn[k]}" title="${t}: ${qn[k]}"></i>`).join("")}</div>
+        <ul class="rqleg">${R_Q.filter(([k]) => qn[k]).map(([k, t]) => `<li class="rq-${k}"><i></i>${t}<b>${fmtN(qn[k])}</b></li>`).join("")}</ul></div>` : ""}</div>`;
+  $("#rprofs").innerHTML = [[R_ALL, "Все", total], ...profs.map(pr => [pr, pr, Object.keys(by[pr]).length])].map(([v, t, n]) =>
+    `<button type="button" data-act="rprof" data-prof="${esc(v)}" aria-pressed="${(q ? R_ALL : rProf) === v}">${esc(t)}<small>${n}</small></button>`).join("");
+  // filter options come from what is in scope (the chosen profession, or every profession while searching)
+  const scope = all.filter(x => q || rProf === R_ALL || x.pr === rProf), uniq = l => [...new Set(l.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  rOpts("rf-cat", uniq(scope.map(x => x.cat)), "Любая");
+  rOpts("rf-slot", uniq(scope.map(x => x.m.slot)), "Любой");
+  rOpts("rf-stat", uniq(scope.flatMap(x => x.m.stats)), "Любая");
+  const scopeWho = new Set(scope.flatMap(x => x.who)), live = players.filter(p => !p.deleted);
+  const pChars = p => [p.char, ...altsOf(p)].filter(s => scopeWho.has(s)), owned = new Set(live.flatMap(pChars));
+  rOpts("rf-who", [...live.filter(p => pChars(p).length).map(p => ["p:" + p.id, `${p.name} (все персонажи)`]),
+    ...[...scopeWho].filter(s => !owned.has(s)).sort((a, b) => name(a).localeCompare(name(b))).map(s => ["c:" + s, name(s)])], "Кто угодно");
+  const qs = R_Q.filter(([k]) => scope.some(x => x.r.iq === k));
+  $("#rf-q").innerHTML = qs.map(([k, t]) => `<button type="button" class="rq-${k}" data-act="rfq" data-v="${k}" aria-pressed="${rFq.has(k)}"><i></i>${t}</button>`).join("");
+  $("#rf-kind").innerHTML = [["item", "Предмет"], ["ench", "Чары, без предмета"]].map(([k, t]) => `<button type="button" data-act="rfkind" data-v="${k}" aria-pressed="${rFkind === k}">${t}</button>`).join("");
+  // the filters themselves
+  const whoSet = f.who.startsWith("p:") ? new Set(pChars(live.find(p => p.id === f.who.slice(2)) || {})) : f.who.startsWith("c:") ? new Set([f.who.slice(2)]) : null;
+  const inR = (v, lo, hi) => (lo == null && hi == null) || (v != null && (lo == null || v >= lo) && (hi == null || v <= hi));
+  const rows = scope.filter(x => (!q || [x.r.n, x.r.i, x.r.ds, ...x.re.map(y => y[0])].some(t => String(t || "").toLowerCase().includes(q)))
+    && (!f.cat || x.cat === f.cat) && (!rFq.size || rFq.has(x.r.iq)) && inR(x.m.il, f.il0, f.il1) && inR(x.m.rl, f.rl0, f.rl1)
+    && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || x.who.some(s => whoSet.has(s))));
+  const nf = [f.cat, f.slot, f.stat, f.who, rFkind, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
+  $("#rfn").textContent = nf ? ` · ${nf}` : "";
+  const multi = q || rProf === R_ALL, by2 = (a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n);
+  rows.sort(f.sort === "il" ? (a, b) => (b.m.il ?? -1) - (a.m.il ?? -1) || a.n.localeCompare(b.n)
+    : f.sort === "rl" ? (a, b) => (a.m.rl ?? 99) - (b.m.rl ?? 99) || a.n.localeCompare(b.n)
+    : f.sort === "n" ? (a, b) => a.n.localeCompare(b.n) : by2);
   let html = "", head = "";
   for (const x of rows.slice(0, 300)) {
-    const h = q ? `${x.pr} · ${x.cat}` : x.cat;
-    if (h !== head) { head = h; html += `<div class="gpg">${esc(h)}</div>`; }
+    if (f.sort === "cat") { const h = multi ? `${x.pr} · ${x.cat}` : x.cat; if (h !== head) { head = h; html += `<div class="gpg">${esc(h)}</div>`; } }
     const tip = Array.isArray(x.r.tip) && x.r.tip.length ? ` data-rid="${esc(x.pr)}:${esc(x.id)}" tabindex="0"` : "";
-    html += `<div class="rrow"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
-      <div><b${tip ? tip.replace(' tabindex="0"', "") + ' class="rtip"' : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small></div>
+    const wh = +x.r.iid > 0 ? `https://www.wowhead.com/forever/item=${+x.r.iid}` : `https://www.wowhead.com/forever/search?q=${encodeURIComponent(x.n)}`;
+    const meta = [x.m.il ? `ур. предмета ${x.m.il}` : "", x.m.rl ? `нужен ${x.m.rl} ур.` : "", x.m.slot, x.m.stats.length ? x.m.stats.map(t => "+" + t).join(", ") : "", multi && f.sort !== "cat" ? x.pr : ""].filter(Boolean).join(" · ");
+    html += `<div class="rrow${x.r.iq ? " rq-" + esc(x.r.iq) : ""}"><span class="ri"${tip}>${bimg(x.r.icon) ? `<img src="${bimg(x.r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ""}</span>
+      <div><b class="rn${tip ? " rtip" : ""}"${tip ? tip.replace(' tabindex="0"', "") : ""}>${esc(x.n)}</b>${+x.r.q > 1 ? ` ×${+x.r.q}` : ""}<a class="rwh" href="${esc(wh)}" target="_blank" rel="noopener" aria-label="${esc(x.n)} на Wowhead">Wowhead ↗</a>
+      ${meta ? `<small class="rmeta">${esc(meta)}</small>` : ""}${x.r.ds ? `<small class="rds">${esc(x.r.ds)}</small>` : ""}<small>${x.re.length ? esc(x.re.map(([n, c]) => `${+c || 1} ${n}`).join(", ")) : x.r.ok ? "" : "детали ещё загружаются"}</small></div>
       <div class="rw">${x.who.sort((a, b) => name(a).localeCompare(name(b))).map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}">${esc(name(sl))}</button>`).join("")}</div></div>`;
   }
-  $("#rlist").innerHTML = rows.length ? html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос.</p>` : "")
-    : `<p class="empty">Ничего не нашлось. Никто в гильдии пока не умеет делать «${esc(q)}».</p>`;
+  $("#rlist").innerHTML = rows.length ? `<p class="gnote rcount">Найдено: ${fmtN(rows.length)}</p>` + html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос или фильтры.</p>` : "")
+    : `<p class="empty">${q && !nf ? `Ничего не нашлось. Никто в гильдии пока не умеет делать «${esc(q)}».` : "Под эти фильтры ничего не подходит."}</p>`;
 }
 $("#rq").addEventListener("input", renderRecipes);
+for (const ev of ["input", "change"]) $("#rfilt").addEventListener(ev, renderRecipes);
+$("#rsort").addEventListener("change", renderRecipes);
+if (matchMedia("(max-width: 899px)").matches) $("#rfilt").open = false; // phones: filters folded under one button
 // Character sheet: full-body render with the gear around it, like the official armory.
 const G_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
 const G_RIGHT = ["HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2"];

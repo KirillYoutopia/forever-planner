@@ -447,7 +447,8 @@ alter table public.bnet_prof_cat enable row level security;
 revoke all on public.bnet_recipes, public.bnet_prof_cat from anon, authenticated;
 -- What the page reads (written only by guild_sync):
 --   grecipes/{slug}     {at, r: {Profession: [recipe id, ...]}}   the recipes a level 10+ character knows
---   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, ok (details loaded), i, q, ds, re, icon, iq, il, tip}}}
+--   gcat/{Profession}   {at, r: {recipe id: {n: name, c: category, ok (details loaded), i, iid, q, ds, re, icon, iq, il, tip}}}
+--                       (iid, the crafted item's id, since 2026-11-18: the page links it to Wowhead)
 --                       details of the recipes someone in the guild knows
 
 -- 2026-11-14: dungeons per character come from the "Spelunker" achievements, whose criteria are the dungeons themselves
@@ -1032,7 +1033,7 @@ begin
   insert into docs (coll, id, data)
   select 'gcat', b.prof, jsonb_build_object('at', now_ms, 'r', jsonb_object_agg(b.id::text,
     jsonb_strip_nulls(jsonb_build_object('n', b.name, 'c', b.cat, 'icon', nullif(b.icon, ''), 'ok', case when b.detail is not null then true end))
-      || (coalesce(b.detail, '{}'::jsonb) - 'v' - 'iid') || coalesce(b.item, '{}'::jsonb)))
+      || (coalesce(b.detail, '{}'::jsonb) - 'v') || coalesce(b.item, '{}'::jsonb)))
   from bnet_recipes b where b.id = any(known)
   group by b.prof
   on conflict (coll, id) do update set data = excluded.data, updated_at = now()
