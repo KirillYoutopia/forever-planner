@@ -1,4 +1,4 @@
-// Proxy for the files of Wowhead's 3D model viewer, used by the character card in v2.html.
+// Proxy for the files of Wowhead's 3D model viewer, used by the character card in index.html.
 // wow.zamimg.com answers 403 to requests that come from other sites (CORS), so the browser cannot load them directly.
 // Only GET, only files under modelviewer/classicplus/ (the WoW Forever models). Deploy with JWT verification OFF:
 // the viewer requests its files itself and sends no token.
