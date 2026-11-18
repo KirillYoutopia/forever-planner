@@ -173,6 +173,10 @@ body {
 .side .theme button { flex: 1; justify-content: center; min-height: 32px; padding: 4px 6px; border-radius: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
 .side .theme button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
 .mbar { display: none; }
+.nbadge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.nbadge[hidden] { display: none; }
+.burger { position: relative; }
+.burger .nbadge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; font-size: 11px; line-height: 18px; }
 .burger { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); font-size: 18px; }
 .brand { font: 400 20px var(--font-display); }
 @media (min-width: 900px) {
@@ -930,7 +934,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 </head>
 <body>
 <header class="mbar">
-  <button type="button" class="burger" data-act="menu" aria-controls="side" aria-expanded="false" aria-label="Меню">☰</button>
+  <button type="button" class="burger" data-act="menu" aria-controls="side" aria-expanded="false" aria-label="Меню">☰<span class="nbadge dot" id="nb-menu" hidden></span></button>
   <span class="brand">Kute Expats</span>
 </header>
 <div class="side-bd" data-act="menu" hidden></div>
@@ -945,7 +949,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <button type="button" data-act="nav" data-nav="char" aria-pressed="false">Карточка игрока</button>
   <div class="ng">Активности</div>
   <button type="button" data-act="nav" data-nav="dungeons" aria-pressed="false">Подземелья</button>
-  <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Профессии</button>
+  <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Профессии<span class="nbadge" id="nb-recipes" hidden></span></button>
   <button type="button" data-act="nav" data-nav="pvp" aria-pressed="false">PvP</button>
   <button type="button" data-act="nav" data-nav="stats" aria-pressed="false">Статистика</button>
   <div class="ng">Игра</div>
@@ -1414,7 +1418,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderStats(); renderRecipes(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderStats(); renderRecipes(); renderOrderBadge(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -3303,6 +3307,16 @@ function renderRecipes() {
   const unNote = rKnown !== "known" ? `<p class="gnote">Неизученные — остальные рецепты из каталога профессии в Blizzard API. Откуда берётся рецепт (тренер, продавец, добыча, задание), API не говорит: смотри на Wowhead, на странице предмета в разделе «Created by».${all.some(x => x.un && !x.r.ok) ? " Детали неизученных ещё загружаются, по порциям каждые 5 минут." : ""}</p>` : "";
   $("#rlist").innerHTML = rows.length ? unNote + `<p class="gnote rcount">Найдено: ${fmtN(rows.length)}</p>` + html + (rows.length > 300 ? `<p class="gnote">Показаны первые 300 из ${rows.length}. Уточни запрос или фильтры.</p>` : "")
     : unNote + `<p class="empty">${rKnown === "un" && !all.some(x => x.un) ? "Каталог профессий ещё не загружен: неизученные рецепты появятся после следующей загрузки." : q && !nf ? `Ничего не нашлось${rKnown === "known" ? `. Никто в гильдии пока не умеет делать «${esc(q)}»` : ""}.` : "Под эти фильтры ничего не подходит."}</p>`;
+}
+// Menu badge: craft orders waiting for me (open ones my main or twinks can craft, and the ones I took)
+function renderOrderBadge() {
+  const p = auth && !readOnly ? players.find(x => x.id === auth.player) : null, my = p ? [p.char, ...altsOf(p)].filter(Boolean) : [];
+  const can = o => my.some(sl => (grec[sl]?.r?.[o.prof] || []).some(id => String(id) === String(o.rid)));
+  const n = p ? orders.filter(o => o.by !== p.id && ((o.st === "open" && can(o)) || (o.st === "taken" && o.taker === p.id))).length : 0;
+  const t = n ? `${n} ${plural(n, "заявка ждёт", "заявки ждут", "заявок ждут")} тебя` : "";
+  for (const el of [$("#nb-recipes"), $("#nb-menu")]) { el.hidden = !n; el.textContent = n || ""; el.title = t; }
+  $("#nb-recipes").setAttribute("aria-label", t);
+  $(".burger").setAttribute("aria-label", n ? `Меню, ${t}` : "Меню");
 }
 $("#rq").addEventListener("input", renderRecipes);
 for (const ev of ["input", "change"]) $("#rfilt").addEventListener(ev, renderRecipes);
