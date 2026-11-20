@@ -4113,7 +4113,15 @@ const TAL_TREES = { 1: [[161, "Arms"], [164, "Fury"], [163, "Protection"]], 2: [
   11: [[283, "Balance"], [281, "Feral Combat"], [282, "Restoration"]] };
 const TAL_CELL = 44, TAL_GX = 18, TAL_GY = 14; // must match .tal-grid in CSS
 let gtal = null, talSet = "tl";
-// a talent: [id, row, col, icon, max rank, required talent id, its rank, tree points needed, name, [description per rank]]
+// a talent: [id, row, col, icon, max rank, required talent id, its rank, tree points needed, name, [description per rank], [spell id per rank]]
+// Blizzard's talent ids differ from Wowhead's, so a learned talent [id, rank, spell id] is found by its spell among the rank spells.
+let talIdx = null;
+function talIndex() {
+  if (talIdx?.at === gtal?.at) return talIdx;
+  const ids = new Set(), spells = new Map();
+  for (const list of Object.values(gtal?.t || {})) for (const t of list) { ids.add(+t[0]); (Array.isArray(t[10]) ? t[10] : []).forEach((sid, i) => { if (!spells.has(+sid)) spells.set(+sid, [+t[0], i + 1]); }); } // some talents repeat one spell on every rank: keep the first
+  return talIdx = { at: gtal?.at, ids, spells };
+}
 const talOf = (tid, id) => (gtal?.t?.[tid] || []).find(t => +t[0] === +id);
 function cardTalents(box, slug) {
   const el = box.querySelector("#cc-tal");
@@ -4123,14 +4131,21 @@ function cardTalents(box, slug) {
     el.innerHTML = `<p class="empty">${!gtal ? "Деревья талантов ещё не загружены: они появятся после следующей синхронизации." : "Для этого класса деревьев нет."}</p>`;
     return;
   }
-  const rankMap = k => Object.fromEntries((Array.isArray(c[k]) ? c[k] : []).map(([id, r]) => [+id, +r || 0]));
+  const ix = talIndex(), rankMap = k => {
+    const m = {};
+    for (const [id, r, sid] of Array.isArray(c[k]) ? c[k] : []) {
+      const hit = sid != null ? ix.spells.get(+sid) : null, tid = ix.ids.has(+id) ? +id : hit?.[0];
+      if (tid != null) m[tid] = Math.max(m[tid] || 0, +r > 0 ? +r : hit?.[1] || 1); // the API's rank; the spell only finds the talent
+    }
+    return m;
+  };
   const pts = (k, tid) => { const rm = rankMap(k); return (gtal.t[tid] || []).reduce((n, t) => n + (rm[+t[0]] || 0), 0); };
   const sets = [["tl", "Активный набор"], ["tl2", "Второй набор"]].filter(([k]) => Array.isArray(c[k]) && c[k].length);
   if (!sets.some(([k]) => k === talSet)) talSet = sets[0]?.[0] || "tl";
   const ranks = rankMap(talSet);
   const head = sets.length > 1 ? `<div class="seg tal-sets" role="group" aria-label="Набор талантов">${sets.map(([k, t]) =>
     `<button type="button" data-act="talset" data-v="${k}" aria-pressed="${talSet === k}">${t} <small>${trees.map(([tid]) => pts(k, tid)).join("/")}</small></button>`).join("")}</div>` : "";
-  const note = sets.length ? "" : `<p class="gnote">Blizzard пока не отдал выученные таланты этого персонажа${c.sp ? ` (очки по веткам: ${specText(c.sp)})` : ""}. Деревья показаны пустыми; таланты появятся после следующей синхронизации.</p>`;
+  const note = sets.length ? (Object.keys(ranks).length ? "" : `<p class="gnote">Выученные таланты пришли, но не сопоставились с деревьями: деревья обновятся при следующей загрузке.</p>`) : `<p class="gnote">Blizzard пока не отдал выученные таланты этого персонажа${c.sp ? ` (очки по веткам: ${specText(c.sp)})` : ""}. Деревья показаны пустыми; таланты появятся после следующей синхронизации.</p>`;
   const W = 4 * TAL_CELL + 3 * TAL_GX, H = 7 * TAL_CELL + 6 * TAL_GY;
   const cx = t => t[2] * (TAL_CELL + TAL_GX) + TAL_CELL / 2, cy = t => t[1] * (TAL_CELL + TAL_GY) + TAL_CELL / 2;
   const tree = ([tid, tname]) => {
