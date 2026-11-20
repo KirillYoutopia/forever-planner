@@ -277,7 +277,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones', 'news'))  -- synced rows (Blizzard, Wowhead): nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones', 'news', 'wchars'))  -- synced rows (Blizzard, Wowhead): nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -990,6 +990,12 @@ begin
                     where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ast') = 'array'
                       and e->>1 = 'Total deaths from other players' and jsonb_typeof(e->2) = 'number'), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
+  -- 2026-11-20: characters outside the guild (streamers, friends) for the comparison page. Never allowed to break the sync.
+  begin
+    perform watch_sync();
+  exception when others then
+    raise warning 'guild_sync: watched characters skipped: %', sqlerrm;
+  end;
   return jsonb_build_object('members', (select count(*) from jsonb_object_keys(members)), 'sheets', sheets, 'at', now_ms,
     'recipes_to_load', (select count(*) from bnet_recipes b where (b.detail is null or b.icon is null or b.item is null) and b.id in (
       select (e.value #>> '{}')::bigint from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
@@ -1161,6 +1167,166 @@ begin
 end $$;
 revoke execute on function public.guild_ach_fill(int) from public, anon, authenticated;
 select cron.schedule('guild-ach', '*/5 * * * *', 'select public.guild_ach_fill(30)');
+
+-- 2026-11-20: characters outside the guild to compare with (streamers, friends), any region. Added and removed by an admin
+-- from the comparison page (watch_add / watch_del); refreshed hourly by watch_sync(), which guild_sync() calls at the end.
+-- Hidden list: bnet_watch (id = "<region>.<slug>"). What the page reads (read-only, not in patch_doc's allow-list):
+--   wchars/{region}.{slug}  {at, label, region, name, surname, level, cls, race, faction, ilvl, avatar,
+--                            items: {SLOT: {name, q, lvl, tip: [[inventory type]]}} (enough for GearScore),
+--                            st, pvp: {hk, rank}, profs, ast, achn (achievements done), q: {done},
+--                            hist: {YYYY-MM-DD: {lv, il, qd, hk, dt}} (Central European day, last 120 days), deleted}
+create table if not exists public.bnet_watch (
+  id text primary key, slug text not null, region text not null, label text not null default '', added timestamptz not null default now());
+alter table public.bnet_watch enable row level security;
+revoke all on public.bnet_watch from anon, authenticated;
+
+create or replace function public.bnet_token() returns text
+language plpgsql security definer set search_path = public, extensions as $$
+declare cid text; sec text; st int; body text;
+begin
+  select v into cid from bnet_config where k = 'client_id';
+  select v into sec from bnet_config where k = 'client_secret';
+  if coalesce(cid, '') = '' or coalesce(sec, '') = '' then raise exception 'bnet_config: client_id / client_secret are not set'; end if;
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  select h.status, h.content into st, body from http(('POST', 'https://oauth.battle.net/token',
+    array[http_header('Authorization', 'Basic ' || replace(encode(convert_to(cid || ':' || sec, 'utf8'), 'base64'), E'\n', ''))],
+    'application/x-www-form-urlencoded', 'grant_type=client_credentials')::http_request) h;
+  if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
+  return body::jsonb->>'access_token';
+end $$;
+revoke execute on function public.bnet_token() from public, anon, authenticated;
+
+-- One watched character: profile and the parts the comparison shows. Each part keeps its previous value when its request fails.
+create or replace function public.watch_fetch(p_id text, p_tok text default null)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare w public.bnet_watch; hdr http_header[]; base text; q text; st int; body text; pr jsonb; old jsonb; j jsonb; d jsonb;
+        items jsonb; stt jsonb; pvp jsonb; profs jsonb; ast jsonb; achn jsonb; qdone jsonb; avatar jsonb; hist jsonb;
+        day text := to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD'); now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
+begin
+  select * into w from bnet_watch where id = p_id;
+  if not found then return null; end if;
+  hdr := array[http_header('Authorization', 'Bearer ' || coalesce(p_tok, bnet_token()))];
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  base := format('https://%s.api.blizzard.com/profile/wow/character/%s', w.region, urlencode(w.slug));
+  q := format('?namespace=profile-forever-%s&locale=en_US', w.region);
+  select h.status, h.content into st, body from http(('GET', base || q, hdr, null, null)::http_request) h;
+  if st = 404 then raise exception 'character not found'; end if;
+  if st <> 200 then raise exception 'profile: HTTP %', st; end if;
+  pr := body::jsonb;
+  select data into old from docs where coll = 'wchars' and id = p_id;
+  items := old->'items'; stt := old->'st'; pvp := old->'pvp'; profs := old->'profs'; ast := old->'ast'; achn := old->'achn'; qdone := old->'q'->'done'; avatar := old->'avatar';
+  select h.status, h.content into st, body from http(('GET', base || '/equipment' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object('name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value',
+             'tip', jsonb_build_array(jsonb_build_array(coalesce(i->'inventory_type'->>'name', '')))))), '{}'::jsonb)
+      into items from jsonb_array_elements(coalesce(body::jsonb->'equipped_items', '[]'::jsonb)) i where i->'slot'->>'type' is not null;
+  end if;
+  select h.status, h.content into st, body from http(('GET', base || '/statistics' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    j := body::jsonb;
+    stt := jsonb_strip_nulls(jsonb_build_object('hp', j->'health', 'pw', j->'power', 'pt', j->'power_type'->'name',
+      'str', j->'strength'->'effective', 'agi', j->'agility'->'effective', 'sta', j->'stamina'->'effective',
+      'int', j->'intellect'->'effective', 'spi', j->'spirit'->'effective', 'arm', j->'armor'->'effective',
+      'ap', j->'attack_power', 'sp', j->'spell_power', 'mc', round((j->'melee_crit'->>'value')::numeric, 2),
+      'sc', round((j->'spell_crit'->>'value')::numeric, 2), 'dg', round((j->'dodge'->>'value')::numeric, 2)));
+  end if;
+  select h.status, h.content into st, body from http(('GET', base || '/pvp-summary' || q, hdr, null, null)::http_request) h;
+  if st = 200 then pvp := jsonb_strip_nulls(jsonb_build_object('hk', body::jsonb->'honorable_kills', 'rank', body::jsonb->'pvp_rank')); end if;
+  select h.status, h.content into st, body from http(('GET', base || '/achievements/statistics' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    j := case when jsonb_typeof(body::jsonb->'categories') = 'array' then body::jsonb->'categories' else '[]'::jsonb end;
+    select coalesce(jsonb_agg(jsonb_build_array(t.cat, t.v->'name', t.v->'quantity', coalesce(t.v->'description', '""'::jsonb)) order by t.o), '[]'::jsonb)
+      into ast
+    from (
+      select c.v->>'name' cat, x.v, c.n * 1000000 + x.n o
+      from jsonb_array_elements(j) with ordinality c(v, n),
+           jsonb_array_elements(case when jsonb_typeof(c.v->'statistics') = 'array' then c.v->'statistics' else '[]'::jsonb end) with ordinality x(v, n)
+      union all
+      select (c.v->>'name') || ' / ' || (sc.v->>'name'), x.v, c.n * 1000000 + sc.n * 1000 + x.n
+      from jsonb_array_elements(j) with ordinality c(v, n),
+           jsonb_array_elements(case when jsonb_typeof(c.v->'sub_categories') = 'array' then c.v->'sub_categories' else '[]'::jsonb end) with ordinality sc(v, n),
+           jsonb_array_elements(case when jsonb_typeof(sc.v->'statistics') = 'array' then sc.v->'statistics' else '[]'::jsonb end) with ordinality x(v, n)
+    ) t where t.v->>'name' is not null;
+  end if;
+  select h.status, h.content into st, body from http(('GET', base || '/achievements' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    achn := to_jsonb((select count(*) from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'achievements') = 'array' then body::jsonb->'achievements' else '[]'::jsonb end) x
+                      where jsonb_typeof(x->'completed_timestamp') = 'number'));
+  end if;
+  select h.status, h.content into st, body from http(('GET', base || '/quests/completed' || q, hdr, null, null)::http_request) h;
+  if st = 200 then qdone := to_jsonb(jsonb_array_length(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end)); end if;
+  select h.status, h.content into st, body from http(('GET', base || '/professions' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    select coalesce(jsonb_object_agg(x->'profession'->>'name', jsonb_build_object(
+             's', coalesce(x->'tiers'->0->'skill_points', '0'::jsonb), 'max', coalesce(x->'tiers'->0->'max_skill_points', '0'::jsonb))), '{}'::jsonb)
+      into profs
+    from jsonb_array_elements(coalesce(body::jsonb->'primaries', '[]'::jsonb) || coalesce(body::jsonb->'secondaries', '[]'::jsonb)) x
+    where x->'profession'->>'name' is not null;
+  end if;
+  select h.status, h.content into st, body from http(('GET', base || '/character-media' || q, hdr, null, null)::http_request) h;
+  if st = 200 then avatar := coalesce((select a->'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'avatar' limit 1), avatar); end if;
+  -- today's snapshot for the day-by-day charts, the last 120 days kept
+  hist := coalesce(old->'hist', '{}'::jsonb) || jsonb_build_object(day, jsonb_strip_nulls(jsonb_build_object('lv', pr->'level', 'il', pr->'equipped_item_level',
+    'qd', qdone, 'hk', pvp->'hk', 'dt', (select e->2 from jsonb_array_elements(coalesce(ast, '[]'::jsonb)) e where e->>1 = 'Total deaths' limit 1))));
+  select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) into hist from (select key k, value v from jsonb_each(hist) order by key desc limit 120) x;
+  d := jsonb_strip_nulls(jsonb_build_object('at', now_ms, 'label', w.label, 'region', w.region, 'name', pr->'name', 'surname', pr->'surname',
+    'level', pr->'level', 'cls', coalesce(pr->'character_class'->'id', pr->'playable_class'->'id'), 'race', coalesce(pr->'race'->'id', pr->'playable_race'->'id'),
+    'faction', pr->'faction'->'type', 'ilvl', pr->'equipped_item_level', 'avatar', avatar, 'items', items, 'st', stt, 'pvp', pvp, 'profs', profs,
+    'ast', ast, 'achn', achn, 'q', jsonb_build_object('done', qdone), 'hist', hist));
+  insert into docs (coll, id, data) values ('wchars', p_id, d)
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now();
+  return d;
+end $$;
+revoke execute on function public.watch_fetch(text, text) from public, anon, authenticated;
+
+create or replace function public.watch_sync()
+returns int language plpgsql security definer set search_path = public, extensions as $$
+declare tok text; r record; n int := 0;
+begin
+  if not exists (select 1 from bnet_watch) then return 0; end if;
+  tok := bnet_token();
+  for r in select id from bnet_watch order by id loop
+    begin
+      perform watch_fetch(r.id, tok);
+      n := n + 1;
+    exception when others then
+      raise warning 'watch_sync: % skipped: %', r.id, sqlerrm;
+    end;
+  end loop;
+  return n;
+end $$;
+revoke execute on function public.watch_sync() from public, anon, authenticated;
+
+-- Admin only. "Имя Фамилия" as in the game; the character is fetched right away, so a wrong name fails here ("character not found").
+create or replace function public.watch_add(p_token text, p_name text, p_region text, p_label text)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare s record; sl text; wid text;
+begin
+  select * into s from auth_session(p_token);
+  if not coalesce(s.admin, false) then raise exception 'admin only'; end if;
+  if coalesce(p_region, '') not in ('eu', 'us', 'kr', 'tw') then raise exception 'bad region'; end if;
+  sl := lower(regexp_replace(btrim(coalesce(p_name, '')), '\s+', '-', 'g'));
+  if sl !~ '^[^/?#.%\s]{2,64}$' then raise exception 'bad name'; end if;
+  if char_length(coalesce(p_label, '')) > 40 then raise exception 'bad label'; end if;
+  wid := p_region || '.' || sl;
+  if not exists (select 1 from bnet_watch where id = wid) and (select count(*) from bnet_watch) >= 30 then raise exception 'too many'; end if;
+  insert into bnet_watch (id, slug, region, label) values (wid, sl, p_region, coalesce(nullif(btrim(p_label), ''), initcap(split_part(sl, '-', 1))))
+  on conflict (id) do update set label = excluded.label;
+  return watch_fetch(wid);  -- an error here undoes the insert as well
+end $$;
+create or replace function public.watch_del(p_token text, p_id text)
+returns void language plpgsql security definer set search_path = public as $$
+declare s record;
+begin
+  select * into s from auth_session(p_token);
+  if not coalesce(s.admin, false) then raise exception 'admin only'; end if;
+  delete from bnet_watch where id = p_id;
+  update docs set data = data || '{"deleted": true}'::jsonb, updated_at = now() where coll = 'wchars' and id = p_id;
+end $$;
+grant execute on function public.watch_add(text, text, text, text), public.watch_del(text, text) to anon, authenticated;
+insert into public.bnet_watch (id, slug, region, label) values
+  ('us.xaryu-forever', 'xaryu-forever', 'us', 'Xaryu'), ('us.shobek-forever', 'shobek-forever', 'us', 'Shobek')
+on conflict (id) do nothing;
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
