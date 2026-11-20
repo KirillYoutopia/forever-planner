@@ -1166,8 +1166,10 @@ select cron.schedule('guild-ach', '*/5 * * * *', 'select public.guild_ach_fill(3
 select cron.schedule('guild-sync', '7 * * * *', 'select public.guild_sync()');
 
 -- 2026-11-16: WoW Forever news for the "Новости" page, from Wowhead's RSS feeds: blue posts and news articles.
--- Only titles, links and dates are kept. Fetched every 30 minutes; Wowhead answers 403 without a User-Agent.
--- What the page reads: news/forever {at, items: [[title, link, published (ms), "blue" | "news"], ...]}, newest first, at most 40.
+-- Titles, links, dates, a short text and the article picture are kept. Fetched every 30 minutes; Wowhead answers 403 without a User-Agent.
+-- What the page reads: news/forever {at, items: [[title, link, published (ms), "blue" | "news", text, image], ...]}, newest first, at most 40.
+-- 2026-11-20: text (the feed's description up to its first <br>, tags stripped, at most 300 characters) and image (media:content,
+-- wow.zamimg.com only, else "") were added at the end of each item. Older 4-element items still show; the next run rewrites the feed.
 create or replace function public.news_text(p text) returns text language sql immutable set search_path = public as $$
   select replace(replace(replace(replace(replace(replace(
     regexp_replace(btrim(coalesce(p, '')), '^<!\[CDATA\[(.*)\]\]>$', '\1'),
@@ -1190,9 +1192,12 @@ begin
       select h.status, h.content into st, body from http(('GET', f.url, hdr, null, null)::http_request) h;
       continue when st <> 200 or body is null;
       nw := coalesce((
-        select jsonb_agg(jsonb_build_array(t.title, t.link, news_ts(t.d), f.kind))
+        select jsonb_agg(jsonb_build_array(t.title, t.link, news_ts(t.d), f.kind,
+                 left(btrim(regexp_replace(regexp_replace(split_part(news_text(t.ds), '<br', 1), '<[^>]*>', '', 'g'), '\s+', ' ', 'g')), 300),
+                 coalesce(substring(t.img from '^https://wow\.zamimg\.com/[^"''<>\s]+$'), '')))
         from (select regexp_replace(news_text(substring(m[1] from '<title>(.*?)</title>')), ' — World of Warcraft — Blizzard News$', '') title, news_text(substring(m[1] from '<link>(.*?)</link>')) link,
-                     substring(m[1] from '<pubDate>(.*?)</pubDate>') d
+                     substring(m[1] from '<pubDate>(.*?)</pubDate>') d, substring(m[1] from '<description>(.*?)</description>') ds,
+                     substring(m[1] from '<media:content url="([^"]+)"') img
               from regexp_matches(body, '<item>(.*?)</item>', 'g') m) t
         where t.title <> '' and t.link ~ '^https://www\.wowhead\.com/'), '[]'::jsonb);
       -- a 200 without items (an error or challenge page) counts as a failure: the feed keeps its previous items
