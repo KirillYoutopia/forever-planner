@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-20 (Apple-style redesign, dungeons)
+
+- New look across the site: system font, borderless rounded surfaces, iOS-style segmented controls and capsule chips, translucent sidebar; gold is kept for the current choice.
+- «Подземелья»: tiles with Blizzard's official dungeon art; each opens its own page (records, who went how often, who fits by level now, runs day by day).
+
 ## 2026-11-20 (design pass)
 
 - «Профессии»: new top block with 0–300 skill bars, switchable between «По профессиям» and «По персонажам».

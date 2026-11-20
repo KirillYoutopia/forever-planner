@@ -5,44 +5,41 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Kute Expats · WoW Forever</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1017'/%3E%3Cpath d='M16 5l3 8h8l-6.5 5 2.5 8-7-5-7 5 2.5-8L5 13h8z' fill='%23e0ab4a'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Marcellus&display=swap">
 <style>html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>try { const t = localStorage.getItem("wf-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch {} // before CSS paints: no flash of the other theme</script>
 <style>
-/* Layout: one column of panels, dark tooltip-slate world with bronze accent; grids are the Excel sheet made live. */
+/* Layout: one column of panels. Apple-style pass (2026-11-20): system font, soft large-radius surfaces, gold only for the current choice. */
 :root {
   color-scheme: dark;
-  --font-display: "Marcellus", "Palatino Linotype", Georgia, serif;
-  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
 
-  --bg: #0b1017;
-  --panel: #121a25;
-  --panel-2: #182231;
-  --cell: #1a2434;
-  --line: #243247;
-  --fg: #ebe6d9;
-  --muted: #94a1b3;
-  --accent: #e0ab4a;
-  --accent-ink: #1c1405;
-  --focus: #f2c46d;
-  --track: #1d2a3c;
+  --bg: #0a0a0c;
+  --panel: #161618;
+  --panel-2: #1f1f22;
+  --cell: #232326;
+  --line: #2c2c30;
+  --fg: #f5f5f7;
+  --muted: #a1a1a6;
+  --accent: #e6b450;
+  --accent-ink: #1a1203;
+  --focus: #f0c86e;
+  --track: #2a2a2e;
 
   --first-bg: #1f7a3e;  --first-fg: #ffffff;
   --second-bg: #7cc58a; --second-fg: #0b2314;
   --ban-bg: #b53a3a;    --ban-fg: #ffffff;
   --final-bg: #2f6fd0;  --final-fg: #ffffff;
 
-  --tank: #3987e5;
-  --dps: #d95926;
-  --healer: #199e70;
-  --alliance: #3987e5;
-  --horde: #e66767;
-  --pve: #9085e9;
-  --pvp: #d55181;
+  --tank: #4a90e2;
+  --dps: #e0703a;
+  --healer: #2bb383;
+  --alliance: #4a90e2;
+  --horde: #e8686a;
+  --pve: #9a8cf0;
+  --pvp: #e0659a;
   /* guild chart lines: fixed order, one per character */
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --s1: #4a90e2; --s2: #e0703a; --s3: #2bb383; --s4: #d9a21b; --s5: #e0659a; --s6: #4caf50; --s7: #9a8cf0; --s8: #e8686a;
 
   /* party frames: game-UI look, dark in both themes */
   --frame-bg: #0d0b08f0;
@@ -62,6 +59,13 @@
   --q-rare: #3d8fe8;
   --q-epic: #b45cf5;
   --q-leg: #ff8000;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .4);
+  --shadow-2: 0 8px 30px rgb(0 0 0 / .35);
+  --material: color-mix(in srgb, #1c1c1f 72%, transparent);
+  --bar: #5e5e66;
   --tint: 100%; /* how much class/standing colour goes into text */
   --stone: #4a5059;
   --stone-2: #2a2e34;
@@ -71,17 +75,17 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --bg: #edf0f4;
-    --panel: #f9fafb;
-    --panel-2: #e7ebf1;
-    --cell: #e9edf3;
-    --line: #cdd5e0;
-    --fg: #161c26;
-    --muted: #596679;
-    --accent: #8a5a00;
-    --accent-ink: #fff8e8;
-    --focus: #8a5a00;
-    --track: #dfe5ed;
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --panel-2: #f0f0f3;
+    --cell: #f2f2f5;
+    --line: #e3e3e8;
+    --fg: #1d1d1f;
+    --muted: #6e6e73;
+    --accent: #946200;
+    --accent-ink: #ffffff;
+    --focus: #946200;
+    --track: #e8e8ed;
 
     --first-bg: #17692f;  --first-fg: #ffffff;
     --second-bg: #9bd9a6; --second-fg: #0d2a17;
@@ -89,34 +93,38 @@
     --final-bg: #2a78d6;  --final-fg: #ffffff;
 
     --tank: #2a78d6;
-    --dps: #eb6834;
-    --healer: #1baf7a;
+    --dps: #e0632a;
+    --healer: #17a06f;
     --alliance: #2a78d6;
-    --horde: #e34948;
-    --pve: #6250d6;
-    --pvp: #e87ba4;
-    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+    --horde: #d94343;
+    --pve: #5b4bd1;
+    --pvp: #d4588a;
+    --s1: #2a78d6; --s2: #e0632a; --s3: #17a06f; --s4: #c48a00; --s5: #d4588a; --s6: #2e8b32; --s7: #5b4bd1; --s8: #d94343;
     --q-poor: #6b6b6b;
     --q-unc: #138a00;
     --q-rare: #0058b8;
     --q-epic: #7a1fc2;
     --q-leg: #b35a00;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .05);
+    --shadow-2: 0 6px 24px rgb(0 0 0 / .07);
+    --material: color-mix(in srgb, #fbfbfd 75%, transparent);
+    --bar: #b9b9c0;
     --tint: 50%; /* how much class/standing colour goes into text */
   }
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #edf0f4;
-  --panel: #f9fafb;
-  --panel-2: #e7ebf1;
-  --cell: #e9edf3;
-  --line: #cdd5e0;
-  --fg: #161c26;
-  --muted: #596679;
-  --accent: #8a5a00;
-  --accent-ink: #fff8e8;
-  --focus: #8a5a00;
-  --track: #dfe5ed;
+  --bg: #f5f5f7;
+  --panel: #ffffff;
+  --panel-2: #f0f0f3;
+  --cell: #f2f2f5;
+  --line: #e3e3e8;
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --accent: #946200;
+  --accent-ink: #ffffff;
+  --focus: #946200;
+  --track: #e8e8ed;
 
   --first-bg: #17692f;  --first-fg: #ffffff;
   --second-bg: #9bd9a6; --second-fg: #0d2a17;
@@ -124,18 +132,22 @@
   --final-bg: #2a78d6;  --final-fg: #ffffff;
 
   --tank: #2a78d6;
-  --dps: #eb6834;
-  --healer: #1baf7a;
+  --dps: #e0632a;
+  --healer: #17a06f;
   --alliance: #2a78d6;
-  --horde: #e34948;
-  --pve: #6250d6;
-  --pvp: #e87ba4;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --horde: #d94343;
+  --pve: #5b4bd1;
+  --pvp: #d4588a;
+  --s1: #2a78d6; --s2: #e0632a; --s3: #17a06f; --s4: #c48a00; --s5: #d4588a; --s6: #2e8b32; --s7: #5b4bd1; --s8: #d94343;
   --q-poor: #6b6b6b;
   --q-unc: #138a00;
   --q-rare: #0058b8;
   --q-epic: #7a1fc2;
   --q-leg: #b35a00;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .05);
+  --shadow-2: 0 6px 24px rgb(0 0 0 / .07);
+  --material: color-mix(in srgb, #fbfbfd 75%, transparent);
+  --bar: #b9b9c0;
   --tint: 50%; /* how much class/standing colour goes into text */
 }
 
@@ -702,6 +714,47 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .dcard h3 { margin: 0; font: 400 17px/1.25 var(--font-display); color: var(--fg); letter-spacing: .01em; text-transform: none; }
 .dcard .lr { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
 .dgs-note { margin: 0 0 14px; max-width: 900px; }
+/* dungeon tiles: official art on top, the numbers below; the whole tile opens the dungeon page */
+#dgs-cards { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.dtile { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border-radius: 14px; background: var(--cell); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  color: var(--fg); text-decoration: none; transition: transform .2s ease-out, box-shadow .2s ease-out; }
+.dtile:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0, 0, 0, .22); }
+.dtile:active { transform: scale(.98); transition-duration: .1s; }
+.dtile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dart { position: relative; display: block; aspect-ratio: 2 / 1; background: var(--track); overflow: hidden; }
+.dart img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.dart.none { background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 45%, var(--track)), var(--track) 70%); }
+.dnew { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; }
+.dbody { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
+.dname { font: 600 16px/1.25 var(--font-body); letter-spacing: -.01em; }
+.dbody small { color: var(--muted); font-size: 12px; }
+.dnum { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.dnum b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.dprog { display: block; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--w), var(--track) var(--w)); }
+.dbody small.dfit { color: var(--healer); }
+.dtile.no .dart img { filter: grayscale(1); opacity: .45; }
+.dtile.no .dname { color: var(--muted); }
+/* dungeon page */
+.dback { display: inline-block; margin-bottom: 12px; color: var(--muted); text-decoration: none; font-size: 13px; }
+.dback:hover { color: var(--accent); }
+.dhero { position: relative; margin: 0 -18px 16px; height: clamp(170px, 24vw, 340px); overflow: hidden; background: var(--track); }
+.dhero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dhero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, var(--panel) 2%, transparent 65%); }
+.dhero.none { height: 160px; background: radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--accent) 40%, var(--track)), var(--track) 70%); }
+.dhero-t { position: absolute; left: 18px; right: 18px; bottom: 12px; z-index: 1; }
+.dhero-t .eyebrow { display: block; margin-bottom: 4px; }
+.dhero-t h2 { font-size: clamp(26px, 4vw, 40px); line-height: 1.05; letter-spacing: -.01em; }
+.dlead { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 120px) minmax(0, 1fr) 48px; gap: 10px; align-items: center; min-height: 30px; font-size: 14px; }
+.dlead small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dlead b { text-align: right; font-variant-numeric: tabular-nums; }
+.dlead .glink { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dboss { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.dboss span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.dfits { display: flex; flex-wrap: wrap; gap: 6px; }
+.dlead .gpb::after { display: none; }
+.dfits small { color: var(--muted); font-size: 11px; margin-left: 4px; }
+@media (max-width: 560px) { .dlead { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 40px; } .dlead small { display: none; } .dhero { margin: 0 -14px 14px; } }
+@media (prefers-reduced-motion: reduce) { .dtile:hover, .dtile:active { transform: none; } }
 .dcard .tag { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--line); color: var(--muted); border-radius: 3px; padding: 1px 4px; margin-left: 6px; vertical-align: 3px; white-space: nowrap; }
 .dcard.no { opacity: .55; }
 .dcard.no .lr { margin-bottom: 0; }
@@ -955,6 +1008,95 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 /* phones: the top bar is a translucent layer, content scrolls under it */
 @media (max-width: 899px) { .mbar { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border-bottom-color: color-mix(in srgb, var(--line) 50%, transparent); } }
 @media (max-width: 899px) and (prefers-reduced-transparency: reduce) { .mbar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+/* ===== Apple-style pass (2026-11-20): typography, surfaces without borders, capsule controls. Overrides the rules above. ===== */
+html { transition: background-color .3s; } /* eases the dark/light switch */
+body { font: 400 15px/1.5 var(--font-body); letter-spacing: -.005em; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
+h1 { font: 700 clamp(28px, 3.2vw, 40px)/1.08 var(--font-display); letter-spacing: -.025em; }
+h2 { font: 600 22px/1.2 var(--font-display); letter-spacing: -.018em; }
+h3, .ovc h3, .ovh, .gsec { font: 600 15px/1.3 var(--font-body); letter-spacing: -.01em; text-transform: none; color: var(--fg); }
+.cap, .gsub, .ovnote { font-size: 13px; line-height: 1.45; color: var(--muted); letter-spacing: 0; }
+small, .gnote { font-size: 12px; line-height: 1.4; letter-spacing: .005em; }
+.eyebrow, .side .ng, .kpi span { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.kpi b, .vnum, .big, .cc-big b, .dcard .big b, .dcard .win b, .bal-c b, .nx-big, .ptab td.hk, .side-cd b, .gtiles b {
+  font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.kpi b { font-size: 30px; line-height: 1.1; }
+.gtiles b { font-size: 20px; line-height: 1.15; }
+.ptab td.hk { font-size: 17px; }
+.dr-big { font-weight: 700; letter-spacing: -.03em; }
+
+.wrap { gap: 28px; }
+.panel { background: var(--panel); border: 0; border-radius: var(--radius-lg); padding: 24px 28px; box-shadow: var(--shadow-1), var(--shadow-2); }
+.panel-head { margin-bottom: 20px; gap: 4px 20px; }
+.panel-head .cap { max-width: 60ch; }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.kpi { border: 0; border-radius: var(--radius-lg); background: var(--panel); padding: 16px 18px; box-shadow: var(--shadow-1), var(--shadow-2); }
+@media (max-width: 560px) { .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; } } /* phone 2-column grid: no orphan tile */
+.kpi small { font-size: 12px; }
+.gtiles { grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap: 10px; }
+.gtiles div { background: var(--cell); border: 0; border-radius: var(--radius-md); padding: 12px 14px; min-width: 0; }
+.gtiles span { font-size: 12px; margin-bottom: 2px; }
+.gtiles b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#gc-box .gtiles div, #gc-box .cc-facts div { border-top: 0; box-shadow: inset 0 2px 0 color-mix(in srgb, var(--cc) 55%, transparent); }
+.dcard, .dgc, .ncard, .gpcard, .dtile { border: 0; border-radius: var(--radius-md); background: var(--cell); }
+.ncard { border-left: 0; box-shadow: inset 3px 0 0 var(--accent); }
+.ncard.blue { box-shadow: inset 3px 0 0 var(--tank); }
+.ncard:hover { box-shadow: inset 3px 0 0 var(--accent), var(--shadow-2); }
+.ncard.blue:hover { box-shadow: inset 3px 0 0 var(--tank), var(--shadow-2); }
+
+/* segmented controls: a light thumb on a track, like iOS */
+.seg { border: 0; border-radius: 999px; padding: 3px; background: var(--track); gap: 2px; }
+.seg button { border-radius: 999px; min-height: 32px; padding: 6px 14px; font-weight: 500; color: var(--fg); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .18); }
+.side .theme { background: var(--track); border-radius: 999px; padding: 3px; }
+.side .theme button { border-radius: 999px; }
+.side .theme button[aria-pressed="true"] { background: var(--panel); color: var(--fg); }
+
+/* chips: capsules, the chosen one inverted */
+.chip, .fchip, .rchips button, .gpc { border: 0; border-radius: 999px; background: var(--cell); padding: 5px 12px; font-size: 13px; }
+.rchips.sm button { padding: 3px 10px; }
+.rchips button[aria-pressed="true"], .fchip[aria-pressed="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
+.gpc:hover, .rchips button:hover:not([aria-pressed="true"]) { background: var(--panel-2); }
+.gpcard .gpc, .dtile .gpc, .dcard .gpc { background: var(--panel-2); }
+.cdgl .gpc { border-radius: var(--radius-sm); } /* long names wrap: no capsule */
+.ovchip { border: 0; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); }
+.dgc .new { background: transparent; color: var(--accent); padding: 0; letter-spacing: 0; text-transform: none; font-size: 11px; }
+
+/* sidebar: a material layer, the current page in gold */
+.side { background: var(--material); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  border-right: 0; box-shadow: inset -1px 0 0 color-mix(in srgb, var(--line) 60%, transparent); padding: 24px 12px 72px; }
+.side button { border-radius: var(--radius-sm); min-height: 34px; font-weight: 500; }
+.side button[aria-pressed="true"] { background: var(--panel-2); color: var(--accent); font-weight: 600; box-shadow: none; }
+.side .ng { margin: 18px 10px 4px; }
+.side .soon { border: 0; background: var(--track); text-transform: none; letter-spacing: 0; }
+.side-cd { border: 0; border-radius: var(--radius-md); background: var(--cell); padding: 10px 12px; }
+.side-brand b { font: 700 20px/1.2 var(--font-display); letter-spacing: -.02em; }
+.mbar { border-bottom: 0; box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 50%, transparent); }
+.burger { border: 0; border-radius: var(--radius-sm); background: var(--cell); }
+
+/* tables: hairlines between rows only */
+.ptab, .rtab { font-variant-numeric: tabular-nums; font-size: 13px; }
+.ptab th, .ptab td, .rtab th, .rtab td { padding: 10px 12px; border-top: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.ptab thead th, .rtab thead th { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); border-bottom-color: var(--line); }
+.ptab tbody tr:last-child td, .rtab tbody tr:last-child td, .rtab tbody tr:last-child th { border-bottom: 0; }
+.rtab tbody tr:hover td, .rtab tbody tr:hover th, .ptab tbody tr:hover td { background: var(--panel-2); }
+.gnote { font-size: 12px; color: var(--muted); max-width: 75ch; }
+.empty { padding: 32px 8px; text-align: center; font-size: 14px; }
+.btn { border-radius: 999px; padding: 9px 20px; min-height: 38px; font-weight: 600; }
+.btn.ghost { border: 0; background: var(--cell); }
+select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--radius-sm); border-color: transparent; background: var(--cell); }
+.va i { border-radius: 6px 6px 2px 2px; box-shadow: none; }
+.note { border: 0; border-radius: var(--radius-md); }
+.rfilt { border: 0; border-radius: var(--radius-md); background: var(--cell); }
+.dhero { margin: 0 -28px 20px; }
+.dhero-t { left: 28px; right: 28px; }
+.dhero-t .eyebrow { color: var(--accent); }
+@media (max-width: 560px) { .panel { padding: 18px 16px; border-radius: var(--radius-md); } .dhero { margin: 0 -16px 16px; } .dhero-t { left: 16px; right: 16px; } }
+@media (prefers-reduced-transparency: reduce) { .side { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+@media (prefers-contrast: more) {
+  .panel, .kpi, .gtiles div, .dcard, .dgc, .chip, .fchip, .rchips button, .gpc, .seg, .dtile, .gpcard, .ncard { border: 1px solid var(--muted); }
+  .side { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) { html { transition: none; } }
 </style>
 
 </head>
@@ -1215,9 +1357,11 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   <section class="panel" aria-labelledby="h-dgs" data-view="dungeons" hidden>
     <div class="panel-head"><h2 id="h-dgs">Подземелья гильдии</h2><span class="cap">Данные Blizzard API, персонажи с 10 уровня</span></div>
     <div id="dgs-tiles"></div>
-    <p class="gnote dgs-note">По персонажам игра считает только убийства последних боссов. У части подземелий (Excavation Site, три крыла Scarlet Monastery) такого счётчика нет: для них есть только общее число прохождений на весь аккаунт игрока, вместе с твинками. Такие карточки помечены «по аккаунту».</p>
+    <p class="gnote dgs-note">Нажми на подземелье, чтобы открыть его страницу. Игра считает прохождения по убийствам последнего босса. Где такого счётчика нет (Excavation Site, три крыла Scarlet Monastery), есть только общее число на весь аккаунт игрока, вместе с твинками: такие помечены «по аккаунту».</p>
     <div class="dcards" id="dgs-cards"></div>
   </section>
+
+  <section class="panel dgpage" id="dg-box" data-view="dungeon" aria-labelledby="dg-title" hidden></section>
 
   <section class="panel" aria-labelledby="h-dgwho" data-view="dungeons" hidden>
     <div class="panel-head"><h2 id="h-dgwho">Кто сколько ходил</h2><span class="cap">По каждому персонажу</span></div>
@@ -1445,7 +1589,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderStats(); renderRecipes(); renderOrderBadge(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderDg(); renderStats(); renderRecipes(); renderOrderBadge(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -2577,6 +2721,7 @@ const PROF_ID = new Set(PROFS.map(p => p.id));
 const BCLS = { 1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage", 9: "Warlock", 11: "Druid" };
 const BRACE = { 1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll", 95: "High Order Skyborne", 96: "Windshaper Skyborne" }; // the API names; 95 is Alliance, 96 Horde
 const G_MIN = 10, G_SLOTS = 8; // charted from level 10; eight line colours, later characters are grey
+const DOC_TITLE = document.title;
 let guild = null, glevels = [], gchars = {}, gOpen = "", gDrawn = "";
 const dayNum = k => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5;
 const dayShort = k => `${+k.slice(8, 10)} ${MON[+k.slice(5, 7) - 1]}`;
@@ -2868,8 +3013,8 @@ function renderOverview(g) {
   const count = (k, f) => ms.filter(m => ovMatch(m, k) && f(m)).length;
   const classes = CLASSES.map(c => ({ v: c.id, label: c.id, n: count("cls", m => BCLS[m.cls] === c.id), color: c.color, icon: "classicon_" + c.id.toLowerCase() }));
   const raceNames = [...new Set(Object.values(BRACE))];
-  const races = raceNames.map(r => ({ v: r, label: r, n: count("race", m => BRACE[m.race] === r), color: "var(--accent)", icon: raceIcon(r) })).filter(r => r.n > 0 || ovF.race === r.v);
-  const levels = OV_BRACKETS.map(([a, b], i) => ({ v: i, label: a === b ? String(a) : `${a}–${b}`, n: count("lvl", m => lvlBracket(m.level) === i), color: "var(--accent)" }));
+  const races = raceNames.map(r => ({ v: r, label: r, n: count("race", m => BRACE[m.race] === r), color: "var(--bar)", icon: raceIcon(r) })).filter(r => r.n > 0 || ovF.race === r.v);
+  const levels = OV_BRACKETS.map(([a, b], i) => ({ v: i, label: a === b ? String(a) : `${a}–${b}`, n: count("lvl", m => lvlBracket(m.level) === i), color: "var(--bar)" }));
   const sexes = [["MALE", "Мужской", "var(--s1)"], ["FEMALE", "Женский", "var(--s5)"]].map(([v, label, color]) => ({ v, label, n: count("sex", m => gchars[m.slug]?.gender === v), color }));
   const roles = [["tank", "Танки", "var(--tank)"], ["heal", "Лекари", "var(--healer)"], ["dps", "Бойцы", "var(--dps)"], ["feral", "Feral", "var(--accent)"]]
     .map(([v, label, color]) => ({ v, label, n: count("role", m => roleOf(m.slug) === v), color })).filter(r => r.n > 0 || ovF.role === r.v || r.v !== "feral");
@@ -3095,52 +3240,60 @@ function dgAccounts() {
     return { chars, label: owner ? owner.name : gName(chars[0]) + (chars.length > 1 ? " и твинки" : ""), dg: gchars[chars[0]].dg };
   });
 }
-function renderDgs() {
-  const chars = astChars(), accts = dgAccounts();
-  if (!chars.length && !accts.length) {
-    const msg = got.has("guild") ? "Данных пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
-    $("#dgs-tiles").innerHTML = ""; $("#dgs-cards").innerHTML = `<p class="empty">${msg}</p>`; $("#dgs-table").innerHTML = "";
-    return;
-  }
-  const hasList = accts.length > 0;
-  const cards = {}, names = []; // name -> { bosses: { boss: { slug: kills } }, acct: [[label, n, slug]] }
-  const card = n => cards[n] || (names.push(n), cards[n] = { bosses: {}, acct: [] });
+// Blizzard's official dungeon art (render.worldofwarcraft.com/…/zones/<slug>-small|large.jpg); the new Forever dungeons have none.
+const DG_ART = { rfc: "ragefire-chasm", wc: "wailing-caverns", dm: "deadmines", sfk: "shadowfang-keep", stocks: "the-stockade", bfd: "blackfathom-deeps",
+  smgy: "scarlet-monastery", smlib: "scarlet-monastery", smarm: "scarlet-monastery", smcath: "scarlet-monastery", gnomer: "gnomeregan", rfk: "razorfen-kraul",
+  rfd: "razorfen-downs", ulda: "uldaman", zf: "zulfarrak", mara_wg: "maraudon", mara_fc: "maraudon", mara_esf: "maraudon", st: "the-temple-of-atalhakkar",
+  brd: "blackrock-depths", lbrs: "lower-blackrock-spire", ubrs: "upper-blackrock-spire", scholo: "scholomance", strat: "stratholme", dmaul: "dire-maul" };
+const dgArt = (info, size) => info && DG_ART[info.id] ? `https://render.worldofwarcraft.com/eu/zones/${DG_ART[info.id]}-${size}.jpg` : "";
+// What both the grid and the dungeon page need: per dungeon its end-boss counters per character (or per account).
+function dgData() {
+  const chars = astChars(), accts = dgAccounts(), hasList = accts.length > 0;
+  const cards = {}, names = []; // name -> { bosses: { boss: { slug: kills } }, stats: Set of counter names, acct: [[label, n, slug]] }
+  const card = n => cards[n] || (names.push(n), cards[n] = { bosses: {}, stats: new Set(), acct: [] });
   if (hasList) for (const row of Array.isArray(gdung?.list) ? gdung.list : []) if (row?.[0]) card(row[0]);
   for (const a of accts) for (const [n, amount, done] of a.dg) if (n) { const c = card(n); if (+amount > 0 || done) c.acct.push([a.label, Math.max(1, +amount || 0), a.chars[0]]); }
   for (const s of chars) for (const [cat, name, qty] of gchars[s].ast) {
     const m = /Boss Kills$/.test(cat) && /^(.*?)\s+kills\s+\((.+)\)$/i.exec(name);
-    if (m && +qty > 0) (card(hasList ? BOSS_DG[m[2]] || m[2] : m[2]).bosses[m[1]] ||= {})[s] = +qty;
+    if (m && +qty > 0) { const c = card(hasList ? BOSS_DG[m[2]] || m[2] : m[2]); (c.bosses[m[1]] ||= {})[s] = +qty; c.stats.add(name); }
   }
   if (!hasList) names.sort((a, b) => (dgInfo(a) ? DUNGEONS.indexOf(dgInfo(a)) : 999) - (dgInfo(b) ? DUNGEONS.indexOf(dgInfo(b)) : 999) || a.localeCompare(b));
   const list = names.map(name => {
     const c = cards[name], runs = {}; // per character: the most kills of any one boss of the dungeon
     for (const k of Object.values(c.bosses)) for (const [s, n] of Object.entries(k)) runs[s] = Math.max(runs[s] || 0, n);
     const byChar = Object.keys(runs).length > 0;
-    return { name, info: dgInfo(name), bosses: c.bosses, runs, byChar, acct: c.acct, total: byChar ? Object.values(runs).reduce((a, b) => a + b, 0) : c.acct.reduce((t, x) => t + x[1], 0) };
+    return { name, info: dgInfo(name), bosses: c.bosses, stats: [...c.stats], runs, byChar, acct: c.acct, total: byChar ? Object.values(runs).reduce((a, b) => a + b, 0) : c.acct.reduce((t, x) => t + x[1], 0) };
   });
+  return { chars, accts, hasList, list };
+}
+// Guild characters (10+) whose level is inside the dungeon's range right now
+const dgFits = info => info ? Object.entries(guild?.members || {}).filter(([, m]) => m.level >= Math.max(G_MIN, info.min) && m.level <= info.max).map(([s]) => s) : [];
+const dgHref = name => "#dg/" + encodeURIComponent(name);
+function renderDgs() {
+  const { chars, accts, hasList, list } = dgData();
+  if (!chars.length && !accts.length) {
+    const msg = got.has("guild") ? "Данных пока нет: они появятся после следующей синхронизации." : loaded && offline ? "Нет связи с базой данных." : "Загружаю…";
+    $("#dgs-tiles").innerHTML = ""; $("#dgs-cards").innerHTML = `<p class="empty">${msg}</p>`; $("#dgs-table").innerHTML = "";
+    return;
+  }
   const done = list.filter(d => d.total > 0);
   const sumOf = n => chars.reduce((t, s) => t + (astOf(gchars[s], n) || 0), 0);
   const entered = chars.map(s => [s, astOf(gchars[s], "Total 5-player dungeons entered") || 0]).sort((a, b) => b[1] - a[1])[0];
   $("#dgs-tiles").innerHTML = `<div class="gtiles">${[["Подземелий пройдено", hasList ? `${done.length} из ${list.length}` : fmtN(done.length)], ["Заходов всего", fmtN(sumOf("Total 5-player dungeons entered"))],
-    ["Смертей в подземельях", fmtN(sumOf("Total deaths in 5-player dungeons"))], ["Главный подземщик", entered?.[1] ? `${esc(gName(entered[0]))} · ${fmtN(entered[1])}` : "—"]]
+    ["Смертей в подземельях", fmtN(sumOf("Total deaths in 5-player dungeons"))], [entered?.[1] ? `Главный подземщик · ${fmtN(entered[1])}` : "Главный подземщик", entered?.[1] ? esc(gName(entered[0])) : "—"]]
     .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
-  const head = (d, tag = "") => `<h3>${esc(d.name)}${d.info?.n ? `<span class="new">новое</span>` : ""}${tag}</h3><div class="lr">${d.info ? `уровни ${d.info.min}–${d.info.max}` : "&nbsp;"}`;
   const runsWord = n => plural(n, "прохождение", "прохождения", "прохождений");
   $("#dgs-cards").innerHTML = list.length ? list.map(d => {
-    if (!d.total) return `<div class="dcard no">${head(d)} · ещё никто не прошёл</div></div>`;
-    if (!d.byChar) { // no per-character counter: one number per account
-      const who = [...d.acct].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-      return `<div class="dcard">${head(d, `<span class="tag">по аккаунту</span>`)}</div>
-        <div class="big"><div><b>${who.length} / ${accts.length}</b>игроков прошли</div><div><b>${fmtN(d.total)}</b>${runsWord(d.total)}</div></div>
-        <div class="who">${who.map(([label, n, s]) => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(s)}"><b>${fmtN(n)}</b>${esc(label)}</button>`).join("")}</div>
-        <p class="fact">Число общее на аккаунт: кто из персонажей игрока ходил, игра не говорит.</p></div>`;
-    }
-    const who = Object.entries(d.runs).sort((a, b) => b[1] - a[1] || gName(a[0]).localeCompare(gName(b[0]))), top = who[0], all = who.length === chars.length, bosses = Object.entries(d.bosses);
-    const fact = all && chars.length > 1 ? "Здесь побывали все персонажи." : who.length === 1 ? `Пока только ${esc(gName(top[0]))}.` : top[1] > 1 ? `Чаще всех: ${esc(gName(top[0]))}, ${fmtN(top[1])} ${plural(top[1], "раз", "раза", "раз")}.` : "";
-    return `<div class="dcard">${head(d)}</div>
-      <div class="big"><div><b>${who.length} / ${chars.length}</b>персонажей прошли</div><div><b>${fmtN(d.total)}</b>${runsWord(d.total)}</div></div>
-      ${bosses.map(([boss, k]) => `<div class="boss">${esc(boss)}</div><div class="who">${Object.entries(k).sort((a, b) => b[1] - a[1] || gName(a[0]).localeCompare(gName(b[0]))).map(([s, n]) => gChip(s, `<b>${fmtN(n)}</b>`)).join("")}</div>`).join("")}
-      ${fact ? `<p class="fact">${fact}</p>` : ""}</div>`;
+    const art = dgArt(d.info, "small"), of = d.byChar ? chars.length : accts.length, n = d.byChar ? Object.keys(d.runs).length : d.acct.length;
+    const top = d.byChar ? Object.entries(d.runs).sort((a, b) => b[1] - a[1])[0] : [...d.acct].sort((a, b) => b[1] - a[1])[0];
+    const fresh = d.byChar ? dgFits(d.info).filter(sl => !d.runs[sl]).length : 0;
+    return `<a class="dtile${d.total ? "" : " no"}" href="${esc(dgHref(d.name))}">
+      <span class="dart${art ? "" : " none"}">${art ? `<img src="${esc(art)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${d.info?.n ? `<span class="dnew">Новое</span>` : ""}</span>
+      <span class="dbody"><b class="dname">${esc(d.name)}</b><small>${d.info ? `Уровни ${d.info.min}–${d.info.max}` : "&nbsp;"}${d.byChar || !d.total ? "" : " · по аккаунту"}</small>
+        ${d.total ? `<span class="dnum"><b>${fmtN(d.total)}</b> ${runsWord(d.total)} · <b>${n}</b> из ${of} ${d.byChar ? "персонажей" : "игроков"}</span>
+        <i class="dprog" style="--w:${Math.round(n / Math.max(1, of) * 100)}%"></i>
+        <small>Чаще всех: ${esc(d.byChar ? gName(top[0]) : top[0])} · ${fmtN(top[1])}</small>` : `<span class="dnum">Ещё никто не прошёл</span>`}
+        ${fresh ? `<small class="dfit">По уровню сейчас: ещё не ${fresh > 1 ? "были" : "был"} ${fresh} ${plural(fresh, "персонаж", "персонажа", "персонажей")}</small>` : ""}</span></a>`;
   }).join("") : `<p class="empty">Пока никто не прошёл ни одного подземелья.</p>`;
   const z = v => v ? fmtN(v) : `<span class="z">—</span>`, own = done.filter(d => d.byChar);
   $("#dgs-table").innerHTML = chars.length ? `<table class="ptab"><thead><tr><th>Персонаж</th><th>Заходов</th><th>Разных подземелий</th><th>Прохождений</th><th>Смертей в подземельях</th><th>Любимое подземелье</th></tr></thead><tbody>${
@@ -3149,6 +3302,62 @@ function renderDgs() {
       .sort((a, b) => b.ent - a.ent || b.runs - a.runs || gName(a.s).localeCompare(gName(b.s)))
       .map(r => `<tr><td><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}">${esc(gName(r.s))}</button></td><td class="hk">${z(r.ent)}</td><td>${z(r.n)}</td><td>${z(r.runs)}</td><td>${z(r.died)}</td><td>${r.fav ? `${esc(r.fav.name)} · ${fmtN(r.fav.runs[r.s])}` : `<span class="z">—</span>`}</td></tr>`).join("")}</tbody></table>
     <p class="gnote">«Заходов» считает все подземелья. Остальные столбцы считают только те, где игра ведёт счёт по персонажу (убийства последнего босса).</p>` : "";
+}
+// One dungeon (#dg/<name>): official art, records, who went how often, who fits by level, kills day by day.
+let dgOpen = "";
+function renderDg() {
+  const el = $("#dg-box");
+  if (view !== "dungeon") return;
+  const { chars, accts, list } = dgData(), d = list.find(x => x.name === dgOpen);
+  const back = `<a class="dback" href="#dungeons">← Все подземелья</a>`;
+  if (!d) { el.innerHTML = back + `<p class="empty">${list.length ? "Такого подземелья нет в данных игры." : got.has("guild") ? "Данных пока нет." : "Загружаю…"}</p>`; return; }
+  const art = dgArt(d.info, "large");
+  const owner = {}; for (const p of players) if (!p.deleted) { for (const sl of altsOf(p)) owner[sl] ??= p.name + ", твинк"; if (p.char) owner[p.char] = p.name; }
+  // day by day from the snapshots (glevels/{day}.bk): this dungeon's boss counters per character
+  const days = glevels.filter(x => /^\d{4}-\d\d-\d\d$/.test(x.id) && x.bk && typeof x.bk === "object").sort((a, b) => a.id < b.id ? -1 : 1);
+  const val = (x, sl) => { const k = x.bk?.[sl]; if (!k) return null; const v = d.stats.map(st => +k[st]).filter(Number.isFinite); return v.length ? Math.max(...v) : null; };
+  let last = null; const week = {};
+  const lastDay = days[days.length - 1], from = lastDay ? dayNum(lastDay.id) - 7 : 0;
+  for (const sl of Object.keys(d.runs)) {
+    const v = days.map(x => val(x, sl));
+    for (let i = 1; i < v.length; i++) if (v[i] != null && v[i - 1] != null && v[i] > v[i - 1] && (!last || days[i].id >= last.day)) last = { day: days[i].id, sl };
+    const base = days.findIndex((x, i) => dayNum(x.id) >= from && v[i] != null);
+    if (base >= 0 && v[v.length - 1] != null) week[sl] = v[v.length - 1] - v[base];
+  }
+  const wk = Object.values(week).reduce((a, b) => a + b, 0);
+  const lead = d.byChar ? Object.entries(d.runs).sort((a, b) => b[1] - a[1] || gName(a[0]).localeCompare(gName(b[0])))
+    : [...d.acct].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([l, n, sl]) => [sl, n, l]);
+  const max = lead.length ? lead[0][1] : 1, of = d.byChar ? chars.length : accts.length;
+  const tiles = cTiles([["Прохождений", fmtN(d.total)], [d.byChar ? "Персонажей прошли" : "Игроков прошли", `${lead.length} из ${of}`],
+    [lead.length ? `Рекордсмен · ${fmtN(lead[0][1])}` : "Рекордсмен", lead.length ? esc(d.byChar ? gName(lead[0][0]) : lead[0][2]) : "—"],
+    ["За 7 дней", d.byChar && days.length > 1 ? `+${fmtN(wk)}` : null], ["Последний поход", last ? `${dayShort(last.day)} · ${esc(gName(last.sl))}` : null]]);
+  const rows = lead.map(([sl, n, label]) => `<div class="dlead"><button type="button" class="glink" data-act="gchar" data-id="${esc(sl)}">${esc(label || gName(sl))}</button>
+    <small>${d.byChar ? esc(owner[sl] || "") : ""}</small><i class="gpb" style="--c:var(--accent);--w:${n / max * 100}%;--m:${n / max * 100}%"></i><b>${fmtN(n)}</b></div>`).join("");
+  const bosses = Object.entries(d.bosses), kills = k => Object.values(k).reduce((a, x) => a + x, 0);
+  const fits = dgFits(d.info).sort((a, b) => (d.runs[a] || 0) - (d.runs[b] || 0) || gName(a).localeCompare(gName(b)));
+  const fitHtml = !d.info ? "" : fits.length ? `<div class="dfits">${fits.map(sl => `<button type="button" class="gpc" data-act="gchar" data-id="${esc(sl)}"><b>${guild.members[sl].level}</b>${esc(gName(sl))}<small>${d.byChar ? (d.runs[sl] ? `был ${fmtN(d.runs[sl])} ${plural(d.runs[sl], "раз", "раза", "раз")}` : "ещё не был") : ""}</small></button>`).join("")}</div>`
+    : `<p class="gnote">Сейчас ни у кого в гильдии нет подходящего уровня (${d.info.min}–${d.info.max}).</p>`;
+  // chart: kills so far per character, by day
+  let chartHtml = "";
+  if (d.byChar && days.length) {
+    const g = guildData(), series = Object.keys(d.runs).map(sl => ({ slug: sl, name: gName(sl), color: g.color[sl] || "var(--muted)",
+      pts: days.map((x, i) => ({ i, lv: val(x, sl) })).filter(p => p.lv != null) })).filter(x => x.pts.length);
+    if (series.length) {
+      const hi = Math.max(5, Math.ceil(Math.max(...series.flatMap(x => x.pts.map(p => p.lv))) / 5) * 5), W = Math.max(280, Math.round(el.clientWidth - 40) || 680);
+      chartHtml = `<h3 class="sub">Прохождения по дням</h3>${gKeys(series)}${lineChart("dg", days, series, { W, H: W < 480 ? 200 : 240, lo: 0, hi, step: hi > 20 ? 10 : hi > 10 ? 5 : 1, label: "Убийства последнего босса нарастающим итогом по дням" })}${oneDay(days)}
+        <p class="gnote">Снимки на конец дня. Счётчики боссов собираются с ${dayShort(days[0].id)}: что было раньше, видно только в общем числе.</p>`;
+    }
+  }
+  el.innerHTML = back + `<div class="dhero${art ? "" : " none"}">${art ? `<img src="${esc(art)}" alt="" onerror="this.parentNode.classList.add('none');this.remove()">` : ""}
+      <div class="dhero-t"><span class="eyebrow">Подземелье${d.info ? ` · уровни ${d.info.min}–${d.info.max}` : ""}${d.info?.f ? ` · ${d.info.f === "A" ? "Альянс" : "Орда"}` : ""}${d.info?.n ? " · новое в Forever" : ""}</span><h2 id="dg-title">${esc(d.name)}</h2></div></div>`
+    + tiles
+    + (lead.length ? `<h3 class="sub">${d.byChar ? "Кто сколько раз прошёл" : "Сколько раз прошли игроки"}</h3>${rows}` : `<p class="empty">Здесь ещё никто не был.</p>`)
+    + (d.byChar ? "" : `<p class="gnote">Для этого подземелья игра ведёт счёт только на весь аккаунт игрока, вместе с твинками: кто из персонажей ходил, неизвестно.</p>`)
+    + (bosses.length > 1 ? `<h3 class="sub">Боссы со счётчиком</h3>${bosses.map(([bn, k]) => `<div class="dboss"><b>${esc(bn)}</b><span>${fmtN(kills(k))} ${plural(kills(k), "убийство", "убийства", "убийств")}</span></div>`).join("")}`
+      : bosses.length ? `<p class="gnote">Счётчик игры: убийства ${esc(bosses[0][0])}, последнего босса.</p>` : "")
+    + (d.info ? `<h3 class="sub">Кому сейчас по уровню</h3>${fitHtml}` : "")
+    + chartHtml;
+  document.title = d.name + " · " + DOC_TITLE;
 }
 const FUN = [ // [counter name in the game data, title, what is counted]
   ["Total deaths", "Чаще всех умирал", "смертей всего"], ["Total deaths from other players", "Любимая жертва", "смертей от игроков"],
@@ -3707,13 +3916,13 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
 }
 // Pointing at a name (legend or roster) fades the other lines.
-for (const id of ["#gchart", "#gpcharts", "#groster", "#pvp-day", "#pvp-sum", "#pvp-table"]) {
+for (const id of ["#gchart", "#gpcharts", "#groster", "#pvp-day", "#pvp-sum", "#pvp-table", "#dg-box"]) {
   $(id).addEventListener("pointerover", e => { const n = e.target.closest?.("[data-g]"); gDim(n ? n.dataset.g : ""); });
   $(id).addEventListener("pointerleave", () => gDim(""));
 }
@@ -3723,8 +3932,9 @@ window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTi
 /* ---------- views + countdown ---------- */
 function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = !el.dataset.view.split(" ").includes(view); });
-  document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === view)));
+  document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === (view === "dungeon" ? "dungeons" : view))));
   if (view === "char") { renderGSheet(); scrollTo(0, 0); }
+  if (view === "dungeon") { renderDg(); scrollTo(0, 0); } else document.title = DOC_TITLE;
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
   if (view === "pvp") renderPvp();
 }
@@ -3746,8 +3956,9 @@ function setTheme(t) {
 setTheme(document.documentElement.dataset.theme || "");
 const VIEWS = ["home", "char", "news", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
 function readHash() { // #view, or #char/<slug> for a character card
-  const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h);
+  const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h), dg = /^dg\/(.+)$/.exec(h);
   if (c) { view = "char"; try { gOpen = decodeURIComponent(c[1]); } catch { gOpen = ""; } }
+  else if (dg) { view = "dungeon"; try { dgOpen = decodeURIComponent(dg[1]); } catch { dgOpen = ""; } }
   else view = VIEWS.includes(h) ? h : "home";
 }
 $("#gc-box").addEventListener("change", e => { if (e.target.id === "cc-sel" && e.target.value) openCard(e.target.value); });

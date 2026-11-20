@@ -9,11 +9,21 @@ Last updated: 2026-11-20 (design pass). Only verified facts; "not verified" says
     `v2.html` only redirects old links to `./` keeping the `#...` part.
 - Work branch: `redesign/v2`, PRs into `main`. The user merges by saying «влей» / «вливай»; nothing is merged otherwise.
   Merges are done through the GitHub API (no `gh` CLI on this machine; token from `git credential fill`).
-- Last merge: PR #29 (`fc9e373`). `redesign/v2` has no commits beyond `main`.
+- Last merge: PR #30 (`8a7fecc`). `redesign/v2` has no commits beyond `main`.
 - Supabase: everything server-side lives in `supabase.sql` (re-runnable). The user runs it by hand in the SQL Editor.
   Edge Function `modelviewer` (proxy for Wowhead's 3D viewer files) is deployed under that name, JWT verification off.
 
 ## In progress on `redesign/v2` (2026-11-20, not merged)
+
+- Apple-style restyle: token values changed in all three theme blocks (spec by a design agent), Google Fonts removed
+  (system font), one override block "Apple-style pass" at the end of the main <style>. Race/level bars use `--bar`.
+- Dungeons: tiles with official art (`render.worldofwarcraft.com/eu/zones/<slug>-small|large.jpg`, map `DG_ART`; the new
+  Forever dungeons have no art), dungeon page `#dg/<name>` (view "dungeon", `renderDg()`, data from `dgData()`):
+  records, leaderboard, characters in level range now, kills per day from `glevels[].bk`. Page-only, no data changes.
+- Verified: headless Chrome via DevTools, live data, 1600px dark/light and 375–390px; no console errors, no overflow.
+- Not verified: every page after the restyle (checked home, character card, dungeons, dungeon page, PvP, recipes, phone home).
+
+## Done in the design pass (2026-11-20, merged as PR #30, `8a7fecc`)
 
 - «Профессии»: new first block «Профессии гильдии» with 0–300 bars (filled = skill, light = up to the rank cap, ticks at 75/150/225),
   switch «По профессиям» / «По персонажам» (`gpMode`). Order: block → orders → catalogue → «Профессии в цифрах» (folded `<details>`).
