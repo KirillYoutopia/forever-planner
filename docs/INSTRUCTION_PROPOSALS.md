@@ -24,3 +24,20 @@ the full recipe catalogue in `gcat`, craft orders and favourites, none of which 
    ```
    - `orders/{id}`: `{ by, prof, rid, n, note, st: "open" | "taken" | "done", taker, doneAt, at, deleted }`, craft orders on the "Профессии" page. `patch_doc` lets the author create, comment and cancel; a player whose main or twink knows the recipe takes it and marks it done. `players/{id}.fav` `{ "Profession:recipeId": true | false }` holds favourite recipes. The menu badge (`renderOrderBadge()`) counts orders waiting for the logged-in player.
    ```
+
+## 2026-11-20: project CLAUDE.md, dungeon page and the restyle
+
+**Reason:** a new view (`#dg/<name>`) and new design tokens exist that CLAUDE.md does not describe; the old fonts are gone.
+
+**Affected file:** `CLAUDE.md` (project)
+
+**Proposed wording:**
+
+1. At the end of the "Подземелья" bullet:
+   ```
+   Each tile opens a dungeon page (`#dg/<dungeon name>`, view "dungeon", `renderDg()`; shared data from `dgData()`): records, who went how often, characters in the level range now, kills per day from `glevels/{day}.bk`. Official art comes from `render.worldofwarcraft.com/<region>/zones/<slug>-small|large.jpg` (map `DG_ART`); the new Forever dungeons have none.
+   ```
+2. In "Code conventions", replace the Colors line with:
+   ```
+   - Colors, radii, shadows and the sidebar material are CSS custom properties on `:root` (`--radius-lg/md/sm`, `--shadow-1/2`, `--material`, `--bar` for neutral data bars), dark theme by default plus a light theme. Use the tokens, never hardcoded colors. The font is the system font (no web fonts). Gold (`--accent`) marks the current choice, not ordinary data.
+   ```
