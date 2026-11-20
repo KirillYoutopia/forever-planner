@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-20 (talents, streamers)
+
+- Character card: «Таланты» tab with the game's talent trees, rank badges, prerequisite arrows, a tooltip per talent and both sets (dual spec).
+- «Стримеры и друзья» page: cards, levels day by day; each opens the full character card. Eight more streamers added.
+- New dungeons of Forever get the cover picture of Wowhead's guide; race and level bars on the home page are coloured.
+- «Аукцион»: placeholder page with the plan.
+
 ## 2026-11-20 (character comparison)
 
 - Streamers and friends outside the guild can be compared too (Xaryu Forever, Shobek Forever to start); an admin adds or removes them on the comparison page. Needs `supabase.sql` re-run.
