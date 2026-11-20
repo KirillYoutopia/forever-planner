@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-20 (character comparison)
+
+- Streamers and friends outside the guild can be compared too (Xaryu Forever, Shobek Forever to start); an admin adds or removes them on the comparison page. Needs `supabase.sql` re-run.
+- Compare two characters: «Сравнить с» on the character card opens a side-by-side page with mirrored bars (level, gear, stats, PvP, professions, dungeons, game counters) and both characters on the day-by-day charts.
+
 ## 2026-11-20 (Apple-style redesign, dungeons)
 
 - New look across the site: system font, borderless rounded surfaces, iOS-style segmented controls and capsule chips, translucent sidebar; gold is kept for the current choice.

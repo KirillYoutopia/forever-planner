@@ -41,3 +41,15 @@ the full recipe catalogue in `gcat`, craft orders and favourites, none of which 
    ```
    - Colors, radii, shadows and the sidebar material are CSS custom properties on `:root` (`--radius-lg/md/sm`, `--shadow-1/2`, `--material`, `--bar` for neutral data bars), dark theme by default plus a light theme. Use the tokens, never hardcoded colors. The font is the system font (no web fonts). Gold (`--accent`) marks the current choice, not ordinary data.
    ```
+
+## 2026-11-20: project CLAUDE.md, character comparison and watched characters
+
+**Reason:** two new views/data the file does not describe.
+
+**Affected file:** `CLAUDE.md` (project)
+
+**Proposed wording** (new bullets under the "Гильдия" tab section):
+```
+- Comparison (`#cmp/<id>/<id>`, view "cmp", `renderCmp()`): two characters as mirrored bars plus two-line day-by-day charts; opened from «Сравнить с» on the character card. An id is a guild slug or `<region>.<slug>` for a watched character.
+- `wchars/{region}.{slug}`: characters outside the guild (streamers, friends) `{ at, label, region, name, surname, level, cls, race, ilvl, avatar, items, st, pvp, profs, ast, achn, q, hist: { day: { lv, il, qd, hk, dt } }, deleted }`. The list lives in the hidden `bnet_watch` table; admins add and remove via `watch_add` / `watch_del` on the comparison page; `watch_sync()` (called by `guild_sync()`) refreshes them hourly. Read-only for the page.
+```

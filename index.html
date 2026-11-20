@@ -562,7 +562,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   #gc-box { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
   #gc-box > .empty { grid-column: 1 / -1; }
   .cc-side { display: block; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; padding-right: 4px; }
-  .cc-pick { display: none; }
+  .cc-pick:not(.cc-cmp) { display: none; } /* the list on the left replaces the picker; "compare with" stays */
 }
 .cc-lg { margin: 12px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .cc-lg:first-child { margin-top: 0; }
@@ -1008,6 +1008,55 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 /* phones: the top bar is a translucent layer, content scrolls under it */
 @media (max-width: 899px) { .mbar { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border-bottom-color: color-mix(in srgb, var(--line) 50%, transparent); } }
 @media (max-width: 899px) and (prefers-reduced-transparency: reduce) { .mbar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+/* character comparison: mirrored bars, A grows to the left, B to the right */
+.cmp-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; margin-bottom: 14px; }
+.cmp-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cmp-who.b { flex-direction: row-reverse; text-align: right; }
+.cmp-who .cc-av { width: 56px; height: 56px; flex: none; border-radius: 14px; overflow: hidden; background: var(--cell); box-shadow: 0 0 0 2px var(--cc); }
+.cmp-who .cc-av img { width: 100%; height: 100%; display: block; }
+.cmp-who > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.cmp-name { font: 600 clamp(16px, 2.4vw, 24px)/1.15 var(--font-display); letter-spacing: -.015em; text-decoration: none; color: var(--fg); overflow-wrap: anywhere; }
+.cmp-who.a .cmp-name { color: color-mix(in srgb, var(--s1) 60%, var(--fg)); }
+.cmp-who.b .cmp-name { color: color-mix(in srgb, var(--s2) 60%, var(--fg)); text-align: right; }
+.cmp-who small { color: var(--muted); font-size: 13px; }
+.cmp-swap { width: 40px; height: 40px; border: 0; border-radius: 999px; background: var(--cell); color: var(--fg); font-size: 18px; cursor: pointer; }
+.cmp-swap:hover { background: var(--panel-2); }
+.cmp-swap:active { transform: scale(.94); }
+.cmp-picks { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 4px; }
+.cmp-rows { display: flex; flex-direction: column; }
+.cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 200px) minmax(0, 1fr); gap: 12px; align-items: center; min-height: 32px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); font-size: 14px; }
+.cmp-row:last-child { border-bottom: 0; }
+.cmp-row .ck { text-align: center; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-row .ck a { color: inherit; }
+.cmp-row .ca, .cmp-row .cb { display: grid; align-items: center; gap: 10px; min-width: 0; }
+.cmp-row .ca { grid-template-columns: auto minmax(0, 1fr); }
+.cmp-row .cb { grid-template-columns: minmax(0, 1fr) auto; }
+.cmp-row b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmp-row i { display: block; height: 8px; border-radius: 4px; background: var(--track); position: relative; overflow: hidden; }
+.cmp-row i::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--w); background: var(--bar); border-radius: 4px; }
+.cmp-row .ca i::after { right: 0; }
+.cmp-row .cb i::after { left: 0; }
+.cmp-row.wa .ca i::after { background: var(--s1); }
+.cmp-row.wb .cb i::after { background: var(--s2); }
+.cmp-row.wa .ca b { color: color-mix(in srgb, var(--s1) 65%, var(--fg)); }
+.cmp-row.wb .cb b { color: color-mix(in srgb, var(--s2) 65%, var(--fg)); }
+.cmp-charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 16px; }
+@media (max-width: 1100px) { .cmp-charts { grid-template-columns: minmax(0, 1fr); } }
+.cmp-chart { background: var(--cell); border-radius: var(--radius-md); padding: 12px 14px 6px; min-width: 0; }
+.cmp-chart h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.cc-cmp select { max-width: 260px; }
+.cmp-admin { margin-top: 20px; }
+.cmp-admin .add { margin: 10px 0; }
+.cmp-wl { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmp-wl .gpc { cursor: default; align-items: center; }
+.cmp-wl .x { margin-left: 2px; }
+@media (max-width: 560px) {
+  .cmp-row { grid-template-columns: minmax(0, 1fr) minmax(80px, 1.1fr) minmax(0, 1fr); gap: 6px; font-size: 13px; }
+  .cmp-row .ck { font-size: 12px; white-space: normal; line-height: 1.2; }
+  .cmp-row i { height: 6px; }
+  .cmp-who .cc-av { width: 40px; height: 40px; border-radius: 10px; }
+  .cmp-who small { font-size: 11px; }
+}
 /* ===== Apple-style pass (2026-11-20): typography, surfaces without borders, capsule controls. Overrides the rules above. ===== */
 html { transition: background-color .3s; } /* eases the dark/light switch */
 body { font: 400 15px/1.5 var(--font-body); letter-spacing: -.005em; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
@@ -1145,6 +1194,7 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
   </section>
 
   <section class="panel" id="gc-box" data-view="char" aria-labelledby="gc-title" hidden></section>
+  <section class="panel" id="cmp-box" data-view="cmp" aria-label="Сравнение персонажей" hidden></section>
 
   <div class="kpis" id="kpis" data-view="home"></div>
 
@@ -1589,7 +1639,7 @@ function editing() {
 function render() {
   if (editing()) { dirty = true; return; }
   dirty = false;
-  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderDg(); renderStats(); renderRecipes(); renderOrderBadge(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
+  renderNote(); renderSize(); renderComp(); renderPoll(); renderGrid(); renderChars(); renderCal(); renderSheet(); renderCharts(); renderProfs(); renderSoon(); renderGuild(); renderPvp(); renderDgs(); renderDg(); renderCmp(); renderStats(); renderRecipes(); renderOrderBadge(); renderMe(); renderOnline(); renderDr(); renderWallet(); renderBets(); renderFame(); syncFame();
   $("#new-name").disabled = $("#add-btn").disabled = readOnly || offline || !auth?.admin;
   renderAuth();
 }
@@ -2433,12 +2483,31 @@ async function openAdmin() {
   try { authUI.accounts = await dbRef.call("admin_accounts", { p_token: auth.token }) || []; drawAuth(); }
   catch (e) { authNote(dbError(e, "Не получилось загрузить список.")); }
 }
+// Streamers and friends to compare with: admin only, checked on the server (watch_add fetches the character right away).
+async function watchAdd(form) {
+  const n = form.n.value.trim(), r = form.r.value, l = form.l.value.trim(), id = r + "." + n.toLowerCase().replace(/\s+/g, "-");
+  if (!n) return;
+  form.querySelector("button").disabled = true;
+  try {
+    await dbRef.call("watch_add", { p_token: auth.token, p_name: n, p_region: r, p_label: l }, "wchars", id);
+    toast("Добавлено: " + (l || n));
+    openCmp(cmpA, id);
+  } catch (e) {
+    toast(/not found/.test(e.message) ? "Такого персонажа нет: проверь имя, фамилию и регион." : /bad name/.test(e.message) ? "Нужно имя и фамилия персонажа, как в игре."
+      : /too many/.test(e.message) ? "Уже 30 персонажей: убери кого-нибудь." : dbError(e, "Не получилось добавить."));
+  } finally { form.querySelector("button").disabled = false; }
+}
+async function watchDel(id) {
+  try { await dbRef.call("watch_del", { p_token: auth.token, p_id: id }); wchars[id] = { ...wchars[id], deleted: true }; toast("Убрано"); render(); }
+  catch (e) { toast(dbError(e, "Не получилось убрать.")); }
+}
 async function adminDo(fn, args, done) {
   try { await dbRef.call(fn, { p_token: auth.token, ...args }); toast(done); await openAdmin(); }
   catch (e) { authNote(/own admin/.test(e.message) ? "Себя из админов убрать нельзя." : dbError(e, "Не получилось.")); }
 }
 document.addEventListener("submit", e => {
   if (e.target.id === "auth-form") { e.preventDefault(); authSubmit(e.target.dataset.mode); }
+  if (e.target.id === "watch-form") { e.preventDefault(); watchAdd(e.target); }
   if (e.target.matches?.("form.stake")) {
     e.preventDefault();
     if (!needMe()) return;
@@ -2556,6 +2625,8 @@ document.addEventListener("click", e => {
   else if (act === "authpick") openAuth("pass", { player: id });
   else if (act === "authclose") closeAuth();
   else if (act === "gchar") openCard(id);
+  else if (act === "cmpswap") openCmp(cmpB, cmpA);
+  else if (act === "watchdel") watchDel(b.dataset.id);
   else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
   else if (act === "gpmode") { gpMode = b.dataset.v; renderGuild(); }
@@ -3770,7 +3841,7 @@ function renderGSheet() {
   const own = ownerOf(gOpen), last = glevels.reduce((a, d) => d.id > a ? d.id : a, "");
   const key = [gOpen, c.at, gach?.at, gzones[gOpen]?.at, grec[gOpen]?.at, last, Object.keys(gchars).map(s => s + ":" + (mem[s]?.level || "")).join(), Object.values(gcat).map(x => x.at).join(),
     fameAll.map(f => f.id + (f.deleted ? "-" : "+") + f.title + f.icon).join(), players.map(p => `${p.id}:${p.name}:${p.char || ""}+${altsOf(p).join("+")}`).join(),
-    auth?.player, auth?.admin, readOnly, offline, cTab].join("|");
+    auth?.player, auth?.admin, readOnly, offline, cTab, wList().join()].join("|");
   if (key === gDrawn) return; // presence and other re-renders must not reload the images
   gDrawn = key;
   // keep open <details> and the focused control across the redraw (realtime updates, linking a character)
@@ -3792,6 +3863,8 @@ function renderGSheet() {
   const groups = [["Кор", all.filter(s => core.has(s))], ["Твинки", all.filter(s => alts.has(s) && !core.has(s))], ["Гильдия", all.filter(s => !core.has(s) && !alts.has(s))]]
     .filter(([, l]) => l.length);
   const picker = groups.map(([t, l]) => `<optgroup label="${t}">${l.map(opt).join("")}</optgroup>`).join("");
+  const cmpPicker = `<option value="">Выбери персонажа</option>` + groups.map(([t, l]) => l.filter(x => x !== gOpen).length ? `<optgroup label="${t}">${l.filter(x => x !== gOpen).map(x => `<option value="${esc(x)}">${esc(gName(x))} · ${+mem[x].level}</option>`).join("")}</optgroup>` : "").join("")
+    + (wList().length ? `<optgroup label="Стримеры и друзья">${wList().map(id => `<option value="${esc(id)}">${esc(cmpSrc(id).name)} · ${+wchars[id].level || "?"}</option>`).join("")}</optgroup>` : "");
   // the same list on the left of the card, on wide screens
   const sideList = `<nav class="cc-side" aria-label="Персонажи гильдии">${groups.map(([t, l]) => `<p class="cc-lg">${t}</p>${l.map(x => {
     const xc = gchars[x], col = CLS[BCLS[mem[x].cls]]?.color || "var(--line)";
@@ -3828,6 +3901,7 @@ function renderGSheet() {
           sibs.length > 1 ? `<br>Персонажи игрока: ${sibs.map(x => x === gOpen ? `<b>${esc(gName(x))}</b>` : `<button type="button" class="glink" data-act="gchar" data-id="${esc(x)}">${esc(gName(x))}</button>`).join(" · ")}` : ""}</p></div>
       <div class="cc-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
       <label class="cc-pick"><span class="seg-label">Другой персонаж</span><select id="cc-sel" aria-label="Открыть карточку другого персонажа">${picker}</select></label>
+      <label class="cc-pick cc-cmp"><span class="seg-label">Сравнить с</span><select id="cc-cmp" aria-label="Сравнить с другим персонажем">${cmpPicker}</select></label>
     </div>
     <div class="cc-tabs"><div class="seg" role="group" aria-label="Раздел карточки">${[["main", "Персонаж"], ["prog", "Прогресс по дням"]].map(([v, t]) =>
       `<button type="button" data-act="ctab" data-v="${v}" aria-pressed="${cTab === v}">${t}</button>`).join("")}</div></div>
@@ -3864,6 +3938,109 @@ function renderGSheet() {
   for (const d of box.querySelectorAll("details[data-k]")) if (opened.includes(d.dataset.k)) d.open = true;
   if (refocus) box.querySelector(refocus)?.focus();
   if (cTab === "prog") cardProgress(box, gOpen); else card3d(box, gOpen);
+}
+// Two characters side by side (#cmp/<id>/<id>): the card's numbers as mirrored bars, and their day-by-day lines on one chart.
+// An id is a guild character's slug, or "<region>.<slug>" for a character outside the guild (wchars: streamers, friends).
+let cmpA = "", cmpB = "", cmpDrawn = "", wchars = {};
+const openCmp = (a, b) => { location.hash = `cmp/${encodeURIComponent(a)}/${encodeURIComponent(b)}`; };
+const wList = () => Object.keys(wchars).filter(id => !wchars[id].deleted).sort((a, b) => (wchars[a].label || a).localeCompare(wchars[b].label || b));
+const wName = w => [w.name, w.surname].filter(Boolean).join(" ");
+// { c: sheet, m: { level, cls, race }, name, days: { day: { lv, il, qd, hk, dt } } } for either kind of character
+function cmpSrc(id) {
+  const w = wchars[id];
+  if (w && !w.deleted) return { c: w, m: { level: +w.level || 0, cls: +w.cls, race: +w.race }, name: w.label && w.label !== wName(w) ? `${w.label} (${wName(w)})` : wName(w) || id,
+    short: w.label || wName(w) || id, days: w.hist && typeof w.hist === "object" ? w.hist : {}, achn: w.achn, watch: true };
+  const m = guild?.members?.[id];
+  if (!gchars[id] || !m) return null;
+  const c = gchars[id], days = {};
+  for (const d of glevels) if (/^\d{4}-\d\d-\d\d$/.test(d.id)) days[d.id] = { lv: d.lv?.[id], il: d.il?.[id], qd: d.qd?.[id], hk: d.hk?.[id], dt: d.dt?.[id] };
+  return { c, m, name: gName(id), short: gName(id), days, achn: Array.isArray(c.ach) ? c.ach.length : null };
+}
+// dungeon runs from the game's end-boss counters (the same rule as the Dungeons page): dungeon -> most kills of one boss
+function cmpRuns(c) {
+  const r = {};
+  for (const [cat, name, qty] of Array.isArray(c?.ast) ? c.ast : []) {
+    const m = /Boss Kills$/.test(cat) && /^(.*?)\s+kills\s+\((.+)\)$/i.exec(name);
+    if (m && +qty > 0) { const dn = BOSS_DG[m[2]] || m[2]; r[dn] = Math.max(r[dn] || 0, +qty); }
+  }
+  return r;
+}
+function renderCmp() {
+  const box = $("#cmp-box");
+  if (view !== "cmp") return;
+  const mem = guild?.members || {}, A = cmpSrc(cmpA), B = cmpSrc(cmpB), ws = wList();
+  const key = [cmpA, cmpB, guild?.at, A?.c.at, B?.c.at, glevels.length, glevels.reduce((a, d) => d.id > a.id ? d : a, { id: "" }).at, ws.join(), auth?.admin, readOnly].join("|");
+  if (key === cmpDrawn && box.childElementCount) return;
+  const list = Object.keys(gchars).filter(s => mem[s] && mem[s].level >= G_MIN).sort((a, b) => mem[b].level - mem[a].level || gName(a).localeCompare(gName(b)));
+  const opts = cur => `<optgroup label="Гильдия">${list.map(s => `<option value="${esc(s)}"${s === cur ? " selected" : ""}>${esc(gName(s))} · ${+mem[s].level}</option>`).join("")}</optgroup>`
+    + (ws.length ? `<optgroup label="Стримеры и друзья">${ws.map(id => `<option value="${esc(id)}"${id === cur ? " selected" : ""}>${esc(cmpSrc(id).name)} · ${+wchars[id].level || "?"}</option>`).join("")}</optgroup>` : "");
+  const pick = (id, cur, label) => `<label class="cc-pick cc-cmp"><span class="seg-label">${label}</span><select id="${id}" aria-label="${label}">${cur && !cmpSrc(cur) ? `<option value="" selected>—</option>` : ""}${opts(cur)}</select></label>`;
+  const back = A && !A.watch ? `<a class="dback" href="#char/${encodeURIComponent(cmpA)}">← Карточка ${esc(A.name)}</a>` : `<a class="dback" href="#char">← Карточка игрока</a>`;
+  // admin: who else can be compared
+  const admin = auth?.admin && !readOnly ? `<details class="gtable cmp-admin"${ws.length ? "" : " open"}><summary>Стримеры и друзья: добавить или убрать</summary>
+      <form class="add" id="watch-form" autocomplete="off"><input name="n" maxlength="60" placeholder="Имя Фамилия, как в игре" aria-label="Имя и фамилия персонажа" required>
+        <select name="r" aria-label="Регион"><option value="eu">EU</option><option value="us">US</option><option value="kr">KR</option><option value="tw">TW</option></select>
+        <input name="l" maxlength="40" placeholder="Подпись, напр. Xaryu" aria-label="Подпись"><button class="btn" type="submit">Добавить</button></form>
+      ${ws.length ? `<div class="cmp-wl">${ws.map(id => `<span class="gpc">${esc(cmpSrc(id).name)} <small>${esc(wchars[id].region || "").toUpperCase()}</small>${delBtn("watchdel", id, "Убрать " + cmpSrc(id).name)}</span>`).join("")}</div>` : ""}
+      <p class="gnote">Персонаж загружается сразу; дальше раз в час, вместе с гильдией. История по дням начинается со дня добавления.</p></details>` : "";
+  if (!A || !B) {
+    cmpDrawn = "";
+    box.innerHTML = back + `<p class="empty">${!got.has("guild") ? "Загружаю…" : "Выбери двух персонажей с карточкой (10+ уровень)."}</p>`
+      + (list.length ? `<div class="cmp-picks">${pick("cmp-a", cmpA, "Первый")}${pick("cmp-b", cmpB, "Второй")}</div>` : "") + admin;
+    document.title = "Сравнение · " + DOC_TITLE;
+    return;
+  }
+  cmpDrawn = key;
+  const head = (id, X, side) => { const cls = CLS[BCLS[X.m.cls]];
+    return `<div class="cmp-who ${side}" style="--cc:${cls ? cls.color : "var(--gold)"}"><span class="cc-av">${bimg(X.c.avatar) ? `<img src="${bimg(X.c.avatar)}" alt="">` : ""}</span>
+      <span>${X.watch ? `<b class="cmp-name">${esc(X.short)}</b>` : `<button type="button" class="glink cmp-name" data-act="gchar" data-id="${esc(id)}">${esc(X.short)}</button>`}
+      <small>${X.watch ? `${esc(wName(X.c))} · ${esc((X.c.region || "").toUpperCase())} · ` : ""}Уровень ${+X.m.level} · ${esc(BRACE[X.m.race] || "")} <span class="tint">${esc(BCLS[X.m.cls] || "")}</span></small></span></div>`; };
+  // one mirrored row: a ← label → b; "good" marks the bigger value (off for things like deaths)
+  const row = (label, a, b, fmt = fmtN, good = true) => {
+    if (a == null && b == null) return "";
+    const x = +a || 0, y = +b || 0, mx = Math.max(x, y, 1e-9), wa = a == null ? "" : fmt(a), wb = b == null ? "" : fmt(b);
+    const win = good && a != null && b != null && x !== y ? (x > y ? "a" : "b") : ""; // no winner against missing data
+    return `<div class="cmp-row${win ? " w" + win : ""}"><span class="ca"><b>${wa || "—"}</b><i style="--w:${x / mx * 100}%"></i></span><span class="ck">${label}</span><span class="cb"><i style="--w:${y / mx * 100}%"></i><b>${wb || "—"}</b></span></div>`;
+  };
+  const grp = (title, rows) => rows.join("") ? `<h3 class="sub">${title}</h3><div class="cmp-rows">${rows.join("")}</div>` : "";
+  const a = A.c, b = B.c, pct = v => fmtN(+(+v).toFixed(2)) + "%", sa = a.st || {}, sb = b.st || {}, ea = enchOf(a), eb = enchOf(b);
+  let html = grp("Главное", [
+    row("Уровень", A.m.level, B.m.level), row("Уровень предметов", a.ilvl, b.ilvl), row("GearScore", a.items ? gearScore(a, +A.m.cls) : null, b.items ? gearScore(b, +B.m.cls) : null),
+    row("Зачаровано", ea?.n, eb?.n), row("Заданий", a.q?.done ?? astOf(a, "Quests completed"), b.q?.done ?? astOf(b, "Quests completed")),
+    row("Достижений", A.achn, B.achn), row("Заходов в подземелья", astOf(a, "Total 5-player dungeons entered"), astOf(b, "Total 5-player dungeons entered")),
+    row("Смертей", astOf(a, "Total deaths"), astOf(b, "Total deaths"), fmtN, false)]);
+  html += grp("Характеристики", [["Здоровье", "hp"], ["Сила", "str"], ["Ловкость", "agi"], ["Выносливость", "sta"], ["Интеллект", "int"], ["Дух", "spi"], ["Броня", "arm"],
+    ["Сила атаки", "ap"], ["Сила заклинаний", "sp"]].map(([t, k]) => row(t, sa[k], sb[k]))
+    .concat([["Крит ближний", "mc"], ["Крит заклинаний", "sc"], ["Уклонение", "dg"]].map(([t, k]) => row(t, sa[k], sb[k], pct))));
+  html += grp("PvP", [row("Почётные убийства", a.pvp?.hk, b.pvp?.hk), row("Ранг", a.pvp?.rank, b.pvp?.rank),
+    row("Смертей от игроков", astOf(a, "Total deaths from other players"), astOf(b, "Total deaths from other players"), fmtN, false)]);
+  const pn = [...new Set([...Object.keys(a.profs || {}), ...Object.keys(b.profs || {})])].sort((x, y) => (PROF_ID.has(y) - PROF_ID.has(x)) || PROFS.findIndex(p => p.id === x) - PROFS.findIndex(p => p.id === y) || x.localeCompare(y));
+  html += grp("Профессии", pn.map(n => row(esc(n), a.profs?.[n]?.s, b.profs?.[n]?.s)));
+  const ra = cmpRuns(a), rb = cmpRuns(b), order = dgData().list.map(d => d.name);
+  const dn = [...new Set([...Object.keys(ra), ...Object.keys(rb)])].sort((x, y) => ((order.indexOf(x) + 1) || 999) - ((order.indexOf(y) + 1) || 999) || x.localeCompare(y));
+  html += grp("Подземелья, прохождения", dn.map(n => row(order.includes(n) ? `<a href="${esc(dgHref(n))}">${esc(n)}</a>` : esc(n), ra[n] || 0, rb[n] || 0)));
+  html += grp("Счётчики игры", FUN.map(([n, t]) => (astOf(a, n) || astOf(b, n)) ? row(esc(t), astOf(a, n), astOf(b, n), fmtN, false) : ""));
+  // day by day: guild characters from the daily snapshots, the others from their own history
+  const days = [...new Set([...Object.keys(A.days), ...Object.keys(B.days)])].filter(d => /^\d{4}-\d\d-\d\d$/.test(d)).sort().map(id => ({ id }));
+  const inner = Math.round(box.clientWidth - 56) || 680, cols = inner >= 856 ? 2 : 1; // matches .cmp-charts: 420px columns, 16px gap
+  const W = Math.max(260, Math.floor((inner - 16 * (cols - 1)) / cols) - 28), H = W < 480 ? 200 : 220;
+  const pts = (X, k) => days.map((d, i) => ({ i, lv: X.days[d.id]?.[k] })).filter(p => p.lv != null && Number.isFinite(+p.lv)).map(p => ({ i: p.i, lv: +p.lv }));
+  const chart = (k, title, label) => {
+    const series = [[cmpA, A, "var(--s1)"], [cmpB, B, "var(--s2)"]].map(([id, X, color]) => ({ slug: id, name: X.short, color, pts: pts(X, k) })).filter(x => x.pts.length);
+    if (!series.length || !days.length) return "";
+    const all = series.flatMap(x => x.pts.map(p => p.lv)), lo = Math.max(0, Math.floor(Math.min(...all) * .9)), t = niceTop(Math.max(...all, lo + 1));
+    return `<div class="cmp-chart"><h4>${title}</h4>${lineChart("cmp:" + k, days, series, { W, H, lo: t.step && lo % t.step ? lo - lo % t.step : lo, hi: t.hi, step: t.step, label })}</div>`;
+  };
+  const charts = [chart("lv", "Уровень", "Уровень по дням"), chart("il", "Уровень предметов", "Уровень предметов по дням"),
+    chart("qd", "Задания", "Выполненные задания по дням"), chart("hk", "Почётные убийства", "Почётные убийства по дням"),
+    chart("dt", "Смерти", "Смерти нарастающим итогом по дням")].join("");
+  box.innerHTML = back + `<div class="cmp-head">${head(cmpA, A, "a")}<button type="button" class="cmp-swap" data-act="cmpswap" aria-label="Поменять местами">⇄</button>${head(cmpB, B, "b")}</div>
+    <div class="cmp-picks">${pick("cmp-a", cmpA, "Первый")}${pick("cmp-b", cmpB, "Второй")}</div>
+    <p class="gnote">Подсвечено, у кого больше. Смерти и счётчики игры не подсвечиваются: тут «больше» не значит «лучше».</p>`
+    + html + (charts ? `<h3 class="sub">По дням</h3>${gKeys([{ slug: cmpA, name: A.short, color: "var(--s1)" }, { slug: cmpB, name: B.short, color: "var(--s2)" }])}<div class="cmp-charts">${charts}</div>
+      <p class="gnote">Снимки на конец дня. У гильдии с 13 ноября (уровень предметов и смерти с 15-го, задания с 16-го), у стримеров и друзей со дня добавления.</p>` : "")
+    + admin;
+  document.title = `${A.short} и ${B.short} · ${DOC_TITLE}`;
 }
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
 function gTipShow(el) {
@@ -3916,13 +4093,13 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box", "#cmp-box"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
 }
 // Pointing at a name (legend or roster) fades the other lines.
-for (const id of ["#gchart", "#gpcharts", "#groster", "#pvp-day", "#pvp-sum", "#pvp-table", "#dg-box"]) {
+for (const id of ["#gchart", "#gpcharts", "#groster", "#pvp-day", "#pvp-sum", "#pvp-table", "#dg-box", "#cmp-box"]) {
   $(id).addEventListener("pointerover", e => { const n = e.target.closest?.("[data-g]"); gDim(n ? n.dataset.g : ""); });
   $(id).addEventListener("pointerleave", () => gDim(""));
 }
@@ -3932,9 +4109,11 @@ window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTi
 /* ---------- views + countdown ---------- */
 function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = !el.dataset.view.split(" ").includes(view); });
-  document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === (view === "dungeon" ? "dungeons" : view))));
+  document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === ({ dungeon: "dungeons", cmp: "char" }[view] || view))));
   if (view === "char") { renderGSheet(); scrollTo(0, 0); }
-  if (view === "dungeon") { renderDg(); scrollTo(0, 0); } else document.title = DOC_TITLE;
+  if (view !== "dungeon" && view !== "cmp") document.title = DOC_TITLE;
+  if (view === "dungeon") { renderDg(); scrollTo(0, 0); }
+  if (view === "cmp") { cmpDrawn = ""; renderCmp(); scrollTo(0, 0); }
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
   if (view === "pvp") renderPvp();
 }
@@ -3956,12 +4135,20 @@ function setTheme(t) {
 setTheme(document.documentElement.dataset.theme || "");
 const VIEWS = ["home", "char", "news", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
 function readHash() { // #view, or #char/<slug> for a character card
-  const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h), dg = /^dg\/(.+)$/.exec(h);
+  const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h), dg = /^dg\/(.+)$/.exec(h), cm = /^cmp\/([^/]+)\/([^/]+)$/.exec(h);
   if (c) { view = "char"; try { gOpen = decodeURIComponent(c[1]); } catch { gOpen = ""; } }
   else if (dg) { view = "dungeon"; try { dgOpen = decodeURIComponent(dg[1]); } catch { dgOpen = ""; } }
+  else if (cm) { view = "cmp"; try { cmpA = decodeURIComponent(cm[1]); cmpB = decodeURIComponent(cm[2]); } catch { cmpA = cmpB = ""; } }
   else view = VIEWS.includes(h) ? h : "home";
 }
-$("#gc-box").addEventListener("change", e => { if (e.target.id === "cc-sel" && e.target.value) openCard(e.target.value); });
+$("#gc-box").addEventListener("change", e => {
+  if (e.target.id === "cc-sel" && e.target.value) openCard(e.target.value);
+  if (e.target.id === "cc-cmp" && e.target.value) openCmp(gOpen, e.target.value);
+});
+$("#cmp-box").addEventListener("change", e => {
+  if (e.target.id === "cmp-a" && e.target.value) openCmp(e.target.value, cmpB);
+  if (e.target.id === "cmp-b" && e.target.value) openCmp(cmpA, e.target.value);
+});
 const pad2 = n => String(n).padStart(2, "0");
 const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
 function tick() {
@@ -4030,6 +4217,7 @@ async function boot() {
   db.doc("guild/achinfo").onSnapshot(sn => { gach = sn.exists ? sn.data() : null; render(); }, () => {});
   db.collection("gzones").onSnapshot(snap => { gzones = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("gchars").onSnapshot(snap => { gchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
+  db.collection("wchars").onSnapshot(snap => { wchars = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); render(); }, () => {});
   db.collection("glevels").onSnapshot(snap => { glevels = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
   db.doc("meta/settings").onSnapshot(s => {
     settings = { size: s.exists && s.data().size === 10 ? 10 : 5 };

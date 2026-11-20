@@ -9,11 +9,23 @@ Last updated: 2026-11-20 (design pass). Only verified facts; "not verified" says
     `v2.html` only redirects old links to `./` keeping the `#...` part.
 - Work branch: `redesign/v2`, PRs into `main`. The user merges by saying «влей» / «вливай»; nothing is merged otherwise.
   Merges are done through the GitHub API (no `gh` CLI on this machine; token from `git credential fill`).
-- Last merge: PR #30 (`8a7fecc`). `redesign/v2` has no commits beyond `main`.
+- Last merge: PR #31 (`01c0179`). `redesign/v2` has no commits beyond `main`.
 - Supabase: everything server-side lives in `supabase.sql` (re-runnable). The user runs it by hand in the SQL Editor.
   Edge Function `modelviewer` (proxy for Wowhead's 3D viewer files) is deployed under that name, JWT verification off.
 
-## In progress on `redesign/v2` (2026-11-20, not merged)
+## In progress on `redesign/v2` (2026-11-20, character comparison, not merged)
+
+- `#cmp/<slugA>/<slugB>` (view "cmp", `renderCmp()`, section `#cmp-box`): mirrored bars, the bigger value highlighted
+  (deaths and game counters never), two-line day-by-day charts. Opened from «Сравнить с» on the card; swap button and
+  two pickers on the page. Page-only, no data changes.
+- Verified in headless Chrome (1600px dark/light, 390px), no console errors, no overflow.
+- Characters outside the guild ("Стримеры и друзья"): hidden `bnet_watch` (id `<region>.<slug>`), `watch_fetch`/`watch_sync`
+  (called at the end of `guild_sync`, no cron change), admin RPCs `watch_add` (fetches at once, fails on unknown names) and
+  `watch_del` (soft delete). Page reads `wchars/{id}` incl. `hist` per day. Seeded: us.xaryu-forever, us.shobek-forever.
+  Verified on the page only with injected fake `wchars` data and a faked admin login. NOT verified: the SQL itself
+  (not run), Blizzard's profile field names for class/race (`character_class`/`race`, written defensively), US region access.
+
+## Done earlier on 2026-11-20 (merged as PR #31, `01c0179`)
 
 - Apple-style restyle: token values changed in all three theme blocks (spec by a design agent), Google Fonts removed
   (system font), one override block "Apple-style pass" at the end of the main <style>. Race/level bars use `--bar`.
@@ -69,7 +81,7 @@ Last updated: 2026-11-20 (design pass). Only verified facts; "not verified" says
 
 ## Open ideas (not started, need the user's go-ahead)
 
-1. Compare two characters: two lines on «Прогресс по дням» and a side-by-side stats table (last item of the «1-4-3» plan).
+1. ~~Compare two characters~~: done 2026-11-20.
 2. Discord notifications for craft orders: webhook into a guild channel via a `docs` trigger and `pg_net`; webhook URL
    in a hidden table, never in the repo. Open question: @mentions of crafters (needs their Discord ids).
 3. Cron load: news hourly instead of every 30 minutes; `guild_recipes_fill` / `guild_ach_fill` publish only when they
