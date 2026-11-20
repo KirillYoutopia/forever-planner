@@ -13,6 +13,19 @@ Last updated: 2026-11-20 (design pass). Only verified facts; "not verified" says
 - Supabase: everything server-side lives in `supabase.sql` (re-runnable). The user runs it by hand in the SQL Editor.
   Edge Function `modelviewer` (proxy for Wowhead's 3D viewer files) is deployed under that name, JWT verification off.
 
+## In progress on `redesign/v2` (2026-11-20, talents and streamers, not merged)
+
+- Talents: `talents_import()` (Wowhead calculator data → `gtalents/forever`, weekly from guild_sync), `bnet_talents()` parses learned
+  talents into `gchars.tl`/`tl2` (Blizzard field names NOT confirmed: both a retail-like and a flat shape are read). Page: card tab
+  «Таланты» (`cardTalents`, `TAL_TREES` = tree ids and names per class), tooltip via `gTipShow`.
+- Watched characters get full sheets (`watch_fetch` now stores icons/tooltips, img, sp/tl, reps, ach, richer hist) and open the normal
+  card; page «Стримеры и друзья» (`#streamers`, `renderStreamers`). Seeded 8 more streamers (names checked on forever.raider.io).
+- Dungeon art for new dungeons from Wowhead guide covers (`DG_WH`); coloured race/level bars; auction placeholder (`#ah`).
+- Verified in headless Chrome with injected talent data (built locally from Wowhead's file the same way as the SQL) and fake learned
+  talents. NOT verified: the SQL (not run), Blizzard's real /specializations talent fields, Wowhead file parsing inside Postgres.
+- Auction research: Blizzard Game Data API (connected realm auctions, hourly, ~326k lots for EU PvP Horde per Goblin Kassa) is the only
+  automatic source; ~30 MB per snapshot is too big for parsing in free-tier Postgres; Blizzard API terms require a 30-day TTL.
+
 ## In progress on `redesign/v2` (2026-11-20, character comparison, not merged)
 
 - `#cmp/<slugA>/<slugB>` (view "cmp", `renderCmp()`, section `#cmp-box`): mirrored bars, the bigger value highlighted

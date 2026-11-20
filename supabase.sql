@@ -277,7 +277,7 @@ begin
 end $$;
 drop trigger if exists docs_history on public.docs;
 create trigger docs_history before update or delete on public.docs
-  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones', 'news', 'wchars'))  -- synced rows (Blizzard, Wowhead): nothing to undo there
+  for each row when (old.coll not in ('guild', 'glevels', 'gchars', 'grecipes', 'gcat', 'gzones', 'news', 'wchars', 'gtalents'))  -- synced rows (Blizzard, Wowhead): nothing to undo there
   execute function public.docs_keep_history();
 
 -- Live sync
@@ -616,6 +616,62 @@ returns jsonb language sql immutable as $$
 $$;
 revoke execute on function public.bnet_item_tip(jsonb) from public, anon, authenticated;
 
+-- 2026-11-20: learned talents from a /specializations response: {tl: [[talent id, rank], ...] (active group), tl2: (the other)}.
+-- Blizzard's field names for Forever are not documented, so both the retail-like shape (talents[].talent.id, talent_rank)
+-- and a flat one (talents[].id, rank) are read; talents can sit under each tree or directly under the group.
+-- Talent ids are the ones Wowhead's talent calculator uses (gtalents below).
+create or replace function public.bnet_talents(b jsonb)
+returns jsonb language sql immutable as $$
+  select coalesce(jsonb_object_agg(case when coalesce((g->>'is_active')::boolean, false) then 'tl' else 'tl2' end, (
+           select coalesce(jsonb_agg(jsonb_build_array(x.id, x.r) order by x.id), '[]'::jsonb)
+           from (select distinct on (tid) tid id, greatest(1, coalesce(r, 1)) r from (
+                   select case when z.i ~ '^[0-9]{1,12}$' then z.i::bigint end tid, case when z.k ~ '^[0-9]{1,3}$' then z.k::int end r
+                   from (select coalesce(nullif(t->'talent'->>'id', ''), t->>'id') i, coalesce(t->>'talent_rank', t->>'rank') k
+                         from jsonb_path_query(g, 'lax $.specializations[*].talents[*]') t
+                         union all
+                         select coalesce(nullif(t->'talent'->>'id', ''), t->>'id'), coalesce(t->>'talent_rank', t->>'rank')
+                         from jsonb_path_query(g, 'lax $.talents[*]') t) z) y
+                 where tid is not null order by tid, r desc nulls last) x)), '{}'::jsonb)
+  from jsonb_array_elements(case when jsonb_typeof(b->'specialization_groups') = 'array' then b->'specialization_groups' else '[]'::jsonb end) g
+$$;
+revoke execute on function public.bnet_talents(jsonb) from public, anon, authenticated;
+
+-- 2026-11-20: talent trees for the character card, from Wowhead's WoW Forever talent calculator data (the same talent ids
+-- Blizzard returns; Blizzard has no talent layout API for Classic-era). One doc, refreshed at most once a week by guild_sync:
+--   gtalents/forever {at, t: {tree id: [[talent id, row, col, icon, max rank, required talent id, its rank, tree points needed,
+--                                         name, [description per rank]], ...]}}
+-- Tree ids are the game's (41 Fire, 61 Frost, 81 Arcane, ...); the page maps them to classes and names.
+create or replace function public.talents_import()
+returns int language plpgsql security definer set search_path = public, extensions as $$
+declare st int; body text; a int; b int; j jsonb; t jsonb; n int;
+        hdr http_header[] := array[http_header('User-Agent', 'KuteExpats guild site (+https://kirillyoutopia.github.io/forever-planner/)')];
+begin
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '30');
+  select h.status, h.content into st, body from http(('GET', 'https://nether.wowhead.com/forever/data/talents-classic', hdr, null, null)::http_request) h;
+  if st <> 200 or body is null then raise exception 'wowhead talents: HTTP %', st; end if;
+  -- WH.setPageData("...", {json});\nWH.Gatherer...: the first argument object is plain JSON
+  a := position(',' in body);
+  b := position(E');\nWH.Gatherer' in body);
+  if a = 0 or b <= a then raise exception 'wowhead talents: unexpected format'; end if;
+  j := substring(body from a + 1 for b - a - 1)::jsonb;
+  select jsonb_object_agg(tr.key, (
+           select jsonb_agg(jsonb_build_array((x->>'id')::bigint, (x->>'row')::int, (x->>'col')::int, x->>'icon',
+                    jsonb_array_length(coalesce(x->'ranks', '[]'::jsonb)), (x->'requires'->0->>'id')::bigint, (x->'requires'->0->>'qty')::int,
+                    coalesce((x->>'requiredPoints')::int, 0), x->>'name',
+                    (select coalesce(jsonb_agg(regexp_replace(d.value #>> '{}', '<!--.*?-->', '', 'g') order by d.key::int), '[]'::jsonb)
+                     from jsonb_each(coalesce(x->'descriptions', '{}'::jsonb)) d where d.key ~ '^[0-9]+$'))
+                  order by (x->>'row')::int, (x->>'col')::int)
+           from jsonb_each(tr.value) e(k, x) where x->>'id' ~ '^[0-9]+$'))
+    into t
+  from jsonb_each(j->'talents') tr where tr.key ~ '^[0-9]+$';
+  select count(*) into n from jsonb_each(coalesce(t, '{}'::jsonb)) tr, jsonb_array_elements(tr.value);
+  if n < 300 then raise exception 'wowhead talents: only % talents, not saved', n; end if;  -- a changed format must not wipe the trees
+  insert into docs (coll, id, data) values ('gtalents', 'forever', jsonb_build_object('at', floor(extract(epoch from clock_timestamp()) * 1000), 't', t))
+  on conflict (coll, id) do update set data = excluded.data, updated_at = now();  -- 'at' tells guild_sync when to look again
+  return n;
+end $$;
+revoke execute on function public.talents_import() from public, anon, authenticated;
+
 -- 2026-11-13: character sheets. For every guild character of level 10+ (Blizzard has no profile below that):
 --   gchars/{slug}  {at, ilvl, ruleset, login (ms), img (full-body render), avatar,
 --                   items: {SLOT: {id, name, q (POOR..LEGENDARY), lvl, icon, tip}},   SLOT is Blizzard's slot type (HEAD, FINGER_1, ...);
@@ -816,7 +872,7 @@ begin
                  where t->'specialization'->>'name' is not null))
           into spz
         from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'specialization_groups') = 'array' then body::jsonb->'specialization_groups' else '[]'::jsonb end) g;
-        spz := coalesce(spz, '{}'::jsonb);
+        spz := coalesce(spz, '{}'::jsonb) || bnet_talents(body::jsonb);  -- 2026-11-20: learned talents, tl / tl2
       end if;
       for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
                  where i->'media'->>'id' is not null and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
@@ -879,6 +935,7 @@ begin
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
         'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast, 'ach', ach, 'dg', dgs,
         'gender', pr->'gender'->'type', 'sp', coalesce(spz->'sp', oldd->'sp'), 'sp2', case when spz is null then oldd->'sp2' else spz->'sp2' end,
+        'tl', coalesce(spz->'tl', oldd->'tl'), 'tl2', case when spz is null then oldd->'tl2' else spz->'tl2' end,
         'items', items, 'mdl', jsonb_build_object('cz', cz, 'it', mit))))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -990,6 +1047,14 @@ begin
                     where d.coll = 'gchars' and members ? d.id and jsonb_typeof(d.data->'ast') = 'array'
                       and e->>1 = 'Total deaths from other players' and jsonb_typeof(e->2) = 'number'), '{}'::jsonb))
   where coll = 'glevels' and id = to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD');
+  -- 2026-11-20: talent trees from Wowhead, at most once a week. Never allowed to break the sync.
+  begin
+    if not exists (select 1 from docs where coll = 'gtalents' and id = 'forever' and updated_at > now() - interval '7 days') then
+      perform talents_import();
+    end if;
+  exception when others then
+    raise warning 'guild_sync: talents skipped: %', sqlerrm;
+  end;
   -- 2026-11-20: characters outside the guild (streamers, friends) for the comparison page. Never allowed to break the sync.
   begin
     perform watch_sync();
@@ -1197,10 +1262,13 @@ end $$;
 revoke execute on function public.bnet_token() from public, anon, authenticated;
 
 -- One watched character: profile and the parts the comparison shows. Each part keeps its previous value when its request fails.
-create or replace function public.watch_fetch(p_id text, p_tok text default null)
+drop function if exists public.watch_fetch(text, text);  -- 2026-11-20: gained p_icons and p_full
+drop function if exists public.watch_fetch(text, text, int);
+create or replace function public.watch_fetch(p_id text, p_tok text default null, p_icons int default 40, p_full boolean default true)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare w public.bnet_watch; hdr http_header[]; base text; q text; st int; body text; pr jsonb; old jsonb; j jsonb; d jsonb;
         items jsonb; stt jsonb; pvp jsonb; profs jsonb; ast jsonb; achn jsonb; qdone jsonb; avatar jsonb; hist jsonb;
+        eq jsonb; img jsonb; spz jsonb; reps jsonb; ach jsonb; mid bigint; icons_left int := greatest(0, coalesce(p_icons, 40));
         day text := to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD'); now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000);
 begin
   select * into w from bnet_watch where id = p_id;
@@ -1215,11 +1283,54 @@ begin
   pr := body::jsonb;
   select data into old from docs where coll = 'wchars' and id = p_id;
   items := old->'items'; stt := old->'st'; pvp := old->'pvp'; profs := old->'profs'; ast := old->'ast'; achn := old->'achn'; qdone := old->'q'->'done'; avatar := old->'avatar';
+  img := old->'img'; reps := old->'reps'; ach := old->'ach'; spz := null;
+  -- p_full = false (watch_add, which must stay short): only the profile above and the pictures below; the rest comes with the next hourly sync
+  if p_full then
+  -- equipment like a guild sheet: icon (cached in bnet_icons, at most 40 new ones per run) and the tooltip lines
   select h.status, h.content into st, body from http(('GET', base || '/equipment' || q, hdr, null, null)::http_request) h;
   if st = 200 then
-    select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object('name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value',
-             'tip', jsonb_build_array(jsonb_build_array(coalesce(i->'inventory_type'->>'name', '')))))), '{}'::jsonb)
-      into items from jsonb_array_elements(coalesce(body::jsonb->'equipped_items', '[]'::jsonb)) i where i->'slot'->>'type' is not null;
+    eq := body::jsonb;
+    for mid in select distinct (i->'media'->>'id')::bigint from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
+               where i->'media'->>'id' ~ '^[0-9]+$' and not exists (select 1 from bnet_icons b where b.id = (i->'media'->>'id')::bigint) loop
+      exit when icons_left <= 0;
+      icons_left := icons_left - 1;
+      select h.status, h.content into st, body from http(('GET',
+        format('https://%s.api.blizzard.com/data/wow/media/item/%s?namespace=static-forever-%s', w.region, mid, w.region), hdr, null, null)::http_request) h;
+      if st in (200, 404) then
+        insert into bnet_icons (id, icon) values (mid, coalesce((select a->>'value' from jsonb_array_elements(
+          case when st = 200 then body::jsonb->'assets' else '[]'::jsonb end) a where a->>'key' = 'icon' limit 1), ''))
+        on conflict (id) do nothing;
+      end if;
+    end loop;
+    select coalesce(jsonb_object_agg(i->'slot'->>'type', jsonb_strip_nulls(jsonb_build_object(
+             'id', i->'item'->'id', 'name', i->'name', 'q', i->'quality'->'type', 'lvl', i->'level'->'value', 'icon', nullif(b.icon, ''), 'tip', bnet_item_tip(i),
+             'en', (select string_agg(regexp_replace(x->>'display_string', '^Enchanted: ', ''), '; ')
+                    from jsonb_array_elements(case when jsonb_typeof(i->'enchantments') = 'array' then i->'enchantments' else '[]'::jsonb end) x
+                    where x->'enchantment_slot'->>'type' = 'PERMANENT' and coalesce(x->>'display_string', '') <> '')))), '{}'::jsonb)
+      into items
+    from jsonb_array_elements(coalesce(eq->'equipped_items', '[]'::jsonb)) i
+    left join bnet_icons b on b.id = (i->'media'->>'id')::bigint
+    where i->'slot'->>'type' is not null;
+  end if;
+  -- talents: points per tree (sp / sp2) and learned talents (tl / tl2), as for the guild
+  select h.status, h.content into st, body from http(('GET', base || '/specializations' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    select jsonb_object_agg(case when (g->>'is_active')::boolean then 'sp' else 'sp2' end, (
+             select coalesce(jsonb_agg(jsonb_build_array(t->'specialization'->'name', coalesce(t->'spent_points', '0'::jsonb))
+                                       order by (t->>'spent_points')::numeric desc nulls last, t->'specialization'->>'name'), '[]'::jsonb)
+             from jsonb_array_elements(case when jsonb_typeof(g->'specializations') = 'array' then g->'specializations' else '[]'::jsonb end) t
+             where t->'specialization'->>'name' is not null))
+      into spz
+    from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'specialization_groups') = 'array' then body::jsonb->'specialization_groups' else '[]'::jsonb end) g;
+    spz := coalesce(spz, '{}'::jsonb) || bnet_talents(body::jsonb);
+  end if;
+  select h.status, h.content into st, body from http(('GET', base || '/reputations' || q, hdr, null, null)::http_request) h;
+  if st = 200 then
+    select coalesce(jsonb_agg(jsonb_build_array(x->'faction'->'name', x->'standing'->'name', x->'standing'->'value', x->'standing'->'max', x->'standing'->'tier', x->'standing'->'raw')
+             order by (x->'standing'->>'raw')::numeric desc nulls last, x->'faction'->>'name'), '[]'::jsonb)
+      into reps
+    from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'reputations') = 'array' then body::jsonb->'reputations' else '[]'::jsonb end) x
+    where x->'faction'->>'name' is not null;
   end if;
   select h.status, h.content into st, body from http(('GET', base || '/statistics' || q, hdr, null, null)::http_request) h;
   if st = 200 then
@@ -1250,8 +1361,11 @@ begin
   end if;
   select h.status, h.content into st, body from http(('GET', base || '/achievements' || q, hdr, null, null)::http_request) h;
   if st = 200 then
-    achn := to_jsonb((select count(*) from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'achievements') = 'array' then body::jsonb->'achievements' else '[]'::jsonb end) x
-                      where jsonb_typeof(x->'completed_timestamp') = 'number'));
+    select coalesce(jsonb_agg(jsonb_build_array(x->'achievement'->'name', x->'completed_timestamp', x->'achievement'->'id') order by (x->>'completed_timestamp')::numeric), '[]'::jsonb)
+      into ach
+    from jsonb_array_elements(case when jsonb_typeof(body::jsonb->'achievements') = 'array' then body::jsonb->'achievements' else '[]'::jsonb end) x
+    where jsonb_typeof(x->'completed_timestamp') = 'number' and x->'achievement'->>'name' is not null;
+    achn := to_jsonb(jsonb_array_length(ach));
   end if;
   select h.status, h.content into st, body from http(('GET', base || '/quests/completed' || q, hdr, null, null)::http_request) h;
   if st = 200 then qdone := to_jsonb(jsonb_array_length(case when jsonb_typeof(body::jsonb->'quests') = 'array' then body::jsonb->'quests' else '[]'::jsonb end)); end if;
@@ -1263,21 +1377,32 @@ begin
     from jsonb_array_elements(coalesce(body::jsonb->'primaries', '[]'::jsonb) || coalesce(body::jsonb->'secondaries', '[]'::jsonb)) x
     where x->'profession'->>'name' is not null;
   end if;
+  end if;  -- p_full
   select h.status, h.content into st, body from http(('GET', base || '/character-media' || q, hdr, null, null)::http_request) h;
-  if st = 200 then avatar := coalesce((select a->'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'avatar' limit 1), avatar); end if;
-  -- today's snapshot for the day-by-day charts, the last 120 days kept
+  if st = 200 then
+    avatar := coalesce((select a->'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'avatar' limit 1), avatar);
+    img := coalesce((select a->'value' from jsonb_array_elements(coalesce(body::jsonb->'assets', '[]'::jsonb)) a where a->>'key' = 'main-raw' limit 1), img);
+  end if;
+  -- today's snapshot for the day-by-day charts (the same keys as glevels/{day}), the last 120 days kept
   hist := coalesce(old->'hist', '{}'::jsonb) || jsonb_build_object(day, jsonb_strip_nulls(jsonb_build_object('lv', pr->'level', 'il', pr->'equipped_item_level',
-    'qd', qdone, 'hk', pvp->'hk', 'dt', (select e->2 from jsonb_array_elements(coalesce(ast, '[]'::jsonb)) e where e->>1 = 'Total deaths' limit 1))));
+    'qd', qdone, 'hk', pvp->'hk', 'dt', (select e->2 from jsonb_array_elements(coalesce(ast, '[]'::jsonb)) e where e->>1 = 'Total deaths' limit 1),
+    'pd', (select e->2 from jsonb_array_elements(coalesce(ast, '[]'::jsonb)) e where e->>1 = 'Total deaths from other players' limit 1),
+    'pr', (select jsonb_object_agg(e.key, e.value->'s') from jsonb_each(coalesce(profs, '{}'::jsonb)) e),
+    'bk', (select jsonb_object_agg(e->>1, e->2) from jsonb_array_elements(coalesce(ast, '[]'::jsonb)) e
+           where e->>0 = 'Dungeons & Raids / Boss Kills' and jsonb_typeof(e->2) = 'number'))));
   select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) into hist from (select key k, value v from jsonb_each(hist) order by key desc limit 120) x;
   d := jsonb_strip_nulls(jsonb_build_object('at', now_ms, 'label', w.label, 'region', w.region, 'name', pr->'name', 'surname', pr->'surname',
     'level', pr->'level', 'cls', coalesce(pr->'character_class'->'id', pr->'playable_class'->'id'), 'race', coalesce(pr->'race'->'id', pr->'playable_race'->'id'),
-    'faction', pr->'faction'->'type', 'ilvl', pr->'equipped_item_level', 'avatar', avatar, 'items', items, 'st', stt, 'pvp', pvp, 'profs', profs,
-    'ast', ast, 'achn', achn, 'q', jsonb_build_object('done', qdone), 'hist', hist));
+    'faction', pr->'faction'->'type', 'ilvl', pr->'equipped_item_level', 'avatar', avatar, 'img', img, 'items', items, 'st', stt, 'pvp', pvp, 'profs', profs,
+    'ast', ast, 'achn', achn, 'ach', ach, 'reps', reps, 'q', jsonb_build_object('done', qdone), 'hist', hist,
+    'ruleset', pr->'ruleset'->'name', 'login', pr->'last_login_timestamp', 'gender', pr->'gender'->'type',
+    'sp', coalesce(spz->'sp', old->'sp'), 'sp2', case when spz is null then old->'sp2' else spz->'sp2' end,
+    'tl', coalesce(spz->'tl', old->'tl'), 'tl2', case when spz is null then old->'tl2' else spz->'tl2' end));
   insert into docs (coll, id, data) values ('wchars', p_id, d)
   on conflict (coll, id) do update set data = excluded.data, updated_at = now();
   return d;
 end $$;
-revoke execute on function public.watch_fetch(text, text) from public, anon, authenticated;
+revoke execute on function public.watch_fetch(text, text, int, boolean) from public, anon, authenticated;
 
 create or replace function public.watch_sync()
 returns int language plpgsql security definer set search_path = public, extensions as $$
@@ -1312,7 +1437,7 @@ begin
   if not exists (select 1 from bnet_watch where id = wid) and (select count(*) from bnet_watch) >= 30 then raise exception 'too many'; end if;
   insert into bnet_watch (id, slug, region, label) values (wid, sl, p_region, coalesce(nullif(btrim(p_label), ''), initcap(split_part(sl, '-', 1))))
   on conflict (id) do update set label = excluded.label;
-  return watch_fetch(wid);  -- an error here undoes the insert as well
+  return watch_fetch(wid, null, 0, false);  -- profile and pictures only (the request must stay short); an error undoes the insert as well
 end $$;
 create or replace function public.watch_del(p_token text, p_id text)
 returns void language plpgsql security definer set search_path = public as $$
@@ -1325,7 +1450,12 @@ begin
 end $$;
 grant execute on function public.watch_add(text, text, text, text), public.watch_del(text, text) to anon, authenticated;
 insert into public.bnet_watch (id, slug, region, label) values
-  ('us.xaryu-forever', 'xaryu-forever', 'us', 'Xaryu'), ('us.shobek-forever', 'shobek-forever', 'us', 'Shobek')
+  ('us.xaryu-forever', 'xaryu-forever', 'us', 'Xaryu'), ('us.shobek-forever', 'shobek-forever', 'us', 'Shobek'),
+  -- 2026-11-20: more streamers (names checked on forever.raider.io)
+  ('eu.grubtor-steelheart', 'grubtor-steelheart', 'eu', 'Grubby'), ('eu.pshero-brickasso', 'pshero-brickasso', 'eu', 'Pshero'),
+  ('us.black-lizard', 'black-lizard', 'us', 'Ziqo'), ('us.esfand-television', 'esfand-television', 'us', 'Esfand'),
+  ('us.savix-ashwalker', 'savix-ashwalker', 'us', 'Savix'), ('us.pikaboo-themove', 'pikaboo-themove', 'us', 'Pikaboo'),
+  ('us.asmongold-thereal', 'asmongold-thereal', 'us', 'Asmongold'), ('eu.jokerd-prime', 'jokerd-prime', 'eu', 'Jokerd')
 on conflict (id) do nothing;
 
 -- Every hour at :07. Scheduling under the same name again replaces the job, so a re-run is safe.
