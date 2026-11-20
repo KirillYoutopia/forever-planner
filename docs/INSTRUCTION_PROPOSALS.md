@@ -2,7 +2,7 @@
 
 Proposed changes to CLAUDE.md files. Not active until approved.
 
-## 2026-11-18: project CLAUDE.md, after v2 became the main page
+## 2026-11-18: project CLAUDE.md, after v2 became the main page (APPLIED 2026-11-20, approved by the user)
 
 **Reason:** the redesigned site moved from `v2.html` to `index.html`; the old page is now `old.html`. The data model also gained
 the full recipe catalogue in `gcat`, craft orders and favourites, none of which CLAUDE.md describes.

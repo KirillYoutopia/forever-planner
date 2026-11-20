@@ -149,6 +149,9 @@ body {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+/* wide and ultrawide monitors: let the content grow; card grids (auto-fill) take the extra room */
+@media (min-width: 1700px) { .wrap { max-width: 1500px; } }
+@media (min-width: 2300px) { .wrap { max-width: 1900px; } }
 
 /* sidebar navigation: a fixed column from 900px, a drawer behind ☰ on phones */
 :root { --sw: 0px; }
@@ -388,13 +391,20 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .lb-x { display: none; position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 18px; cursor: pointer; }
 .lb.char .lb-x { display: block; }
 /* news */
-.news2 { grid-template-columns: 1fr 1fr; margin-top: 0; }
-@media (max-width: 760px) { .news2 { grid-template-columns: 1fr; } }
-.news { list-style: none; margin: 0; padding: 0; }
-.news li { padding: 8px 0; border-bottom: 1px solid var(--line); }
-.news a { color: var(--fg); font-weight: 600; text-decoration: none; }
-.news a:hover { color: var(--accent); text-decoration: underline; }
-.news small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.news2 { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); margin-top: 0; align-items: start; }
+@media (max-width: 960px) { .news2 { grid-template-columns: 1fr; } }
+.ncards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+.ncard { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; background: var(--cell); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-left: 4px solid var(--accent); border-radius: 12px; min-width: 0; transition: transform .2s ease-out, box-shadow .2s ease-out; }
+.ncard:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0, 0, 0, .18); }
+.ncard img { border-radius: 8px; }
+.ncard.blue { border-left-color: var(--tank); }
+.ncard a { color: var(--fg); font-weight: 700; text-decoration: none; line-height: 1.35; }
+.ncard.blue a { color: var(--tank); }
+.ncard a:hover { text-decoration: underline; }
+.ncard p { margin: 0; font-size: 13px; color: var(--fg); opacity: .85; }
+.ncard small { color: var(--muted); font-size: 12px; }
+.ncard img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: var(--track); }
+.nblue { display: flex; flex-direction: column; gap: 10px; }
 /* full roster table */
 .rsearch { margin-left: auto; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-width: 180px; }
 .rtab { border-collapse: collapse; font-size: 13px; min-width: 100%; }
@@ -653,18 +663,29 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .gpm { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px 24px; margin-top: 6px; }
 .gpm h3 { margin: 0 0 4px; font: 600 13px var(--font-body); color: var(--fg); letter-spacing: 0; text-transform: none; }
 @media (max-width: 480px) { .gdoll { --gs: 38px; gap: 8px; padding: 8px; } }
-/* guild professions: who has what, with skill */
+/* guild professions: 0–300 bars; ticks at the rank caps 75 / 150 / 225 */
+.gpmode { margin-left: auto; }
+.gpmode button { padding: 5px 12px; min-height: 32px; font-size: 12px; }
+.gpgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.gpcard { background: var(--cell); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.gpcard h4 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 14px; }
+.gpcard h4 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+.gpb-row { display: grid; grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 62px; gap: 8px; align-items: center; min-height: 26px; font-size: 13px; }
+.gpb-row > span, .gpb-row > .glink { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.gpb-row small { color: var(--muted); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gpb-row small b { color: var(--fg); font-size: 13px; font-weight: 600; }
+.gpb { position: relative; display: block; height: 8px; border-radius: 4px; overflow: hidden;
+  background: linear-gradient(to right, var(--c) var(--w), color-mix(in srgb, var(--c) 25%, transparent) var(--w) var(--m), var(--track) var(--m)); }
+.gpb::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to right, transparent 0 calc(25% - 1px), var(--cell) calc(25% - 1px) 25%); }
+.gpnone { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 480px) { .gpgrid { grid-template-columns: minmax(0, 1fr); } }
+/* profession chips with skill (recipes, character card) */
 .gpg { margin: 14px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .gpg:first-child { margin-top: 0; }
-.gpr { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
-.gpr > b { font-weight: 600; }
-.gpr > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .gpc { display: inline-flex; align-items: baseline; gap: 6px; background: var(--cell); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; }
 .gpc:hover { border-color: var(--accent); }
 .gpc b { font-variant-numeric: tabular-nums; }
 .gpc small { color: var(--muted); font-size: 11px; }
-.gpr .none { color: var(--muted); font-size: 13px; }
-@media (max-width: 480px) { .gpr { grid-template-columns: minmax(0, 1fr); } }
 /* PvP tab */
 #pvp-tiles { margin-bottom: 14px; }
 .ptab { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -716,8 +737,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 @media (max-width: 640px) { .rrow { grid-template-columns: 40px minmax(0, 1fr); } .rrow .rw { grid-column: 2; justify-content: flex-start; } }
 .rq-POOR { --q: var(--q-poor); } .rq-UNCOMMON { --q: var(--q-unc); } .rq-RARE { --q: var(--q-rare); } .rq-EPIC { --q: var(--q-epic); } .rq-LEGENDARY { --q: var(--q-leg); }
 .rq-COMMON { --q: var(--fg); }
-.rsort { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.rsort select, .rf select, .rf input { min-height: 36px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; font-size: 13px; }
+.rf select, .rf input { min-height: 36px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--cell); color: var(--fg); font: inherit; font-size: 13px; }
 .rcat { margin-top: 10px; }
 .rfilt { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
 .rfilt summary { cursor: pointer; font-weight: 700; font-size: 14px; }
@@ -865,6 +885,7 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .fchip { background: var(--cell); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
 .fchip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .fday { margin: 18px 0 8px; }
+@media (min-width: 1300px) { #fame { columns: 440px; column-gap: 40px; } .fday { break-after: avoid; } .fday:first-child { margin-top: 0; } .tl { break-inside: avoid; } }
 .tl { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
 .tl li { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; position: relative; }
 .tl li::before { content: ""; position: absolute; left: -24px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--gold); }
@@ -928,7 +949,12 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
   h1 { font-size: 28px; }
   .panel { padding: 14px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .ncard:hover { transform: none; } }
+/* press feedback on pointer-down, Apple style: small and instant */
+.seg button:active, .rchips button:active, .gpc:active, .rob:active, .rordb:active, .side button:active { transform: scale(.97); transition: transform 100ms ease-out; }
+/* phones: the top bar is a translucent layer, content scrolls under it */
+@media (max-width: 899px) { .mbar { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border-bottom-color: color-mix(in srgb, var(--line) 50%, transparent); } }
+@media (max-width: 899px) and (prefers-reduced-transparency: reduce) { .mbar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 </style>
 
 </head>
@@ -1114,20 +1140,8 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     </form>
   </section>
 
-  <section class="panel" aria-labelledby="h-rsum" data-view="recipes" hidden>
-    <div class="panel-head"><h2 id="h-rsum">Профессии в цифрах</h2><span class="cap">Рецепты, которые знают персонажи гильдии</span></div>
-    <div id="rsum"></div>
-  </section>
 
-  <section class="panel" aria-labelledby="h-orders" data-view="recipes" hidden>
-    <div class="panel-head"><h2 id="h-orders">Заявки на крафт</h2><span class="cap">Нужен предмет или чары? Найди рецепт в каталоге ниже и нажми «Заказать»</span></div>
-    <div id="rorders"></div>
-  </section>
 
-  <section class="panel" aria-labelledby="h-gprofs" data-view="recipes" hidden>
-    <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык из Blizzard API, персонажи с 10 уровня. Нажми на имя, чтобы открыть персонажа</span></div>
-    <div id="gprofs"></div>
-  </section>
 
   <section class="panel" aria-labelledby="h-days" data-view="guild" hidden>
     <div class="panel-head"><h2 id="h-days">Что сделали по дням</h2><span class="cap">Разница с предыдущим днём, по снимкам на конец дня (Центральная Европа). Персонажи с 10 уровня</span></div>
@@ -1145,14 +1159,23 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
     <div id="gpcharts"></div>
   </section>
 
+  <section class="panel" aria-labelledby="h-gprofs" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-gprofs">Профессии гильдии</h2><span class="cap">Навык 0–300 из Blizzard API, персонажи с 10 уровня. Светлая часть полосы — до потолка текущего ранга</span>
+      <div class="seg gpmode" id="gpmode" role="group" aria-label="Как показать"></div></div>
+    <div id="gprofs"></div>
+  </section>
+  <section class="panel" aria-labelledby="h-orders" data-view="recipes" hidden>
+    <div class="panel-head"><h2 id="h-orders">Заявки на крафт</h2><span class="cap">Нужен предмет или чары? Найди рецепт в каталоге ниже и нажми «Заказать»</span></div>
+    <div id="rorders"></div>
+  </section>
   <section class="panel" aria-labelledby="h-recipes" data-view="recipes" hidden>
     <div class="panel-head"><h2 id="h-recipes">Рецепты гильдии</h2><span class="cap" id="recipes-cap"></span></div>
-    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off">
-      <div class="seg rknown" id="rknown" role="group" aria-label="Какие рецепты"></div>
-      <label class="rsort"><span>Порядок</span><select id="rsort"><option value="cat">По категориям</option><option value="il">Уровень предмета ↓</option><option value="rl">Требуемый уровень ↑</option><option value="n">По названию</option></select></label></div>
+    <div class="rtools"><input id="rq" type="search" maxlength="60" placeholder="Найти рецепт или реагент" aria-label="Поиск по рецептам и реагентам" autocomplete="off"></div>
     <div class="rchips" id="rprofs" role="group" aria-label="Профессия"></div>
     <div class="rcat">
       <details class="rfilt" id="rfilt" open><summary>Фильтры<span id="rfn"></span></summary>
+        <div class="rf"><span>Рецепты</span><div class="rchips sm rknown" id="rknown" role="group" aria-label="Какие рецепты"></div></div>
+        <label class="rf"><span>Порядок</span><select id="rsort"><option value="cat">По категориям</option><option value="il">Уровень предмета ↓</option><option value="rl">Требуемый уровень ↑</option><option value="n">По названию</option></select></label>
         <label class="rf"><span>Категория</span><select id="rf-cat"></select></label>
         <div class="rf"><span>Качество</span><div class="rchips sm" id="rf-q" role="group" aria-label="Качество"></div></div>
         <div class="rf"><span>Уровень предмета</span><div class="rr"><input id="rf-il0" type="number" min="0" max="300" inputmode="numeric" placeholder="от" aria-label="Уровень предмета от"><input id="rf-il1" type="number" min="0" max="300" inputmode="numeric" placeholder="до" aria-label="Уровень предмета до"></div></div>
@@ -1167,6 +1190,10 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
       <div id="rlist"></div>
     </div>
   </section>
+  <details class="panel rules" aria-labelledby="h-rsum" data-view="recipes" hidden>
+    <summary><h2 id="h-rsum">Профессии в цифрах</h2><span class="cap">Сколько рецептов каталога изучено, кто знает больше всех, качество предметов</span></summary>
+    <div id="rsum"></div>
+  </details>
 
   <section class="panel" aria-labelledby="h-pvp" data-view="pvp" hidden>
     <div class="panel-head"><h2 id="h-pvp">PvP гильдии</h2><span class="cap">Почётные убийства и не только. Данные Blizzard API, персонажи с 10 уровня</span></div>
@@ -2387,6 +2414,7 @@ document.addEventListener("click", e => {
   else if (act === "gchar") openCard(id);
   else if (act === "ctab") { cTab = b.dataset.v; renderGSheet(); }
   else if (act === "rprof") { rProf = b.dataset.prof; renderRecipes(); }
+  else if (act === "gpmode") { gpMode = b.dataset.v; renderGuild(); }
   else if (act === "rknown") { rKnown = b.dataset.v; renderRecipes(); }
   else if (act === "rfonly") { rFonly = rFonly === b.dataset.v ? "" : b.dataset.v; renderRecipes(); }
   else if (act === "rfav") { const p = players.find(x => x.id === auth?.player); if (p) setDoc("players", p.id, { fav: { [b.dataset.k]: !(p.fav || {})[b.dataset.k] } }); }
@@ -2404,6 +2432,7 @@ document.addEventListener("click", e => {
   else if (act === "rfreset") {
     rFq.clear(); rFkind = ""; rFonly = "";
     for (const el of $("#rfilt").querySelectorAll("input, select")) el.value = "";
+    $("#rsort").value = "cat"; rKnown = "known";
     renderRecipes();
   }
   else if ((act === "gown" || act === "galt") && p && gOpen) { // link or unlink the open character as a player's main or twink; one player per character
@@ -2698,12 +2727,15 @@ function renderNews() {
     return;
   }
   const when = ts => { try { return ts ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(+ts)) : ""; } catch { return ""; } };
-  const col = (kind, title) => {
-    const list = items.filter(x => Array.isArray(x) && x[3] === kind && /^https:\/\/www\.wowhead\.com\//.test(x[1] || "")); // only Wowhead links, as the server stores them
-    return `<div><h3 class="ovh">${title}</h3>${list.length ? `<ul class="news">${list.map(([t, link, ts]) =>
-      `<li><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a><small>${when(ts)}</small></li>`).join("")}</ul>` : `<p class="gnote">Пока пусто.</p>`}</div>`;
+  // item: [title, link, published, kind, text?, image?]; only Wowhead links and Wowhead's own image host, as the server stores them
+  const ok = x => Array.isArray(x) && /^https:\/\/www\.wowhead\.com\//.test(x[1] || ""), img = u => /^https:\/\/wow\.zamimg\.com\/[^"'\s]+$/.test(u || "") ? u : "";
+  const card = ([t, link, ts, kind, d, im]) => `<article class="ncard${kind === "blue" ? " blue" : ""}"><small>${kind === "blue" ? "Blizzard · " : "Wowhead · "}${when(ts)}</small>
+    <a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(t)}</a>${d ? `<p>${esc(d)}</p>` : ""}${img(im) ? `<img src="${esc(img(im))}" alt="" loading="lazy" onerror="this.remove()">` : ""}</article>`;
+  const col = (kind, title, cls) => {
+    const list = items.filter(x => ok(x) && x[3] === kind);
+    return `<div><h3 class="ovh">${title}</h3>${list.length ? `<div class="${cls}">${list.map(card).join("")}</div>` : `<p class="gnote">Пока пусто.</p>`}</div>`;
   };
-  el.innerHTML = `<div class="ov2 news2">${col("blue", "Синие посты")}${col("news", "Новости Wowhead")}</div>`;
+  el.innerHTML = `<div class="ov2 news2">${col("news", "Новости Wowhead", "ncards")}${col("blue", "Синие посты", "nblue")}</div>`;
 }
 // Full roster as a table, like the old TBC dashboard: the overview filters and the 10+/all switch apply, headers sort, the box above searches by name.
 let rSort = { k: "", dir: 1 }; // k "": core → twinks → guild, then level
@@ -2883,22 +2915,41 @@ function renderKpis(g, up, core) {
     + tile("Уровней за день", sum ? `+${sum}` : "—", prev ? day : "нужна история за два дня")
     + tile("Лидер дня", lead ? esc(g.name(lead)) : "—", lead ? `+${gain[lead]} ${plural(gain[lead], "уровень", "уровня", "уровней")} · ${day}` : "пока никто не апнулся");
 }
+// Guild professions as 0–300 bars, by profession or by character. Order of characters: mains → twinks → rest, then skill.
+let gpMode = "prof"; // prof | who
+const GP_COL = { craft: "var(--accent)", gather: "var(--healer)", second: "var(--tank)" };
 function renderGProfs(g) {
-  // profession -> [{slug, s, max}], best first
-  const by = {};
-  for (const [slug, c] of Object.entries(gchars)) if (g.mem[slug])
-    for (const [name, v] of Object.entries(c.profs || {})) (by[name] ||= []).push({ slug, s: +v.s || 0, max: +v.max || 0 });
-  if (!Object.keys(by).length) { $("#gprofs").innerHTML = `<p class="empty">Профессий пока нет: данные появятся после следующей синхронизации.</p>`; return; }
-  const row = (name, gap) => {
-    const who = (by[name] || []).sort((a, b) => b.s - a.s || g.name(a.slug).localeCompare(g.name(b.slug)));
-    return `<div class="gpr"><b>${esc(name)}</b><div>${who.length ? who.map(w =>
-      `<button type="button" class="gpc" data-act="gchar" data-id="${esc(w.slug)}"><b>${w.s}</b><small>/ ${w.max}</small>${esc(g.name(w.slug))}</button>`).join("")
-      : `<span class="none">${gap ? "никого" : "—"}</span>`}</div></div>`;
-  };
-  const known = new Set(PROFS.map(p => p.id)), extra = Object.keys(by).filter(n => !known.has(n)).sort();
-  $("#gprofs").innerHTML = Object.keys(PROF_TYPES).map(t =>
-    `<div class="gpg">${PROF_TYPES[t]}</div>` + PROFS.filter(p => p.type === t).map(p => row(p.id, t !== "second")).join("")).join("")
-    + (extra.length ? `<div class="gpg">Другое</div>` + extra.map(n => row(n, false)).join("") : "");
+  $("#gpmode").innerHTML = [["prof", "По профессиям"], ["who", "По персонажам"]].map(([v, t]) =>
+    `<button type="button" data-act="gpmode" data-v="${v}" aria-pressed="${gpMode === v}">${t}</button>`).join("");
+  const rank = {}; // slug -> 0 main, 1 twink
+  for (const p of players) if (!p.deleted) { for (const s of altsOf(p)) rank[s] ??= 1; if (p.char) rank[p.char] = 0; }
+  const typeOf = n => PROFS.find(p => p.id === n)?.type || "second";
+  const by = {}, chars = [];
+  for (const [slug, c] of Object.entries(gchars)) if (g.mem[slug]) {
+    const ps = Object.entries(c.profs || {}).map(([name, v]) => ({ slug, name, s: +v.s || 0, max: +v.max || 0 }));
+    for (const x of ps) (by[x.name] ||= []).push(x);
+    if (ps.length) chars.push({ slug, ps, sum: ps.reduce((n, x) => n + x.s, 0) });
+  }
+  if (!chars.length) { $("#gprofs").innerHTML = `<p class="empty">Профессий пока нет: данные появятся после следующей синхронизации.</p>`; return; }
+  const ord = (a, b) => (rank[a.slug] ?? 2) - (rank[b.slug] ?? 2);
+  const bar = (label, x) => `<div class="gpb-row">${label}<i class="gpb" style="--c:${GP_COL[typeOf(x.name)]};--w:${Math.min(100, x.s / 3)}%;--m:${Math.min(100, Math.max(x.s, x.max) / 3)}%" title="${x.s} из ${x.max || "?"}"></i><small><b>${x.s}</b> / ${x.max || "?"}</small></div>`;
+  const who = s => `<button type="button" class="glink" data-act="gchar" data-id="${esc(s)}">${esc(g.name(s))}</button>`;
+  let html;
+  if (gpMode === "who") {
+    chars.sort((a, b) => ord(a, b) || b.sum - a.sum || g.name(a.slug).localeCompare(g.name(b.slug)));
+    const pi = n => PROFS.findIndex(p => p.id === n) >>> 0; // unknown ones last
+    html = chars.map(c => `<div class="gpcard"><h4>${who(c.slug)}<small>${rank[c.slug] === 0 ? "мейн" : rank[c.slug] === 1 ? "твинк" : ""}</small></h4>${
+      c.ps.sort((a, b) => pi(a.name) - pi(b.name)).map(x => bar(`<span>${esc(x.name)}</span>`, x)).join("")}</div>`).join("");
+  } else {
+    const names = [...PROFS.map(p => p.id), ...Object.keys(by).filter(n => !PROF_ID.has(n)).sort()].filter(n => by[n]);
+    html = names.map(n => {
+      const l = by[n].sort((a, b) => b.s - a.s || ord(a, b) || g.name(a.slug).localeCompare(g.name(b.slug)));
+      return `<div class="gpcard"><h4>${esc(n)}<small>${l.length} · ${PROF_TYPES[typeOf(n)]}</small></h4>${l.map(x => bar(who(x.slug), x)).join("")}</div>`;
+    }).join("");
+    const none = PROFS.filter(p => p.type !== "second" && !by[p.id]).map(p => p.id);
+    if (none.length) html += `<p class="gnote gpnone">Ни у кого в гильдии: ${esc(none.join(", "))}</p>`;
+  }
+  $("#gprofs").innerHTML = `<div class="gpgrid">${html}</div>`;
 }
 // One line chart: days on x, a value per series per day. Returns the HTML and remembers the scales for the hover readout.
 const gModels = {};
@@ -3280,7 +3331,7 @@ function renderRecipes() {
   const rows = scope.filter(x => (!q || [x.r.n, x.r.i, x.r.ds, ...x.re.map(y => y[0])].some(t => String(t || "").toLowerCase().includes(q)))
     && (!f.cat || x.cat === f.cat) && (!rFq.size || rFq.has(x.r.iq)) && inR(x.m.il, f.il0, f.il1) && inR(x.m.rl, f.rl0, f.rl1)
     && (!f.slot || x.m.slot === f.slot) && (!f.stat || x.m.stats.includes(f.stat)) && (!rFkind || x.m.kind === rFkind) && (!whoSet || rKnown === "un" || x.who.some(s => whoSet.has(s))) && (rFonly !== "fav" || fav[rk(x)]) && (rFonly !== "ord" || ordBy[rk(x)]));
-  const nf = [f.cat, f.slot, f.stat, rKnown !== "un" && f.who, rFkind, rFonly, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
+  const nf = [rKnown !== "known", f.cat, f.slot, f.stat, rKnown !== "un" && f.who, rFkind, rFonly, rFq.size, f.il0 != null || f.il1 != null, f.rl0 != null || f.rl1 != null].filter(Boolean).length;
   $("#rfn").textContent = nf ? ` · ${nf}` : "";
   const multi = q || rProf === R_ALL, by2 = (a, b) => a.pr.localeCompare(b.pr) || a.cat.localeCompare(b.cat) || a.n.localeCompare(b.n);
   rows.sort(f.sort === "il" ? (a, b) => (b.m.il ?? -1) - (a.m.il ?? -1) || a.n.localeCompare(b.n)
