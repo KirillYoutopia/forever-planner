@@ -616,30 +616,36 @@ returns jsonb language sql immutable as $$
 $$;
 revoke execute on function public.bnet_item_tip(jsonb) from public, anon, authenticated;
 
--- 2026-11-20: learned talents from a /specializations response: {tl: [[talent id, rank], ...] (active group), tl2: (the other)}.
+-- 2026-11-20: learned talents from a /specializations response: {tl: [[talent id, rank, spell id], ...] (active group), tl2: (the other),
+-- tlx: the first raw talent entry of the active group, kept to check the API's field names}. Blizzard's talent ids differ from Wowhead's;
+-- the page matches the spell id against each Wowhead talent's rank spells.
 -- Blizzard's field names for Forever are not documented, so both the retail-like shape (talents[].talent.id, talent_rank)
 -- and a flat one (talents[].id, rank) are read; talents can sit under each tree or directly under the group.
 -- Talent ids are the ones Wowhead's talent calculator uses (gtalents below).
 create or replace function public.bnet_talents(b jsonb)
 returns jsonb language sql immutable as $$
-  select coalesce(jsonb_object_agg(case when coalesce((g->>'is_active')::boolean, false) then 'tl' else 'tl2' end, (
-           select coalesce(jsonb_agg(jsonb_build_array(x.id, x.r) order by x.id), '[]'::jsonb)
-           from (select distinct on (tid) tid id, greatest(1, coalesce(r, 1)) r from (
-                   select case when z.i ~ '^[0-9]{1,12}$' then z.i::bigint end tid, case when z.k ~ '^[0-9]{1,3}$' then z.k::int end r
-                   from (select coalesce(nullif(t->'talent'->>'id', ''), t->>'id') i, coalesce(t->>'talent_rank', t->>'rank') k
+  select coalesce((select jsonb_object_agg(case when coalesce((g->>'is_active')::boolean, false) then 'tl' else 'tl2' end, (
+           select coalesce(jsonb_agg(jsonb_build_array(x.id, x.r, x.sid) order by x.id), '[]'::jsonb)
+           from (select distinct on (tid) tid id, greatest(1, coalesce(r, 1)) r, sid from (
+                   select case when z.i ~ '^[0-9]{1,12}$' then z.i::bigint end tid, case when z.k ~ '^[0-9]{1,3}$' then z.k::int end r,
+                          case when z.p ~ '^[0-9]{1,12}$' then z.p::bigint end sid
+                   from (select coalesce(nullif(t->'talent'->>'id', ''), t->>'id') i, coalesce(t->>'talent_rank', t->>'rank') k,
+                                coalesce(t->'spell_tooltip'->'spell'->>'id', t->>'spellId', t->'spell'->>'id') p
                          from jsonb_path_query(g, 'lax $.specializations[*].talents[*]') t
                          union all
-                         select coalesce(nullif(t->'talent'->>'id', ''), t->>'id'), coalesce(t->>'talent_rank', t->>'rank')
+                         select coalesce(nullif(t->'talent'->>'id', ''), t->>'id'), coalesce(t->>'talent_rank', t->>'rank'),
+                                coalesce(t->'spell_tooltip'->'spell'->>'id', t->>'spellId', t->'spell'->>'id')
                          from jsonb_path_query(g, 'lax $.talents[*]') t) z) y
-                 where tid is not null order by tid, r desc nulls last) x)), '{}'::jsonb)
-  from jsonb_array_elements(case when jsonb_typeof(b->'specialization_groups') = 'array' then b->'specialization_groups' else '[]'::jsonb end) g
+                 where tid is not null order by tid, r desc nulls last) x))
+    from jsonb_array_elements(case when jsonb_typeof(b->'specialization_groups') = 'array' then b->'specialization_groups' else '[]'::jsonb end) g), '{}'::jsonb)
+  || jsonb_strip_nulls(jsonb_build_object('tlx', (select t from jsonb_path_query(b, 'lax $.specialization_groups[*].specializations[*].talents[*]') t limit 1)))
 $$;
 revoke execute on function public.bnet_talents(jsonb) from public, anon, authenticated;
 
--- 2026-11-20: talent trees for the character card, from Wowhead's WoW Forever talent calculator data (the same talent ids
--- Blizzard returns; Blizzard has no talent layout API for Classic-era). One doc, refreshed at most once a week by guild_sync:
+-- 2026-11-20: talent trees for the character card, from Wowhead's WoW Forever talent calculator data (Blizzard has no
+-- talent layout API for Classic-era; its talent ids differ, learned talents are matched by spell id). One doc, refreshed at most once a week by guild_sync:
 --   gtalents/forever {at, t: {tree id: [[talent id, row, col, icon, max rank, required talent id, its rank, tree points needed,
---                                         name, [description per rank]], ...]}}
+--                                         name, [description per rank], [spell id per rank]], ...]}}
 -- Tree ids are the game's (41 Fire, 61 Frost, 81 Arcane, ...); the page maps them to classes and names.
 create or replace function public.talents_import()
 returns int language plpgsql security definer set search_path = public, extensions as $$
@@ -659,7 +665,8 @@ begin
                     jsonb_array_length(coalesce(x->'ranks', '[]'::jsonb)), (x->'requires'->0->>'id')::bigint, (x->'requires'->0->>'qty')::int,
                     coalesce((x->>'requiredPoints')::int, 0), x->>'name',
                     (select coalesce(jsonb_agg(regexp_replace(d.value #>> '{}', '<!--.*?-->', '', 'g') order by d.key::int), '[]'::jsonb)
-                     from jsonb_each(coalesce(x->'descriptions', '{}'::jsonb)) d where d.key ~ '^[0-9]+$'))
+                     from jsonb_each(coalesce(x->'descriptions', '{}'::jsonb)) d where d.key ~ '^[0-9]+$'),
+                    coalesce(x->'ranks', '[]'::jsonb))
                   order by (x->>'row')::int, (x->>'col')::int)
            from jsonb_each(tr.value) e(k, x) where x->>'id' ~ '^[0-9]+$'))
     into t
@@ -935,7 +942,7 @@ begin
         'profs', coalesce(profs, (select d.data->'profs' from docs d where d.coll = 'gchars' and d.id = ch)),
         'st', stt, 'pvp', pvp, 'reps', reps, 'q', qs, 'ast', ast, 'ach', ach, 'dg', dgs,
         'gender', pr->'gender'->'type', 'sp', coalesce(spz->'sp', oldd->'sp'), 'sp2', case when spz is null then oldd->'sp2' else spz->'sp2' end,
-        'tl', coalesce(spz->'tl', oldd->'tl'), 'tl2', case when spz is null then oldd->'tl2' else spz->'tl2' end,
+        'tl', coalesce(spz->'tl', oldd->'tl'), 'tl2', case when spz is null then oldd->'tl2' else spz->'tl2' end, 'tlx', coalesce(spz->'tlx', oldd->'tlx'),
         'items', items, 'mdl', jsonb_build_object('cz', cz, 'it', mit))))
       on conflict (coll, id) do update set data = excluded.data, updated_at = now();
       sheets := sheets + 1;
@@ -1397,7 +1404,7 @@ begin
     'ast', ast, 'achn', achn, 'ach', ach, 'reps', reps, 'q', jsonb_build_object('done', qdone), 'hist', hist,
     'ruleset', pr->'ruleset'->'name', 'login', pr->'last_login_timestamp', 'gender', pr->'gender'->'type',
     'sp', coalesce(spz->'sp', old->'sp'), 'sp2', case when spz is null then old->'sp2' else spz->'sp2' end,
-    'tl', coalesce(spz->'tl', old->'tl'), 'tl2', case when spz is null then old->'tl2' else spz->'tl2' end));
+    'tl', coalesce(spz->'tl', old->'tl'), 'tl2', case when spz is null then old->'tl2' else spz->'tl2' end, 'tlx', coalesce(spz->'tlx', old->'tlx')));
   insert into docs (coll, id, data) values ('wchars', p_id, d)
   on conflict (coll, id) do update set data = excluded.data, updated_at = now();
   return d;
