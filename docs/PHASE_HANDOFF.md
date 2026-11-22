@@ -129,7 +129,13 @@ working), price ladder of stackables in `ah_meta` 'ladder:<house>' (latest only,
 crafts are not — shortcut comment). Checked locally with injected ladder/totals/catalogue (real ladder, synthetic totals).
 Review fixes: ah.py falls back to a prices-only publish if the 6-arg ah_publish is missing; new/gone only when the previous
 snapshot is ≤ 90 min older; «Итого» costs only the units actually used (cheapest first).
-Still to do: stage 4 «Тренды» (new on AH, biggest moves, new flips).
+LIVE: PR #42. Stage 4 «Тренды» (`ahTrendsHtml`, page-only): latest snapshot vs `ah_before(now − 1/6/24 h)`; price moves only with
+≥ 3 lots on both sides and market ≥ 10c; "Скупают"/"Завалили" by unit count (≥ 20 units); "Новые флипы" hidden when the older
+snapshot predates flip numbers. Reviewed; 3 minor findings fixed.
+Next (agreed 2026-11-22): redesign the «Предметы» tab after wowfah.com (user's screenshot): coloured g/s/c prices, 1H column,
+market price explained, «Ушло за 24 ч (оценка)» + sell-through from per-item flow (new column `ah_hour.g`, RPCs `ah_prev_g`,
+`ah_flow24`, `ah_spark`), 7-day sparklines, left filter panel (categories with counts, sorts, quick views, rarity/level/price),
+hover card with the Wowhead tooltip as text. Step 1 = data (SQL written in supabase.sql, script next), step 2 = list, step 3 = hover.
 Other ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions

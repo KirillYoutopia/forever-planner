@@ -1,4 +1,4 @@
-/* Supabase-backed stand-in for the claude.ai artifact storage.
+/* Supabase-backed document store for the page.
    Exposes the same shape the page already used: db.collection(...).onSnapshot/add,
    db.doc("coll/id").update/set/delete/onSnapshot, plus a per-browser user id. */
 (function () {

@@ -1213,9 +1213,18 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 .ah-craft tbody th { min-width: 260px; white-space: normal; }
 .ah-miss { color: var(--horde); }
 .ah-vend { color: var(--healer); }
+.ah-trends { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; margin-bottom: 12px; }
+.ah-trend { background: var(--cell); border-radius: var(--radius-md); padding: 12px 14px; min-width: 0; }
+.ah-trend h3 { margin: 0 0 8px; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.ah-trend h3 small { font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
+.ah-trend ol { list-style: none; margin: 0; padding: 0; }
+.ah-trend li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.ah-trend li:first-child { border-top: 0; }
+.ah-trend .ah-n { min-width: 0; } .ah-trend .ah-n span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ah-tv { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); } .ah-tv b { margin-right: 4px; }
 .ah-raw { margin-bottom: 12px; }
 .ah-tab td small { display: block; font-size: 11px; color: var(--muted); }
-@media (max-width: 599px) { .ah-tab th, .ah-tab td { padding: 7px 6px; } .ah-n img, .ah-n i { width: 20px; height: 20px; } .ah-re { margin-left: 0; } .ah-craft tbody th { min-width: 220px; } }
+@media (max-width: 599px) { .ah-trend li { flex-wrap: wrap; row-gap: 2px; } .ah-trend .ah-tv { margin-left: 30px; } .ah-tab th, .ah-tab td { padding: 7px 6px; } .ah-n img, .ah-n i { width: 20px; height: 20px; } .ah-re { margin-left: 0; } .ah-craft tbody th { min-width: 220px; } }
 </style>
 
 </head>
@@ -2655,7 +2664,8 @@ document.addEventListener("click", e => {
   else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; renderAh(); }
   else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : b.dataset.t === "f" ? ahFSort : b.dataset.t === "n" ? ahNSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
     if (c) ahCSort = ns; else if (b.dataset.t === "f") ahFSort = ns; else if (b.dataset.t === "n") ahNSort = ns; else ahSort = ns; renderAh(); }
-  else if (act === "ahtab") { ahTab = ["overview", "raw", "flip", "craft", "npc"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahtab") { ahTab = ["overview", "trends", "raw", "flip", "craft", "npc"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahtwin") { ahTWin = [1, 6, 24].includes(+b.dataset.v) ? +b.dataset.v : 6; renderAh(); }
   else if (act === "ahomode") { ahOMode = b.dataset.v === "d" ? "d" : "h"; renderAh(); }
   else if (act === "ahntarget") { ahNTarget = [100, 500, 1000, 2000].includes(+b.dataset.v) ? +b.dataset.v : 0; ahLimit = 100; renderAh(); }
   else if (act === "ahnall") { ahNAll = !ahNAll; ahLimit = 100; renderAh(); }
@@ -4400,10 +4410,10 @@ function renderAh() {
   else if (!ahNamesP) ahLoad(h);
   const hb = AH_HOUSES.map(([id, t]) => `<button type="button" data-act="ahhouse" data-v="${id}" aria-pressed="${id === h}">${t}</button>`).join("");
   if ($("#ah-house").innerHTML !== hb) $("#ah-house").innerHTML = hb;
-  const tb = [["overview", "Обзор"], ["items", "Предметы"], ["raw", "Сырьё"], ["flip", "Вендор флип"], ["craft", "Крафт гильдии"], ["npc", "Крафт → NPC"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
+  const tb = [["overview", "Обзор"], ["trends", "Тренды"], ["items", "Предметы"], ["raw", "Сырьё"], ["flip", "Вендор флип"], ["craft", "Крафт гильдии"], ["npc", "Крафт → NPC"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
   if ($("#ah-tab").innerHTML !== tb) $("#ah-tab").innerHTML = tb;
-  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip", npc = ahTab === "npc", ov = ahTab === "overview";
-  $("#ah-cls").hidden = craft || raw || npc || ov; $("#ah-prof").hidden = !craft && !npc; $("#ah-raw").hidden = !raw && !flip; $("#ahq").hidden = ov;
+  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip", npc = ahTab === "npc", ov = ahTab === "overview", trn = ahTab === "trends";
+  $("#ah-cls").hidden = craft || raw || npc || ov || trn; $("#ah-prof").hidden = !craft && !npc; $("#ah-raw").hidden = !raw && !flip; $("#ahq").hidden = ov || trn;
   const rb = flip ? [["", "Все"], ["prof", "Реагенты профессий гильдии"]].map(([v, t]) => `<button type="button" data-act="ahflipprof" data-v="${v}" aria-pressed="${ahFlipProf === !!v}">${t}</button>`).join("")
       + [0, 5, 10, 25].map(n => `<button type="button" data-act="ahflipmin" data-v="${n}" aria-pressed="${ahFlipMin === n}">${n ? `от ${n}%` : "любая маржа"}</button>`).join("")
     : AH_RAW.map(([v, t]) => `<button type="button" data-act="ahraw" data-v="${v}" aria-pressed="${ahRaw === v}">${t}</button>`).join("");
@@ -4414,6 +4424,7 @@ function renderAh() {
   const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab, raw ? ahRaw : "", ...(flip ? [ahFlipProf, ahFlipMin, ahFSort.k, ahFSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
     ...(npc ? [$("#ah-prof").value, ahNTarget, ahNAll, ahNSort.k, ahNSort.dir, ahStamp(ahLad[h]?.v), guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
     ...(ov ? [ahOMode, ahStamp(ahTot[h]?.v), $("#ah-list").clientWidth] : []),
+    ...(trn ? [ahTWin, ahStamp(ahBase[h + ":" + ahTWin]?.v), ahBase[h + ":" + ahTWin]?.v?.at] : []),
     ...(craft ? [$("#ah-prof").value, ahCSort.k, ahCSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : [])].join("|");
   renderAhItem();
   if (key === ahDrawn) return;
@@ -4455,6 +4466,7 @@ function renderAh() {
   if (flip) { $("#ah-list").innerHTML = ahFlipHtml(d, all, q, cls); return; }
   if (npc) { $("#ah-list").innerHTML = ahNpcHtml(d, q); return; }
   if (ov) { $("#ah-list").innerHTML = ahOverviewHtml(d); return; }
+  if (trn) { $("#ah-list").innerHTML = ahTrendsHtml(d, all); return; }
   // the list
   let rows = all;
   if (raw) rows = rows.filter(r => `${r.c}.${r.sc}` === ahRaw);
@@ -4701,6 +4713,55 @@ function ahNpcHtml(d, q) {
       + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
       : `<p class="empty">Сейчас ничего не выходит в плюс${ahNTarget ? " с таким запасом" : ""}.</p>`)
     + `<p class="gnote">Скрафтить из купленного и продать изделие NPC-торговцу. «NPC платит»: цена изделия у торговца × сколько штук даёт крафт. «Реагенты»: по рыночной цене, то, что продают торговцы, по их цене. «Макс. цена реагента»: до какой цены за штуку можно скупать главный (самый дорогой) реагент, чтобы крафт ещё приносил выбранный запас, если остальные реагенты брать по рынку. «Можно сделать»: сколько крафтов хватит из того, что сейчас выставлено не дороже этой цены (по последнему снимку, ${ahHM(d.now.at)}); «+» значит, что дешёвых лотов может быть ещё больше. «Итого»: прибыль со всех этих крафтов. Рецепты только те, что знает кто-то в гильдии.</p>`;
+}
+// «Тренды»: the latest snapshot against one taken 1 / 6 / 24 hours earlier (ah_before). Small lists, noise cut by thresholds:
+// price moves only for items with at least 3 lots on both sides and a market price of 10 copper or more.
+const ahBase = {}; // "house:hours" -> { at: latest snapshot time, v: snapshot | null | "loading" | { err } }
+let ahTWin = 6;
+function ahTrendsHtml(d, all) {
+  const k = ahHouse + ":" + ahTWin, c = ahBase[k];
+  if (!c || c.at !== d.now.at) {
+    const at = d.now.at; // a late answer for an older snapshot must not overwrite a newer request
+    ahBase[k] = { at, v: "loading" };
+    if (dbRef) dbRef.call("ah_before", { p_house: ahHouse, p_at: new Date(at - (ahTWin - 0.25) * 36e5).toISOString() })
+      .then(r => { if (ahBase[k]?.at !== at) return; ahBase[k] = { at, v: r || null }; ahDrawn = ""; renderAh(); })
+      .catch(() => { if (ahBase[k]?.at !== at) return; ahBase[k] = { at, v: { err: true } }; ahDrawn = ""; renderAh(); });
+  }
+  const B = ahBase[k].v;
+  const wins = `<div class="rchips ah-raw" role="group" aria-label="С чем сравнивать">${[[1, "за час"], [6, "за 6 часов"], [24, "за сутки"]].map(([v, t]) =>
+    `<button type="button" data-act="ahtwin" data-v="${v}" aria-pressed="${ahTWin === v}">${t}</button>`).join("")}</div>`;
+  if (B === "loading") return wins + `<p class="empty">Загружаю снимок для сравнения…</p>`;
+  if (B?.err) return wins + `<p class="empty">Не получилось загрузить снимок для сравнения.</p>`;
+  if (!B?.d) return wins + `<p class="empty">Снимка ${ahTWin === 1 ? "часовой" : ahTWin === 6 ? "шестичасовой" : "суточной"} давности ещё нет: история аукциона пока короче. Выбери окно поменьше.</p>`;
+  const old = B.d, N = ahNames?.items || {}, by = new Map(all.map(r => [String(r.id), r]));
+  const nm = id => { const n = N[id] || []; return { id: +id, n: n[0] || `Предмет #${id}`, q: n[1] ?? 1, ic: n[6] }; };
+  const link = x => { const ic = ahIcon(x.ic);
+    return `<button type="button" class="ah-n" data-act="ahitem" data-id="${x.id}" style="--q:${AH_QC[x.q] || "var(--fg)"}">${ic ? `<img src="${ic}" alt="" loading="lazy">` : `<i></i>`}<span>${esc(x.n)}</span></button>`; };
+  const list = (title, sub, rows, val) => `<section class="ah-trend"><h3>${title}<small>${rows.length ? sub : ""}</small></h3>${rows.length
+    ? `<ol>${rows.slice(0, 12).map(r => `<li>${link(r)}<span class="ah-tv">${val(r)}</span></li>`).join("")}</ol>` : `<p class="gnote">Ничего заметного.</p>`}</section>`;
+  // what is on sale now and wasn't, and the other way round; the busiest first
+  const fresh = all.filter(r => !old[r.id]).sort((a, b) => b.lots - a.lots || b.mk - a.mk);
+  const goneL = Object.entries(old).filter(([id]) => !by.has(id)).map(([id, v]) => ({ ...nm(id), lots: +v[3], mk: +v[1] })).sort((a, b) => b.lots - a.lots || b.mk - a.mk);
+  const both = all.filter(r => old[r.id]).map(r => { const o = old[r.id]; return { ...r, o, pc: +o[1] ? (r.mk - o[1]) / o[1] : null, dq: r.qty - o[2], qr: +o[2] ? (r.qty - o[2]) / o[2] : null }; });
+  const priced = both.filter(r => r.pc != null && r.lots >= 3 && +r.o[3] >= 3 && Math.max(r.mk, +r.o[1]) >= 10);
+  const up = priced.filter(r => r.pc >= 0.1).sort((a, b) => b.pc - a.pc), dn = priced.filter(r => r.pc <= -0.1).sort((a, b) => a.pc - b.pc);
+  const qty = both.filter(r => r.qr != null && +r.o[2] >= 20 && Math.abs(r.dq) >= 10);
+  const bought = qty.filter(r => r.qr <= -0.3).sort((a, b) => a.qr - b.qr), dumped = qty.filter(r => r.qr >= 0.5).sort((a, b) => b.qr - a.qr);
+  // snapshots from before the flip numbers existed have none: then "new" can't be told apart, the block says so
+  const oldFlips = Object.values(old).some(v => v.length > 4);
+  const flips = oldFlips ? all.filter(r => r.fu > 0 && r.sell > 0 && !(+old[r.id]?.[4] > 0)).map(r => ({ ...r, profit: r.sell * r.fu - r.fc })).sort((a, b) => b.profit - a.profit) : [];
+  const pct = v => `${v > 0 ? "+" : ""}${Math.round(v * 100)}%`, ago = Math.round((d.now.at - B.at) / 36e5);
+  return wins + `<p class="ovnote">Сравнение снимка ${ahDM(d.now.at)}, ${ahHM(d.now.at)} со снимком ${ahDM(B.at)}, ${ahHM(B.at)} (${ago} ч назад).</p>`
+    + `<div class="ah-trends">`
+    + list("Подорожало", `${up.length} · рыночная цена`, up, r => `<b class="ah-up">${pct(r.pc)}</b> ${fmtCu(r.o[1])} → ${fmtCu(r.mk)}`)
+    + list("Подешевело", `${dn.length} · рыночная цена`, dn, r => `<b class="ah-dn">${pct(r.pc)}</b> ${fmtCu(r.o[1])} → ${fmtCu(r.mk)}`)
+    + (oldFlips ? list("Новые флипы", `${flips.length} · дешевле, чем даёт NPC`, flips, r => `<b class="ah-up">+${fmtCu(r.profit)}</b> ${fmtN(r.fu)} шт.`)
+      : `<section class="ah-trend"><h3>Новые флипы</h3><p class="gnote">В том снимке ещё не считались флипы: сравни за более короткое окно.</p></section>`)
+    + list("Скупают", `${bought.length} · штук на аукционе стало меньше`, bought, r => `<b class="ah-dn">${pct(r.qr)}</b> ${fmtN(r.o[2])} → ${fmtN(r.qty)} шт.`)
+    + list("Завалили", `${dumped.length} · штук стало больше`, dumped, r => `<b class="ah-up">${pct(r.qr)}</b> ${fmtN(r.o[2])} → ${fmtN(r.qty)} шт.`)
+    + list("Появилось", `${fresh.length} · не было в прошлом снимке`, fresh, r => `${fmtN(r.lots)} ${plural(r.lots, "лот", "лота", "лотов")} · ${fmtCu(r.mk)}`)
+    + list("Пропало", `${goneL.length} · раскупили или сняли`, goneL, r => `было ${fmtN(r.lots)} ${plural(r.lots, "лот", "лота", "лотов")} · ${fmtCu(r.mk)}`)
+    + `</div><p class="gnote">Цены: рыночная (средняя самых дешёвых 10% штук), только у предметов, где с обеих сторон хотя бы 3 лота. «Скупают» и «Завалили»: изменение числа выставленных штук, от 20 штук. «Пропало»: предмета больше нет на аукционе, проданный, снятый или истёкший, API не различает.</p>`;
 }
 function renderAhItem() {
   const el = $("#ah-item"), h = ahHouse, d = ahData[h];
