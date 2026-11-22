@@ -2,6 +2,41 @@
 
 Proposed changes to CLAUDE.md files. Not active until approved.
 
+## 2026-11-23: project CLAUDE.md, stricter write rules, lazy collections, English UI (PROPOSED)
+
+**Reason:** `patch_doc` rules changed (applied live 2026-11-23, approved by the user); `store.js` now loads `gcat` and
+`gtalents` only on demand; the user chose an EN/RU interface switch with English as the default, which contradicts
+"keep all user-facing text in Russian".
+
+**Affected file:** `CLAUDE.md` (project)
+
+**Proposed wording:**
+
+1. In the `pays` bullet, replace "Either party (or the admin) can record one" with:
+   ```
+   Only the receiver (`to`, with `by` = themselves) or the admin records one
+   ```
+2. In the `rolls` bullet, after "`patch_doc` lets the page set only `deleted` on them.", add:
+   ```
+   A finished duel (`loser` set) is hidden only by an admin.
+   ```
+3. In the `bets` bullet, add:
+   ```
+   `q`, `opts`, `cat` and `by` are fixed after creation; anyone sets the first `result`, only the author or an admin changes it.
+   ```
+4. In the `patch_doc` bullet of "Stack and files", add:
+   ```
+   `players` rows accept only known keys with checked shapes (class, race, role and pick values from the lists).
+   ```
+5. In the `store.js` bullet, add:
+   ```
+   - Big collections (`LAZY`: `gcat`, `gtalents`) are not in the initial load; `db.want(coll)` fetches one and keeps it live. `wantLazy()` asks for them when a view that uses them opens; a new user of these collections must be covered there.
+   ```
+6. Replace the first paragraph's "The UI text is in Russian, so keep all user-facing text in Russian (game names stay in English)." with (only once the switch exists):
+   ```
+   The UI has English (default) and Russian, switched next to the theme; every user-facing string goes through `t()` with both languages. Game names stay in English.
+   ```
+
 ## 2026-11-18: project CLAUDE.md, after v2 became the main page (APPLIED 2026-11-20, approved by the user)
 
 **Reason:** the redesigned site moved from `v2.html` to `index.html`; the old page is now `old.html`. The data model also gained

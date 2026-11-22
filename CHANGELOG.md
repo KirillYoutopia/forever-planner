@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-23 (security rules, faster first load, raid readiness, yesterday)
+
+- Writes are checked more strictly (already live in the database): a player row accepts only known fields, so one bad value can no longer break the page for everyone; a bet's question and options can't change after creation and only its author or an admin can change a result once set; only an admin hides a finished duel; «Рассчитались» is recorded by whoever received the gold. The page also keeps drawing other sections if one fails.
+- The page loads about 0.5 MB instead of ~1.9 MB: the recipe catalogue and talent trees are fetched only when «Рецепты», a character card, the comparison or «Аукцион» is opened.
+- «Аукцион»: the big tiles became one compact strip (2 columns on phones) with the snapshot time first and the value of all listings; «Ушло за час» is hidden until its estimate is checked.
+- «Рейды»: «Готовность к рейду», a table of the group's characters with level, pace, an estimated date of 60 (marked as an estimate), item level and reputations.
+- Home: «Вчера», what each character did yesterday (levels, quests, dungeon bosses, honorable kills, profession points, deaths).
+
 ## 2026-11-22 (raids page, guild membership, daily reference refresh)
 
 - «Рейды»: a big countdown to the raid opening and cards for Barrow Deeps, Hyjal Summit and Onyxia's Lair with art; guild progress comes after the opening.

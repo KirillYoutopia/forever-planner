@@ -30,8 +30,14 @@
     const key = (c, i) => c + "/" + i;
     const emit = () => listeners.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
 
+    // Big collections only some pages need (gcat ~1.2 MB): loaded on the first want(coll), then kept live like the rest.
+    const LAZY = ["gcat", "gtalents"], wanted = new Set();
+    const skip = c => LAZY.includes(c) && !wanted.has(c);
     async function loadAll() {
-      const { data, error } = await sb.from("docs").select("coll,id,data");
+      const off = LAZY.filter(skip);
+      let q = sb.from("docs").select("coll,id,data");
+      if (off.length) q = q.not("coll", "in", `(${off.join(",")})`);
+      const { data, error } = await q;
       if (error) throw error;
       cache.clear();
       for (const r of data) cache.set(key(r.coll, r.id), r.data || {});
@@ -42,6 +48,7 @@
     // Live sync: apply each change straight from the realtime payload.
     sb.channel("docs-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "docs" }, p => {
+        if (skip(p.new?.coll || p.old?.coll)) return;
         if (p.eventType === "DELETE") { if (p.old?.coll) cache.delete(key(p.old.coll, p.old.id)); }
         else if (p.new?.coll) cache.set(key(p.new.coll, p.new.id), p.new.data || {});
         emit();
@@ -80,6 +87,14 @@
         return data;
       },
       doc(path) { const [c, i] = path.split("/"); return ref(c, i); },
+      async want(coll) {
+        if (!skip(coll)) return;
+        wanted.add(coll);
+        const { data, error } = await sb.from("docs").select("coll,id,data").eq("coll", coll);
+        if (error) { wanted.delete(coll); return; }
+        for (const r of data) cache.set(key(r.coll, r.id), r.data || {});
+        emit();
+      },
       collection(coll) {
         return {
           doc: id => ref(coll, id),

@@ -171,7 +171,7 @@ begin
   if p_coll = 'pays' then
     if exists (select 1 from docs where coll = 'pays' and id = p_id) and not s.admin then raise exception 'not yours'; end if;
     if coalesce(p_patch->>'from', '') = '' or coalesce(p_patch->>'to', '') = '' or jsonb_typeof(p_patch->'s') <> 'number'
-       or (p_patch->>'s')::numeric <= 0 or (p_patch->>'s')::numeric > 100000000 then
+       or (p_patch->>'s')::numeric <= 0 or (p_patch->>'s')::numeric > 100000000 or (p_patch->>'s')::numeric <> trunc((p_patch->>'s')::numeric) then
       raise exception 'bad payment';
     end if;
     if not s.admin and s.pid not in (p_patch->>'from', p_patch->>'to') then raise exception 'not yours'; end if;
@@ -213,8 +213,47 @@ begin
     end if;
     if coalesce(p_patch->>'vote', '') not in ('pve', 'pvp', '') then raise exception 'bad vote'; end if;
   end if;
+  -- 2026-11-23: player rows are read by every visitor's page, so only known keys with sane shapes (a bad main.cls broke render()).
+  if p_coll = 'players' then
+    if exists (select 1 from jsonb_object_keys(p_patch) k where k not in
+               ('name', 'createdAt', 'picks', 'main', 'profs', 'avail', 'char', 'alts', 'fav', 'level', 'xp', 'dungeons', 'deleted'))
+       or (p_patch ? 'name' and (jsonb_typeof(p_patch->'name') <> 'string' or char_length(p_patch->>'name') not between 1 and 40))
+       or (p_patch ? 'char' and jsonb_typeof(p_patch->'char') <> 'string')
+       or exists (select 1 from unnest(array['picks', 'main', 'profs', 'avail', 'alts', 'fav', 'dungeons']) k
+                  where p_patch ? k and jsonb_typeof(p_patch->k) <> 'object')
+       or exists (select 1 from unnest(array['createdAt', 'level', 'xp']) k where p_patch ? k and jsonb_typeof(p_patch->k) <> 'number')
+       or exists (select 1 from jsonb_each(coalesce(p_patch->'main', '{}')) e where e.key not in ('cls', 'race', 'role') or jsonb_typeof(e.value) <> 'string'
+                  or (e.key = 'cls' and e.value #>> '{}' not in ('', 'Druid', 'Hunter', 'Mage', 'Paladin', 'Priest', 'Rogue', 'Shaman', 'Warlock', 'Warrior'))
+                  or (e.key = 'race' and e.value #>> '{}' not in ('', 'Human', 'Dwarf', 'Night Elf', 'Gnome', 'Orc', 'Undead', 'Tauren', 'Troll', 'Skyborne-A', 'Skyborne-H'))
+                  or (e.key = 'role' and e.value #>> '{}' not in ('', 'tank', 'healer', 'dps', 'pie')))
+       or exists (select 1 from jsonb_each(coalesce(p_patch->'picks', '{}')) e
+                  where e.key not in ('Druid', 'Hunter', 'Mage', 'Paladin', 'Priest', 'Rogue', 'Shaman', 'Warlock', 'Warrior')
+                     or e.value::text not in ('-1', '0', '1', '2')) then
+      raise exception 'bad player';
+    end if;
+  end if;
   if not s.admin then
     if p_coll = 'meta' then raise exception 'admin only'; end if;
+    -- 2026-11-23: a bet's question and options are fixed once created; the first result is anyone's call, changing or
+    -- cancelling it is the author's or an admin's (picks and stakes are frozen meanwhile, see above).
+    if p_coll = 'bets' then
+      select data into od from docs where coll = 'bets' and id = p_id;
+      if od is not null and (p_patch ? 'q' or p_patch ? 'opts' or p_patch ? 'cat' or p_patch ? 'by') then raise exception 'not yours'; end if;
+      if (p_patch ? 'result' or p_patch ? 'resolvedAt') and od is not null and coalesce((od->>'result')::int, -1) >= 0
+         and od->>'by' is distinct from s.pid then
+        raise exception 'not yours';
+      end if;
+      if p_patch ? 'result' and (jsonb_typeof(p_patch->'result') <> 'number' or (p_patch->>'result')::numeric < -1
+         or (p_patch->>'result')::numeric >= jsonb_array_length(coalesce(od->'opts', p_patch->'opts', '[]'))
+         or (p_patch->>'result')::numeric <> trunc((p_patch->>'result')::numeric)) then
+        raise exception 'bad result';
+      end if;
+    end if;
+    -- 2026-11-23: a finished duel is a debt; only an admin hides it. A settlement is recorded by whoever received the gold.
+    if p_coll = 'rolls' and exists (select 1 from docs where coll = 'rolls' and id = p_id and coalesce(data->>'loser', '') <> '') then
+      raise exception 'admin only';
+    end if;
+    if p_coll = 'pays' and (p_patch->>'to' is distinct from s.pid or p_patch->>'by' is distinct from s.pid) then raise exception 'not yours'; end if;
     if p_coll = 'players' and p_patch ? 'deleted' then raise exception 'admin only'; end if;
     if p_coll in ('players', 'votes') and p_id <> s.pid then raise exception 'not yours'; end if;
     if p_coll = 'bets' and jsonb_typeof(p_patch->'picks') = 'object'
