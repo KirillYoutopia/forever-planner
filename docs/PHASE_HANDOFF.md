@@ -120,9 +120,16 @@ start and appends [units below vendor price, their buyout cost] to an item's arr
 aggregates use indices 0..3 only). Page `ahFlipHtml`: max buy price = vendor price, units, invest, profit, margin; filters
 «Реагенты профессий гильдии» (`ahGuildRecipes` + `ahIdOf`, shared with «Крафт гильдии») and minimum margin. Snapshot 18:23:
 231 items, ~1559g to invest for ~1.9g profit (mostly crafted gear listed 2–10c below vendor), a few real finds (Thick Leather +175%).
-Agreed plan with the user, still to do: stage 2 «Крафт → торговец» (max reagent buy price, price ladder per reagent, product
-vendor prices from gcat iids; needs SQL), stage 3 auction overview KPIs over time (totals per snapshot, new lots per hour via
-rising lot ids, «исчезло» = sold/cancelled/expired; needs SQL), stage 4 «Тренды» (new on AH, biggest moves, new flips).
+Stages 2 + 3 (2026-11-22, built, SQL + script + page): `ah_hour.t` / `ah_day.t` snapshot totals ({items, lots, units, max lot
+id, new, gone}; day: averages + sums), `ah_publish(..., p_t, p_ladder)` (old 4-arg version dropped; defaults keep 4-arg calls
+working), price ladder of stackables in `ah_meta` 'ladder:<house>' (latest only, cheapest 12 price steps, ~123 KB), RPCs
+`ah_totals`, `ah_ladder`, `ah_craft_items` (gcat iids → script adds recipe products' vendor prices to the catalogue: 2301 iids,
+1068 were new). Tabs «Обзор» (`ahOverviewHtml`) and «Крафт → NPC» (`ahNpcHtml`: main reagent = priciest non-vendor one; max price
+= (revenue − other reagents at market − target) / qty; units/crafts from the ladder; transmutes capped at 1/day, other cooldown
+crafts are not — shortcut comment). Checked locally with injected ladder/totals/catalogue (real ladder, synthetic totals).
+Review fixes: ah.py falls back to a prices-only publish if the 6-arg ah_publish is missing; new/gone only when the previous
+snapshot is ≤ 90 min older; «Итого» costs only the units actually used (cheapest first).
+Still to do: stage 4 «Тренды» (new on AH, biggest moves, new flips).
 Other ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions

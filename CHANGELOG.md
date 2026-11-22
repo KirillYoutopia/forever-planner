@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 (auction: overview, craft for vendors)
+
+- «Аукцион» → «Обзор»: lots, items, new and vanished lots per hour (and per day), and the hours of the day when most lots get listed. Starts filling after deploy.
+- «Аукцион» → «Крафт → NPC»: guild recipes whose product a vendor pays more for than the reagents cost; the most to pay for the main reagent (with an optional profit per craft), how much of it is on sale up to that price, how many crafts that makes and the total profit. Needs `supabase.sql` re-run.
+
 ## 2026-11-22 (auction: vendor flip)
 
 - «Аукцион» → «Вендор флип»: lots listed below what an NPC vendor pays: the most to pay per unit, how many units, what to invest, profit and margin; filters for guild profession reagents and a minimum margin.
