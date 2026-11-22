@@ -1211,6 +1211,8 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 .ah-ri { display: inline; font-size: 12px; padding: 0; min-height: 0; text-align: left; }
 .ah-craft tbody th { min-width: 260px; white-space: normal; }
 .ah-miss { color: var(--horde); }
+.ah-vend { color: var(--healer); }
+.ah-raw { margin-bottom: 12px; }
 .ah-tab td small { display: block; font-size: 11px; color: var(--muted); }
 @media (max-width: 599px) { .ah-tab th, .ah-tab td { padding: 7px 6px; } .ah-n img, .ah-n i { width: 20px; height: 20px; } .ah-re { margin-left: 0; } .ah-craft tbody th { min-width: 220px; } }
 </style>
@@ -1270,6 +1272,7 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
     <div id="ah-item"></div>
     <div id="ah-kpi"></div>
     <div class="seg ah-tabs" role="group" aria-label="Раздел аукциона" id="ah-tab"></div>
+    <div class="rchips ah-raw" role="group" aria-label="Сырьё" id="ah-raw" hidden></div>
     <div class="rtools ah-tools"><input id="ahq" type="search" maxlength="60" placeholder="Найти предмет (название по-английски)" aria-label="Поиск предмета" autocomplete="off">
       <select id="ah-cls" aria-label="Тип предмета"></select><select id="ah-prof" aria-label="Профессия" hidden></select></div>
     <div id="ah-list"></div>
@@ -2651,7 +2654,8 @@ document.addEventListener("click", e => {
   else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; renderAh(); }
   else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
     if (c) ahCSort = ns; else ahSort = ns; renderAh(); }
-  else if (act === "ahtab") { ahTab = b.dataset.v === "craft" ? "craft" : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahtab") { ahTab = ["raw", "craft"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahraw") { ahRaw = AH_RAW.some(([v]) => v === b.dataset.v) ? b.dataset.v : "7.9"; ahLimit = 100; renderAh(); }
   else if (act === "ahmore") { ahLimit += 200; renderAh(); }
   else if (act === "ahitem") { ahSel = +id; try { history.replaceState(null, "", "#ah/" + ahSel); } catch {} renderAh(); $("#ah-item").scrollIntoView({ block: "start", behavior: "smooth" }); }
   else if (act === "ahclose") { ahSel = 0; try { history.replaceState(null, "", "#ah"); } catch {} renderAh(); }
@@ -4335,11 +4339,17 @@ window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTi
 // «Аукцион»: Blizzard's hourly snapshot of our houses, kept as per-item aggregates [min, market, quantity, lots] (copper) by
 // scripts/ah.py in hidden tables (hourly 7 days, daily 30 days). Read on demand through the ah_* RPCs, never with docs.
 // market = average price of the cheapest 10% of units on sale. Names: ah_names() = { items: { id: [name, quality, class,
-// subclass, item level, required level, icon (file id or icon name), vendor price] }, classes: { "7": name, "7.9": name } }.
+// subclass, item level, required level, icon (file id or icon name), vendor sell price, vendor buy price per unit] }, classes: { "7": name, "7.9": name } }.
 const AH_HOUSES = [[113, "Орда"], [116, "Blackwater"]];
+// Reagents NPC vendors sell (Classic Era). Blizzard's API has every item's vendor price but not whether a vendor actually
+// sells it, so this list is hand-made; the price itself comes from the API (ah_names, field 8, per unit).
+const AH_VENDOR = new Set([159, 1179, 2320, 2321, 2324, 2325, 2604, 2605, 2678, 2692, 2880, 3371, 3372, 3466, 3713, 4289, 4291, 4340, 4341,
+  4342, 4470, 6217, 6260, 6261, 8343, 8925, 10284, 10290, 11291, 14341, 18256]);
+// «Сырьё»: Trade Goods subclasses (Blizzard class 7) that gatherers sell.
+const AH_RAW = [["7.9", "Травы"], ["7.7", "Руда и камень"], ["7.6", "Кожа"], ["7.5", "Ткань"], ["7.8", "Кулинария"], ["7.10", "Стихии"], ["7.12", "Чары"]];
 const AH_QC = ["var(--q-poor)", "var(--fg)", "var(--q-unc)", "var(--q-rare)", "var(--q-epic)", "var(--q-leg)", "var(--q-leg)", "var(--q-leg)"];
 let ahHouse = 113, ahSel = 0, ahMode = "h", ahSort = { k: "lots", dir: -1 }, ahLimit = 100, ahDrawn = "", ahItemDrawn = "", ahClsKey = "";
-let ahTab = "items", ahCSort = { k: "profit", dir: -1 }, ahProfKey = "", ahByName = null, ahByNameSrc = null;
+let ahRaw = "7.9", ahTab = "items", ahCSort = { k: "profit", dir: -1 }, ahProfKey = "", ahByName = null, ahByNameSrc = null;
 try { ahHouse = AH_HOUSES.some(([id]) => id === +localStorage.getItem("wf-ah-house")) ? +localStorage.getItem("wf-ah-house") : 113; } catch {}
 const ahData = {}, ahHist = {};  // house -> { now, prev, got } | { err }; "house:item" -> { h, d } | "loading" | { err }
 let ahNames = null, ahNamesP = null;
@@ -4383,14 +4393,16 @@ function renderAh() {
   else if (!ahNamesP) ahLoad(h);
   const hb = AH_HOUSES.map(([id, t]) => `<button type="button" data-act="ahhouse" data-v="${id}" aria-pressed="${id === h}">${t}</button>`).join("");
   if ($("#ah-house").innerHTML !== hb) $("#ah-house").innerHTML = hb;
-  const tb = [["items", "Предметы"], ["craft", "Крафт гильдии"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
+  const tb = [["items", "Предметы"], ["raw", "Сырьё"], ["craft", "Крафт гильдии"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
   if ($("#ah-tab").innerHTML !== tb) $("#ah-tab").innerHTML = tb;
-  const craft = ahTab === "craft";
-  $("#ah-cls").hidden = craft; $("#ah-prof").hidden = !craft;
+  const craft = ahTab === "craft", raw = ahTab === "raw";
+  $("#ah-cls").hidden = craft || raw; $("#ah-prof").hidden = !craft; $("#ah-raw").hidden = !raw;
+  const rb = AH_RAW.map(([v, t]) => `<button type="button" data-act="ahraw" data-v="${v}" aria-pressed="${ahRaw === v}">${t}</button>`).join("");
+  if ($("#ah-raw").innerHTML !== rb) $("#ah-raw").innerHTML = rb;
   $("#ahq").placeholder = craft ? "Найти рецепт или реагент (по-английски)" : "Найти предмет (название по-английски)";
   const q = $("#ahq").value.trim().toLowerCase();
   let cls = $("#ah-cls").value;
-  const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab,
+  const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab, raw ? ahRaw : "",
     ...(craft ? [$("#ah-prof").value, ahCSort.k, ahCSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : [])].join("|");
   renderAhItem();
   if (key === ahDrawn) return;
@@ -4431,7 +4443,8 @@ function renderAh() {
   if (craft) { $("#ah-list").innerHTML = ahCraftHtml(d, q); return; }
   // the list
   let rows = all;
-  if (cls === "?") rows = rows.filter(r => r.c == null);
+  if (raw) rows = rows.filter(r => `${r.c}.${r.sc}` === ahRaw);
+  else if (cls === "?") rows = rows.filter(r => r.c == null);
   else if (cls) { const [c, s] = cls.split("."); rows = rows.filter(r => String(r.c) === c && (s == null || String(r.sc) === s)); }
   if (q) rows = rows.filter(r => r.n.toLowerCase().includes(q) || String(r.id) === q);
   const k = ahSort.k, dir = ahSort.dir;
@@ -4445,12 +4458,13 @@ function renderAh() {
       <td class="num">${fmtCu(r.mn)}</td><td class="num">${fmtCu(r.mk)}</td><td class="num">${ahPct(r.ch)}</td><td class="num">${fmtN(r.qty)}</td><td class="num">${fmtN(r.lots)}</td></tr>`; };
   $("#ah-list").innerHTML = rows.length ? `<div class="scroll"><table class="rtab ah-tab"><thead><tr>${COLS.map(th).join("")}</tr></thead><tbody>${rows.slice(0, ahLimit).map(tr).join("")}</tbody></table></div>`
       + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
+      + (raw ? `<p class="gnote">Сырьё для сборщиков: ${esc(AH_RAW.find(([v]) => v === ahRaw)?.[1] || "")} на нашем аукционе, по типу предмета от Blizzard. Отсортируй по рыночной цене, чтобы увидеть самое дорогое.</p>` : "")
       + `<p class="gnote">Цены за штуку. «Мин. цена»: самый дешёвый лот. «Рыночная»: средняя цена самых дешёвых 10% выставленных штук, её не сбивает один демпинговый лот. «За сутки»: изменение рыночной цены. Данные Blizzard API, снимок раз в час; продавцов в данных нет. Нажми на предмет, чтобы увидеть график.</p>`
-    : `<p class="empty">${q || cls ? "Ничего не нашлось." : "Пусто."}</p>`;
+    : `<p class="empty">${raw && !ahNames ? "Загружаю названия…" : q || cls || raw ? "Ничего не нашлось." : "Пусто."}</p>`;
 }
 // «Крафт гильдии»: recipes someone in the guild knows, priced from the current snapshot. Recipes list reagents by NAME
 // (gcat.r[id].re = [[name, qty]]), matched to item ids through the auction's name catalogue.
-// shortcut: reagents sold by NPC vendors (thread, vials, flux) are priced at the auction like everything else; a vendor price list would fix it.
+// Reagents NPC vendors sell (AH_VENDOR) count at the vendor's price when it's lower than the auction's.
 function ahCraftRows(d) {
   const mem = guild?.members || {}, cur = d.now.d, N = ahNames?.items || {};
   if (ahByNameSrc !== ahNames) {
@@ -4465,7 +4479,10 @@ function ahCraftRows(d) {
   for (const [prof, ids] of Object.entries(by)) for (const [rid, who] of Object.entries(ids)) {
     const r = gcat[prof]?.r?.[rid];
     if (!r || !Array.isArray(r.re) || !r.re.length || (r.n || "") === prof) continue;
-    const re = r.re.map(([n, k]) => { const id = idOf(n), v = id && cur[id]; return { n: String(n ?? "?"), k: Math.max(1, +k || 1), id, p: v ? +v[1] : null }; });
+    const re = r.re.map(([n, k]) => {
+      const id = idOf(n), v = id && cur[id], ah = v ? +v[1] : null, vb = id && AH_VENDOR.has(+id) ? +N[id]?.[8] || 0 : 0, vend = vb > 0 && (ah == null || vb <= ah);
+      return { n: String(n ?? "?"), k: Math.max(1, +k || 1), id, p: vend ? vb : ah, vend };
+    });
     const miss = re.filter(x => x.p == null).length, cost = re.reduce((s, x) => s + (x.p || 0) * x.k, 0);
     const iid = +r.iid || 0, pv = iid ? cur[iid] : null, yieldN = Math.max(1, +r.q || 1);
     const sell = pv ? Math.round(+pv[0] * yieldN * (1 - cut)) : null, ok = sell != null && !miss;
@@ -4496,7 +4513,7 @@ function ahCraftHtml(d, q) {
   const COLS = [["n", "Рецепт"], ["cost", "Реагенты"], ["sell", "Продажа"], ["profit", "Прибыль"], ["margin", "Маржа"], ["lots", "Лотов"]];
   const th = ([c, t]) => `<th scope="col"${c !== "n" ? ` class="num"` : ""}${k === c ? ` aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="ahsort" data-t="c" data-k="${c}">${t}${k === c ? (dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
   const nm = s => mem[s] ? `${mem[s].name}${mem[s].surname ? " " + mem[s].surname : ""}` : s;
-  const ing = x => `${x.k}× ${x.id ? `<button type="button" class="glink ah-ri${x.p == null ? " ah-miss" : ""}" data-act="ahitem" data-id="${+x.id}">${esc(x.n)}</button>` : `<span class="ah-miss">${esc(x.n)}</span>`}${x.p == null ? " (нет на аукционе)" : ` ${fmtCu(x.p)}`}`;
+  const ing = x => `${x.k}× ${x.id ? `<button type="button" class="glink ah-ri${x.p == null ? " ah-miss" : ""}" data-act="ahitem" data-id="${+x.id}">${esc(x.n)}</button>` : `<span class="ah-miss">${esc(x.n)}</span>`}${x.p == null ? " (нет на аукционе)" : x.vend ? ` <span class="ah-vend">у торговца</span> ${fmtCu(x.p)}` : ` ${fmtCu(x.p)}`}`;
   const tr = r => { const ic = bimg(r.icon);
     const name = `${ic ? `<img src="${ic}" alt="" loading="lazy">` : `<i></i>`}<span>${esc(r.n)}</span>`;
     return `<tr><th scope="row">${r.iid ? `<button type="button" class="ah-n rq-${esc(r.iq || "")}" data-act="ahitem" data-id="${r.iid}">${name}</button>` : `<span class="ah-n rq-${esc(r.iq || "")}">${name}</span>`}
@@ -4509,7 +4526,7 @@ function ahCraftHtml(d, q) {
   return (rows.length ? `<div class="scroll"><table class="rtab ah-tab ah-craft"><thead><tr>${COLS.map(th).join("")}</tr></thead><tbody>${rows.slice(0, ahLimit).map(tr).join("")}</tbody></table></div>`
       + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
     : `<p class="empty">Ничего не нашлось.</p>`)
-    + `<p class="gnote">Рецепты, которые знает кто-то в гильдии (персонажи с ${G_MIN} уровня). «Реагенты»: рыночная цена каждого реагента × количество; реагенты у NPC-торговцев (нитки, колбы, флюс) тоже считаются по цене аукциона, на деле они дешевле. «Продажа»: минимальная цена изделия × сколько штук даёт крафт, минус комиссия аукциона ${ahHouse === 116 ? "15%" : "5%"}; залог за выставление не учтён. Чары без изделия показывают только цену реагентов. Это оценка по последнему снимку, не гарантия.</p>`;
+    + `<p class="gnote">Рецепты, которые знает кто-то в гильдии (персонажи с ${G_MIN} уровня). «Реагенты»: рыночная цена каждого реагента × количество. То, что продают NPC-торговцы (нитки, колбы, краски, флюс, специи, соль, древки), считается по цене торговца из API Blizzard, если она ниже аукционной (без скидки за репутацию); какие реагенты продаются у торговцев, мы отметили вручную. «Продажа»: минимальная цена изделия × сколько штук даёт крафт, минус комиссия аукциона ${ahHouse === 116 ? "15%" : "5%"}; залог за выставление не учтён. Чары без изделия показывают только цену реагентов. Это оценка по последнему снимку, не гарантия.</p>`;
 }
 function renderAhItem() {
   const el = $("#ah-item"), h = ahHouse, d = ahData[h];

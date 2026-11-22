@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 (auction: raw materials, vendor reagents)
+
+- «Аукцион» → «Сырьё»: herbs, ore and stone, leather, cloth, cooking, elemental and enchanting materials on our auction, with the same prices, daily change and sorting as the item list.
+- «Крафт гильдии»: reagents that NPC vendors sell (thread, vials, dyes, flux, spices, salt, rods) now count at the vendor's price when it's lower than the auction's.
+
 ## 2026-11-22 (auction: guild crafting)
 
 - «Аукцион» → «Крафт гильдии»: every recipe someone in the guild knows, priced from the latest snapshot: reagent cost, sale price after the auction cut, profit and margin, who can craft it; reagents and products open the item card.

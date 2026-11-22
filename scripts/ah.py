@@ -76,7 +76,8 @@ def walk(tok, kind, ids, game='forever'):
 
 
 def catalog(tok, ids):
-    """item ids -> ({id: [name, quality, class, subclass, level, req level, icon file id, sell price]}, {class names})."""
+    """item ids -> ({id: [name, quality, class, subclass, level, req level, icon file id, sell price, vendor buy price per unit]},
+    {class names}). Prices in copper; the buy price is what an NPC would charge if it sells the item (most items it doesn't)."""
     items, classes = {}, {}
     # Forever's own catalogue lacks many plain Classic items (mostly gear) that are sold on its auction houses:
     # those come from the Classic Era catalogue (same ids, names and icons).
@@ -100,7 +101,7 @@ def catalog(tok, ids):
                     with urllib.request.urlopen(urllib.request.Request(f'https://nether.wowhead.com/tooltip/item/{i}?dataEnv=16&locale=0',
                             headers={'User-Agent': 'KuteExpats guild site (+https://kirillyoutopia.github.io/forever-planner/)'}), timeout=20) as r:
                         w = json.load(r)
-                    items[i] = [w['name'], int(w.get('quality') or 1), None, None, 0, 0, w.get('icon') or 0, 0] if w.get('name') else ['']
+                    items[i] = [w['name'], int(w.get('quality') or 1), None, None, 0, 0, w.get('icon') or 0, 0, 0] if w.get('name') else ['']
                 except urllib.error.HTTPError as e:
                     if e.code == 404:
                         items[i] = ['']
@@ -111,7 +112,8 @@ def catalog(tok, ids):
         classes[str(c.get('id'))] = en(c)
         classes[f"{c.get('id')}.{sc.get('id')}"] = en(sc)
         items[i] = [en(d), QUALITY.get(d.get('quality', {}).get('type'), 1), c.get('id'), sc.get('id'), d.get('level', 0),
-                    d.get('required_level', 0), icons.get(d.get('media', {}).get('id'), 0), d.get('sell_price', 0)]
+                    d.get('required_level', 0), icons.get(d.get('media', {}).get('id'), 0), d.get('sell_price', 0),
+                    round(d.get('purchase_price', 0) / max(1, d.get('purchase_quantity', 1) or 1))]
     return items, classes
 
 
@@ -217,8 +219,9 @@ def main():
                 print(f'  {i:>7}  min {s[i][0]:>7}  market {s[i][1]:>7}  qty {s[i][2]:>7}  lots {s[i][3]:>5}')
 
     if a.publish:
-        known = {int(k) for k in (rpc('ah_names', {}) or {}).get('items', {})}
-        missing = seen - known
+        known = (rpc('ah_names', {}) or {}).get('items', {})
+        # entries from before the vendor buy price was kept (8 fields) are looked up again once
+        missing = (seen - {int(k) for k in known}) | {int(k) for k, v in known.items() if v and v[0] and v[2] is not None and len(v) < 9}
         if missing:
             try:  # the names are extra: a failed lookup must not fail the run, the next run fills the gap
                 items, classes = catalog(tok, missing)
