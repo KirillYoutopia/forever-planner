@@ -25,7 +25,7 @@ the full recipe catalogue in `gcat`, craft orders and favourites, none of which 
    - `orders/{id}`: `{ by, prof, rid, n, note, st: "open" | "taken" | "done", taker, doneAt, at, deleted }`, craft orders on the "Профессии" page. `patch_doc` lets the author create, comment and cancel; a player whose main or twink knows the recipe takes it and marks it done. `players/{id}.fav` `{ "Profession:recipeId": true | false }` holds favourite recipes. The menu badge (`renderOrderBadge()`) counts orders waiting for the logged-in player.
    ```
 
-## 2026-11-20: project CLAUDE.md, dungeon page and the restyle
+## 2026-11-20: project CLAUDE.md, dungeon page and the restyle (APPLIED 2026-11-22, approved by the user)
 
 **Reason:** a new view (`#dg/<name>`) and new design tokens exist that CLAUDE.md does not describe; the old fonts are gone.
 
@@ -42,7 +42,7 @@ the full recipe catalogue in `gcat`, craft orders and favourites, none of which 
    - Colors, radii, shadows and the sidebar material are CSS custom properties on `:root` (`--radius-lg/md/sm`, `--shadow-1/2`, `--material`, `--bar` for neutral data bars), dark theme by default plus a light theme. Use the tokens, never hardcoded colors. The font is the system font (no web fonts). Gold (`--accent`) marks the current choice, not ordinary data.
    ```
 
-## 2026-11-20: project CLAUDE.md, character comparison and watched characters
+## 2026-11-20: project CLAUDE.md, character comparison and watched characters (APPLIED 2026-11-22, approved by the user)
 
 **Reason:** two new views/data the file does not describe.
 
@@ -54,7 +54,7 @@ the full recipe catalogue in `gcat`, craft orders and favourites, none of which 
 - `wchars/{region}.{slug}`: characters outside the guild (streamers, friends) `{ at, label, region, name, surname, level, cls, race, ilvl, avatar, items, st, pvp, profs, ast, achn, q, hist: { day: { lv, il, qd, hk, dt } }, deleted }`. The list lives in the hidden `bnet_watch` table; admins add and remove via `watch_add` / `watch_del` on the comparison page; `watch_sync()` (called by `guild_sync()`) refreshes them hourly. Read-only for the page.
 ```
 
-## 2026-11-22: project CLAUDE.md, talents, streamers page, auction stub
+## 2026-11-22: project CLAUDE.md, talents, streamers page, auction stub (APPLIED 2026-11-22, approved by the user; the auction part superseded by the new «Auction» section)
 
 **Reason:** new data and views that the file does not describe.
 
