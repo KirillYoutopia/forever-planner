@@ -107,3 +107,8 @@ You're working on the guild site of a small WoW Forever group (Kute Expats, EU, 
 - Test locally with `py -m http.server 8000` (Python is `py` on this machine; plain `python` is the Microsoft Store stub), check the page at phone width (375px), and confirm the browser console has no errors.
 - The Supabase connector (project `hgqjimpyxfcaaflapcnw`) can run SQL on the live database. Keep `supabase.sql` the source of truth and re-runnable; have SQL changes reviewed before applying them live.
 - Keep changes small and show me the diff before any large refactor.
+
+## Skills to use
+- Load `supabase-postgres-best-practices` before any change to `supabase.sql` or the live database (tables, RPCs, `patch_doc`, triggers, pg_cron jobs, indexes, grants), and `supabase` for anything else Supabase (Realtime, Edge Functions, the connector, logs, advisors). Where their advice is generic, this project's rules win: one `docs` table with jsonb, anon is read-only, every write goes through a security-definer RPC, and `supabase.sql` must stay re-runnable.
+- After applying SQL live, run the security advisors (`get_advisors`) and fix any new warnings.
+- Use `playwright-cli` for the local page check (375px width, console errors) instead of only describing it; it's a dev tool only, never a dependency of the app.

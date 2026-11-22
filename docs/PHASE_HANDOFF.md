@@ -1,46 +1,39 @@
 # Phase handoff
 
-## NEXT SESSION — start here (written 2026-11-22 evening)
+## NEXT SESSION — start here (written 2026-11-23)
 
-**State**: everything is merged and live (last PRs #45 auction tracker + reference data, #46 raids page / membership / daily
-refresh, then the CLAUDE.md update). Working tree clean. The Supabase connector works in Claude Code (project
-`hgqjimpyxfcaaflapcnw`): run SQL checks yourself instead of asking the user to paste SQL.
+**State**: work of 2026-11-23 is in the working tree of `redesign/v2`, NOT committed (the user commits / merges on request).
+`patch_doc` with the new rules IS live in the database (applied 2026-11-23 with the user's approval, checked with a rolled-back
+test: 9/9 cases as expected). Until the page is merged, the live site still shows «Рассчитались» to the payer too, and that write
+now fails with an error toast.
 
-**Check first (observation only, no code)**:
-1. Did the nightly `dims.yml` run at 04:10 UTC? (`select src, count(*), max(at) from dim_item group by src;` and the Actions
-   history). Did GitHub start the *scheduled* `ah.yml` runs on its own? (Actions history: event `schedule`). If yes for a day,
-   remove the watchdog: `select cron.unschedule('ah-watchdog');` and tell the user (the GitHub token can then be revoked).
-2. Auction flow: `select count(*) from ah_hour where g is not null;` and on the site «Предметы» → «Ушло 24 ч» / «Уходит» /
-   KPI «Ушло за час» should show numbers once two consecutive snapshots have `g`.
-3. Zul'Farrak: Hele Pirozochek had 22 Chief Ukorz kills in the API vs 31 in game (last login in the API 17:17 UTC on 22 Nov).
-   `select e->>2 from docs d, jsonb_array_elements(d.data->'ast') e where d.coll='gchars' and d.id='hele-pirozochek' and e->>1 ilike '%ukorz%';`
-   If still 22 after the user played and logged out, ask whether the 31 are runs or Ukorz kills in the game's statistics.
-4. The first mass refresh of reference caches starts ~22:00 UTC on 23 Nov (all `at` columns were set at once): check that the
-   fill jobs keep up (`select count(*) from bnet_recipes where at < now() - interval '1 day';` should fall over a few hours).
+**Done 2026-11-23 (tested locally, Playwright at 375 px and 1280 px, no console errors):**
+- `patch_doc`: player rows only known keys and shapes; bets q/opts/cat/by fixed, a set result changed only by author/admin;
+  finished duel hidden only by admin; pays recorded only by the receiver. Page mirrors these and `render()` runs each section
+  in try/catch; players are sanitised on load.
+- `store.js` LAZY (`gcat`, `gtalents`) + `db.want()`; `wantLazy()` in index.html. Initial docs load 512 KB (was ~1.9 MB).
+- Auction KPI strip `.kstrip` (variant B chosen by the user from a mockup): Обновлено, Лотов, Штук, Стоимость всех лотов
+  («по средней цене дешёвых 10%»), Предметов, Дешевле торговца. «Ушло за час» removed until the estimate is fixed.
+- «Готовность к рейду» on «Рейды» (`renderRaidReady`, `eta60`, `LVL_MIN` from Kivrus's calculator script) and «Вчера» on home
+  (`renderYday`, only when the last two finished glevels days are adjacent).
 
-**Task 1 — compact KPI strip on the auction page: MOCKUP ONLY.** The user wants to *see* it first, no change to the live
-page. Idea from the wowfah.com screenshot the user liked: one dark strip of 4–6 cells (Listings, Units for sale, Est. traded
-last hour in gold + units, Items tracked, ...) instead of the current big `.gtiles` (`#ah-kpi`, built in `renderAh()`).
-Suggested way: a standalone HTML mockup (or two variants side by side, light and dark theme) with the site's tokens and real
-numbers from the DB, published as an artifact or a local file; then decide with the user. Keep `fmtCu` money style.
+**Open, in the user's order:**
+1. EN/RU interface switch (user chose: switch next to the theme, English default). Large: `t()` + dictionary, step by step
+   (menu and shared bits first, then page by page). CLAUDE.md change is proposed in docs/INSTRUCTION_PROPOSALS.md (needs approval).
+2. Menu: proposal 17 → 13 items (merge Обзор+По дням, Дуэли+Ставки, Календарь+Скоро; «Карточка игрока» → «Персонажи»; drop
+   «Планирование (старое)»). The user said «пока отложи».
+3. Auction «new / gone» estimate looks wrong: one hour had 856k new and 857k gone units (27% of all units). Likely commodity
+   lots get new ids each hour, so `flow()` in scripts/ah.py counts relisted units as gone. The item list's «Ушло 24 ч» /
+   «Уходит» columns use the same data. Investigate before showing «Ушло за час» again.
+4. Remaining review findings (not done): login token wiped on any network error (`whoami` catch → setAuth(null));
+   `emit()` calls every listener on any change (~25 renders per event); supabase-js from CDN without SRI and the 3D viewer
+   iframe without sandbox; `ah.py` falls back to a reduced publish on any error; no size cap on a merged row; `docs_history`
+   has no retention; one account still has the public start password «Forever» (ask that player to change it).
+5. Older checks from 2026-11-22 (dims.yml / scheduled ah.yml → remove `ah-watchdog`; Zul'Farrak count; reference refresh
+   from ~22:00 UTC 23 Nov) were not re-run in this session.
+6. Task 2 of 2026-11-22 (recipe sources from Wowhead item XML) not started.
 
-**Task 2 — recipe sources (trainer / vendor / drop / quest).** Findings so far:
-- Blizzard's recipe API has no source: `/data/wow/recipe/{id}` returns only `crafted_item`, `crafted_quantity`, `media`,
-  `name`, `reagents` (checked 2026-11-22).
-- Wowhead spell pages (`/forever/spell=ID`) answer 403 to non-browser requests. Wowhead item XML works (already used
-  server-side for 3D display ids): `https://www.wowhead.com/forever/item={id}&xml` with our User-Agent returns a JSON blob
-  with `"source":[codes]` and `"sourcemore":[{...}]`. Example: Schematic: Goblin Rocket Boots (7192) → `source [2]` (drop),
-  `sourcemore [{"n":"Mekgineer Thermaplugg","t":1,"ti":7800,"z":721}]` (boss name, npc id, zone id). A crafted item (6219
-  Arclight Spanner) → `source [1]` (crafted). Wowhead source codes (to verify): 1 crafted, 2 drop, 3 PvP, 4 quest, 5 vendor,
-  6 trainer, 7 discovery, ...
-- Likely approach (to confirm with the user): a recipe that is taught by an item (Pattern / Plans / Schematic / Formula /
-  Recipe / Manual: <name>, item class 9 in `ah_meta` 'classes') gets its source from that item's XML (drop boss + zone, vendor,
-  quest, world drop); a recipe with no teaching item is «у тренера». Match recipe ↔ teaching item by name ("Schematic: Goblin
-  Rocket Boots" ↔ recipe "Goblin Rocket Boots"). Store as a dimension table (e.g. `dim_recipe_src`, `src = 'wowhead'`),
-  refreshed daily per docs/DECISIONS.md, filled by `scripts/ah.py --dims` (Python already parses Wowhead) and shown on the
-  recipe cards in «Профессии» with a «Wowhead» mark. Teaching items also sell on the auction: their price is a bonus.
-
-Last updated: 2026-11-22. Only verified facts; "not verified" says so explicitly.
+Last updated: 2026-11-23. Only verified facts; "not verified" says so explicitly.
 
 ## Current state
 
