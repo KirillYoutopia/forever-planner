@@ -1609,7 +1609,7 @@ grant execute on function public.ah_latest(int), public.ah_item(int, int) to ano
 
 -- 2026-11-22: item names for the auction page. scripts/ah.py adds every item id it sees on our houses that is not here yet,
 -- from Blizzard's bulk search (search/item + search/media, 1000 per request). One row per key, merged:
--- 'items' = { "<id>": [name (en_US), quality 0-7, class id, subclass id, item level, required level, icon file id, vendor sell price (copper)] }
+-- 'items' = { "<id>": [name (en_US), quality 0-7, class id, subclass id, item level, required level, icon file id, vendor sell price, vendor buy price per unit (copper)] }
 -- 'classes' = { "<class id>": name, "<class id>.<subclass id>": name }. Blizzard's Forever catalogue first, then Classic Era, then Wowhead; an id none of them knows is stored as [""].
 create table if not exists public.ah_meta (k text primary key, d jsonb not null default '{}'::jsonb);
 alter table public.ah_meta enable row level security;

@@ -104,7 +104,15 @@ product min × `q` (crafted quantity) × (1 − 5%, or 15% for Blackwater 116). 
 (Raw Summer Bass unknown, SAF-T Casing not listed), 69 enchants without a product, 49 products not listed, 483 fully priced,
 144 profitable. Known gap: NPC-vendor reagents (thread, vials, flux) are priced at the auction (shortcut comment in code);
 rare reagents with few lots skew the cost (e.g. Refined Deeprock Salt ≈ 70g in one snapshot).
-Next ideas: vendor prices for vendor reagents; raw materials for gatherers; craft profit on the recipe cards in «Профессии».
+Vendor reagents + «Сырьё» (2026-11-22): `ah_meta.items` entries got a 9th field = vendor buy price per unit
+(`purchase_price / purchase_quantity`); `scripts/ah.py` re-looks up once every Blizzard-sourced entry with < 9 fields. Blizzard's
+API doesn't say WHICH items vendors sell, so `AH_VENDOR` (31 ids: thread, vials, dyes, flux, spices, salt, rods, wood, milk,
+water, flour, bleach) is hand-made (inferred, flagged in the page note); such reagents count at min(vendor, auction).
+Local check with the new catalogue: 15 vendor reagents used in 208 places, profitable recipes 144 → 147. «Сырьё» tab = item
+list filtered by Trade Goods subclass (`AH_RAW`: 7.9 herbs, 7.7 metal & stone, 7.6 leather, 7.5 cloth, 7.8 cooking,
+7.10 elemental, 7.12 enchanting). Until the first run after deploy the live catalogue has no vendor prices (page falls back to
+the auction price).
+Next ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions
 
