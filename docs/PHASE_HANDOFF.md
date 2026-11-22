@@ -88,7 +88,7 @@ no blocking issues. Verified: selftest; publish request reaches Supabase (404 = 
 LIVE since 2026-11-22: SQL run, `ah_secret` + GitHub secrets set by the user, merged as PR #35 (`40b3ad0`). Manual
 workflow run succeeded; `ah_latest` returned 7003 items for 113 and 4226 for 116 (snapshot 14:23 UTC), `ah_item` returned one
 hourly + one daily point. Anon can't read `ah_hour` directly (401); wrong secret → `denied`.
-Page `#ah` built 2026-11-22 (NOT merged yet when written): house switch (113/116, localStorage `wf-ah-house`), KPIs, search
+Page `#ah` LIVE 2026-11-22 (PR #36, `0e16b77`; names filled by the first run: 7083 ids, all named; checked on the live site): house switch (113/116, localStorage `wf-ah-house`), KPIs, search
 (English names) + type filter + sortable list (100 rows, «Показать ещё»), item card `#ah/<id>` with price/quantity charts
 (`ahChart`, same hover as `lineChart`; hourly 7 d / daily 30 d). Goblin Kassa note removed. Item names: hidden `ah_meta`
 ('items' / 'classes'), filled by `scripts/ah.py --publish` for ids it hasn't seen: Blizzard search in `static-forever-eu`, then
@@ -98,7 +98,13 @@ Reads: `ah_names()`, `ah_before(house, at)` (24 h comparison). Verified in headl
 names built by the same code; charts only with injected fake history (one real snapshot at the time). Reviewed by an independent
 agent; its 3 findings fixed (Wowhead limit marked ids unknown forever; "no snapshots" state stuck on «Загружаю…»; a failed name
 lookup failed the hourly run).
-Next: reagent prices for guild recipes and craft profit (recipes have reagent NAMES only: `gcat.r[id].re` = [[name, qty]]).
+«Крафт гильдии» tab (2026-11-22, page-only, no data changes): `ahCraftRows` / `ahCraftHtml`. Recipes known by guild members
+(`grec`), reagents matched by English NAME to ids via `ah_names` (`gcat.r[id].re` has names only), cost = Σ market × qty, sale =
+product min × `q` (crafted quantity) × (1 − 5%, or 15% for Blackwater 116). Live check: 602 recipes, 2 with an unpriced reagent
+(Raw Summer Bass unknown, SAF-T Casing not listed), 69 enchants without a product, 49 products not listed, 483 fully priced,
+144 profitable. Known gap: NPC-vendor reagents (thread, vials, flux) are priced at the auction (shortcut comment in code);
+rare reagents with few lots skew the cost (e.g. Refined Deeprock Salt ≈ 70g in one snapshot).
+Next ideas: vendor prices for vendor reagents; raw materials for gatherers; craft profit on the recipe cards in «Профессии».
 
 ## Pending decisions
 

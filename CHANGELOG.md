@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-22 (auction: guild crafting)
+
+- «Аукцион» → «Крафт гильдии»: every recipe someone in the guild knows, priced from the latest snapshot: reagent cost, sale price after the auction cut, profit and margin, who can craft it; reagents and products open the item card.
+
 ## 2026-11-22 (auction)
 
 - «Аукцион» is live: our PvP Horde and Blackwater houses from Blizzard's hourly snapshot. Totals (lots, items, units, what got dearer or cheaper over a day, items cheaper than a vendor pays), a searchable list with type filter and sorting, and an item card with price and quantity charts by hour (7 days) and by day (30 days).
