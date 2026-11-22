@@ -1,0 +1,25 @@
+# Hourly auction prices for the "Аукцион" page: scripts/ah.py fetches Blizzard's snapshot and sends per-item
+# aggregates to Supabase (ah_publish in supabase.sql). Blizzard refreshes the snapshot around :23, so this runs at :35.
+# Secrets (Settings → Secrets and variables → Actions): BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET, AH_SECRET.
+# Scheduled runs only happen on the default branch; GitHub pauses them after 60 days without repository activity.
+name: Auction prices
+on:
+  schedule:
+    - cron: '35 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ah
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/ah.py --publish --show ''
+        env:
+          BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
+          BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
+          AH_SECRET: ${{ secrets.AH_SECRET }}

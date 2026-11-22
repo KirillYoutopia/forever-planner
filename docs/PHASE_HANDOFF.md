@@ -1,118 +1,116 @@
 # Phase handoff
 
-Last updated: 2026-11-20 (design pass). Only verified facts; "not verified" says so explicitly.
+Last updated: 2026-11-22. Only verified facts; "not verified" says so explicitly.
 
 ## Current state
 
-- Live site: https://kirillyoutopia.github.io/forever-planner/ (GitHub Pages from `main`).
-  - `index.html` is the redesigned site (was `v2.html`). `old.html` is the previous site, unchanged.
-    `v2.html` only redirects old links to `./` keeping the `#...` part.
-- Work branch: `redesign/v2`, PRs into `main`. The user merges by saying «влей» / «вливай»; nothing is merged otherwise.
-  Merges are done through the GitHub API (no `gh` CLI on this machine; token from `git credential fill`).
-- Last merge: PR #31 (`01c0179`). `redesign/v2` has no commits beyond `main`.
-- Supabase: everything server-side lives in `supabase.sql` (re-runnable). The user runs it by hand in the SQL Editor.
-  Edge Function `modelviewer` (proxy for Wowhead's 3D viewer files) is deployed under that name, JWT verification off.
+- Live site: https://kirillyoutopia.github.io/forever-planner/ (GitHub Pages from `main`). `index.html` is the site, `old.html` the
+  previous one, `v2.html` only redirects.
+- Everything is merged: last PR #34 (`0c7734b`). Branch `redesign/v2` has nothing beyond `main`; working tree was clean at 2026-11-22.
+  The user merges only on «влей» / «вливай», via the GitHub API (no `gh` here; token from `git credential fill`).
+- Supabase: all server code is in `supabase.sql` (re-runnable); the user runs it by hand in the SQL Editor. He has run it, plus
+  `talents_import()` (467 talents saved) and `watch_fetch('us.xaryu-forever')`. Cron was NOT changed (his instruction since 2026-11-18).
+- 2026-11-20 shipped (PRs #30–#34): Apple-style restyle (system font, borderless rounded surfaces, `--radius-*`, `--shadow-*`,
+  `--material`, `--bar`); «Профессии» bars 0–300; dungeon tiles with art + dungeon page `#dg/<name>`; news cards with text/picture;
+  character comparison `#cmp/<a>/<b>`; talents tab; «Стримеры и друзья» `#streamers`; `#ah` auction placeholder.
 
-## In progress on `redesign/v2` (2026-11-20, talents and streamers, not merged)
+## Talents (what is verified)
 
-- Talents: `talents_import()` (Wowhead calculator data → `gtalents/forever`, weekly from guild_sync), `bnet_talents()` parses learned
-  talents into `gchars.tl`/`tl2` (Blizzard field names NOT confirmed: both a retail-like and a flat shape are read). Page: card tab
-  «Таланты» (`cardTalents`, `TAL_TREES` = tree ids and names per class), tooltip via `gTipShow`.
-- Watched characters get full sheets (`watch_fetch` now stores icons/tooltips, img, sp/tl, reps, ach, richer hist) and open the normal
-  card; page «Стримеры и друзья» (`#streamers`, `renderStreamers`). Seeded 8 more streamers (names checked on forever.raider.io).
-- Dungeon art for new dungeons from Wowhead guide covers (`DG_WH`); coloured race/level bars; auction placeholder (`#ah`).
-- Verified in headless Chrome with injected talent data (built locally from Wowhead's file the same way as the SQL) and fake learned
-  talents. NOT verified: the SQL (not run), Blizzard's real /specializations talent fields, Wowhead file parsing inside Postgres.
-- Auction research: Blizzard Game Data API (connected realm auctions, hourly, ~326k lots for EU PvP Horde per Goblin Kassa) is the only
-  automatic source; ~30 MB per snapshot is too big for parsing in free-tier Postgres; Blizzard API terms require a 30-day TTL.
+- Layout comes from Wowhead's calculator file (`https://nether.wowhead.com/forever/data/talents-classic`), saved weekly by
+  `talents_import()` into `gtalents/forever` (467 talents, 180 KB). Blizzard has no talent layout API for Classic-era.
+- Blizzard's `/specializations` confirmed on real data (Xaryu): per talent `talent.id`, `talent_rank`, `spell_tooltip.spell.id`,
+  `spell_tooltip.description` (text of the learned rank). Its talent ids (134xxx–135xxx) differ from Wowhead's (104xxx–113xxx), so
+  `bnet_talents()` stores `[id, rank, spell id]` and the page matches by spell id against each talent's rank spells (`talIndex()`).
+  Result for Xaryu: 16 of 16 learned talents matched. `tlx` keeps one raw talent entry per sheet for checking the shape.
+- Dual spec: `tl` (active) / `tl2`; the other streamers already have a second set (e.g. Jokerd 20 talents).
+- NOT yet seen: guild characters (`gchars`) have no `tl` until the next hourly `guild_sync` (check:
+  `select id, data->'tl' from docs where coll = 'gchars' limit 3;`). The 9 other streamers were synced before the spell-id fix:
+  their `tl` has no spell ids until the next sync; refresh one by one with `select public.watch_fetch('<id>');`
+  (`watch_sync()` of all 10 makes >100 Blizzard requests and times out in the SQL Editor, although it does finish on the server).
+- Idea: for learned talents show Blizzard's own `spell_tooltip.description` instead of Wowhead's text.
 
-## In progress on `redesign/v2` (2026-11-20, character comparison, not merged)
+## Streamers («Стримеры и друзья»)
 
-- `#cmp/<slugA>/<slugB>` (view "cmp", `renderCmp()`, section `#cmp-box`): mirrored bars, the bigger value highlighted
-  (deaths and game counters never), two-line day-by-day charts. Opened from «Сравнить с» on the card; swap button and
-  two pickers on the page. Page-only, no data changes.
-- Verified in headless Chrome (1600px dark/light, 390px), no console errors, no overflow.
-- Characters outside the guild ("Стримеры и друзья"): hidden `bnet_watch` (id `<region>.<slug>`), `watch_fetch`/`watch_sync`
-  (called at the end of `guild_sync`, no cron change), admin RPCs `watch_add` (fetches at once, fails on unknown names) and
-  `watch_del` (soft delete). Page reads `wchars/{id}` incl. `hist` per day. Seeded: us.xaryu-forever, us.shobek-forever.
-  Verified on the page only with injected fake `wchars` data and a faked admin login. NOT verified: the SQL itself
-  (not run), Blizzard's profile field names for class/race (`character_class`/`race`, written defensively), US region access.
+- Hidden `bnet_watch` (id `<region>.<slug>`), `watch_fetch(p_id, p_tok, p_icons, p_full)`, `watch_sync()` (called by `guild_sync`),
+  admin RPCs `watch_add` (light fetch: profile + pictures only) / `watch_del`; page reads `wchars/{id}` incl. `hist` per day.
+- Seeded 10: Xaryu Forever, Shobek Forever, Grubtor Steelheart (EU), Pshero Brickasso (EU), Black Lizard, Esfand Television,
+  Savix Ashwalker, Pikaboo Themove, Asmongold Thereal, Jokerd Prime (EU). Names checked on forever.raider.io. US characters work.
+- Their cards open as normal character cards (`#char/us.xaryu-forever`) and can be compared with guild characters.
 
-## Done earlier on 2026-11-20 (merged as PR #31, `01c0179`)
+## Auction («Аукцион», `#ah`, placeholder only)
 
-- Apple-style restyle: token values changed in all three theme blocks (spec by a design agent), Google Fonts removed
-  (system font), one override block "Apple-style pass" at the end of the main <style>. Race/level bars use `--bar`.
-- Dungeons: tiles with official art (`render.worldofwarcraft.com/eu/zones/<slug>-small|large.jpg`, map `DG_ART`; the new
-  Forever dungeons have no art), dungeon page `#dg/<name>` (view "dungeon", `renderDg()`, data from `dgData()`):
-  records, leaderboard, characters in level range now, kills per day from `glevels[].bk`. Page-only, no data changes.
-- Verified: headless Chrome via DevTools, live data, 1600px dark/light and 375–390px; no console errors, no overflow.
-- Not verified: every page after the restyle (checked home, character card, dungeons, dungeon page, PvP, recipes, phone home).
-
-## Done in the design pass (2026-11-20, merged as PR #30, `8a7fecc`)
-
-- «Профессии»: new first block «Профессии гильдии» with 0–300 bars (filled = skill, light = up to the rank cap, ticks at 75/150/225),
-  switch «По профессиям» / «По персонажам» (`gpMode`). Order: block → orders → catalogue → «Профессии в цифрах» (folded `<details>`).
-- Catalogue: «Изученные/Неизученные/Все» and «Порядок» live in the filter column now; «Сбросить фильтры» resets them too.
-- Wide screens: `.wrap` 1500px from 1700px viewport, 1900px from 2300px. Hall of fame timeline in CSS columns from 1300px.
-- News cards (Discord-like): `news_sync()` stores `[title, link, ts, kind, text, image]`; images only from `wow.zamimg.com`.
-  Needs `supabase.sql` re-run; until then cards show without text and pictures.
-- Apple-style touches (apple-design skill): press feedback, translucent mobile top bar, softer cards.
-- Project CLAUDE.md: the 2026-11-18 proposals applied (user approved).
-- Verified: headless Chrome via DevTools protocol against live data, 2400px / 1400px dark / 375px; no console errors,
-  no horizontal overflow at 375px. NOT verified: the new `news_sync()` SQL (not run), news pictures on the page.
-
-## Done in the previous phase (all merged)
-
-- Character card: 3D model (Wowhead viewer in an iframe via the `modelviewer` proxy), character list on the left,
-  «Прогресс по дням» tab (level, professions, PvP, deaths, item level, quests, reputation, dungeon bosses),
-  achievements with icon/category/points (`guild/achinfo`, filled by `guild_ach_fill`).
-- «Профессии» page:
-  - «Профессии в цифрах» summary (learned of catalogue per profession, quality of crafted items).
-  - Catalogue filters: category, quality, item level, required level, slot, stat, crafter (player with twinks or character),
-    kind (item / enchant), «показать только» (★ favourites, with orders); sort order; Wowhead link per recipe.
-  - «Изученные / Неизученные / Все»: `gcat` now holds the whole catalogue of the guild's professions
-    (2494 recipes, 543 learned on 2026-11-18). `guild_recipes_fill` loads details for all of them, learned ones first.
-  - Favourites (`players.fav`) and craft orders (`orders` collection, rules in `patch_doc`), «Заявки на крафт» panel,
-    menu badge with orders waiting for the logged-in player.
-
-## Verified
-
-- Filters, learned/unlearned switch, orders panel and badge: in headless Chrome against live data, with a faked login
-  and fake orders injected into the page (writes disabled). Layout at 1400px and inside a 375px frame.
-- Page swap: `index.html` == former `v2.html`, `old.html` == former `index.html`; live site serves all three URLs
-  and `v2.html#char/...` lands on `/#char/...` with the card open.
-
-## Not verified
-
-- `patch_doc` rules for `orders` against the real database with two different accounts (take / done / cancel / refuse).
-- Whether the user re-ran `supabase.sql` after the orders change (without it, creating orders fails).
-- Achievement fields from the Forever API (points, parent category, icons): written defensively, never seen.
-- Size of the `gcat` documents once the whole catalogue is loaded, and page load time on the «Профессии» page.
-- Dark theme on the new «Профессии» blocks; how the menu badge looks.
-- Catalogue contents: 592 Leatherworking / 507 Blacksmithing recipes is far more than classic, so it likely includes
-  recipes from other versions or not yet available. The API cannot tell them apart.
-
-## Open ideas (not started, need the user's go-ahead)
-
-1. ~~Compare two characters~~: done 2026-11-20.
-2. Discord notifications for craft orders: webhook into a guild channel via a `docs` trigger and `pg_net`; webhook URL
-   in a hidden table, never in the repo. Open question: @mentions of crafters (needs their Discord ids).
-3. Cron load: news hourly instead of every 30 minutes; `guild_recipes_fill` / `guild_ach_fill` publish only when they
-   loaded something; `guild_sync` calls `guild_ach_fill(5)`. The user said NOT to change cron for now (2026-11-18).
-4. Recipe sources (trainer / vendor / drop / quest) parsed from Wowhead on the server. Deferred; links only for now.
-5. Hide catalogue recipes Blizzard returns with neither reagents nor a crafted item, if they turn out to be noise.
-6. Faster 3D load (Cloudflare cache in front of `modelviewer`). The user said it can wait.
-7. Abandoned quests (diff the quest log between syncs): an idea only, not planned.
-8. Raider.IO population stats (forever.raider.io/population/eu/pvp): no public API or CORS; the page is server-rendered HTML.
-   Possible only as a server-side scrape (like news) into a read-only doc, which needs a new cron job. Not started.
-9. Site-wide Apple-style restyle (type scale, materials, spacing): only touched blocks were restyled; a full pass needs the user's go-ahead.
+User's answers (2026-11-22): Horde + neutral (Blackwater) houses, all items, history 30 days (Blizzard API terms: max 30-day TTL),
+OK to add a new component (Edge Function or GitHub Actions) for parsing snapshots.
+Research: Blizzard Game Data API `connected-realm/{id}/auctions/{2 Alliance | 6 Horde | 7 neutral}` in namespace `dynamic-forever-eu`
+(NOT yet called by us; goblinkassa.vmikhailov.dev proves it works: EU PvP Horde ≈ 326k lots, hourly). No seller in data. Their own API
+must not be used (their terms forbid it). One snapshot ≈ 30 MB JSON: too big to parse in free-tier Postgres (`http` extension).
+Risks of the new component (to discuss before building):
+- GitHub Actions: scheduled runs can lag by minutes and are paused after 60 days without repo activity; Blizzard secret goes into
+  Actions secrets; writing back needs an RPC guarded by a shared secret (`ah_publish`), never the anon key. Plenty of memory.
+- Edge Function: tight memory/time limits for a 30 MB response (not checked); secrets in Supabase.
+- "All items" needs names/icons/quality for ~5–10k items: load in slices into a hidden cache table (like `bnet_recipes`).
+- Storage: keep only aggregates per item (min buyout per unit, median, quantity, lots); ≈0.3–1 MB/day; delete after 30 days.
+Recon DONE 2026-11-22 (node script with the creds from `../wow-guild-backend/.env`, values never printed; raw files only in the
+session scratchpad):
+- Forever has NO realms / connected realms (`connected-realm/index` in `dynamic-forever-eu` = 404; characters and guilds carry no
+  realm). Instead: `ruleset/index` → 1 PvP, 2 Normal, 3 Roleplay, 15 Roleplay PvP. Our characters: `ruleset` = 1 (PvP).
+- Houses: `ruleset/1/auctions/index` lists 15 ids: Alliance 110 111 112 119 123, Horde 113 114 115 120 124, Blackwater
+  116 117 118 121 125. 112/115/118 are empty. Disjoint lot ids and very different prices (Peacebloom 2.40s in 113 vs 0.38s in 114)
+  → each triple is a separate server economy. The API does NOT say which one is ours: identify with an in-game price check.
+  SOLVED: the ruleset in the path is ignored (`ruleset/2|3|15/auctions/index` list the same ids; `ruleset/2/auctions/113` = same
+  data). The 12 non-empty ids are ALL houses of the region: 4 rulesets × (Alliance, Horde, Blackwater), as wowfah.com describes
+  ("no realms; everyone on your ruleset and faction in your region shares one house"; Blizzard doesn't say which ruleset is which).
+  So 110/113/116 and 111/114/117 (big) = PvP and Normal, 119-121 and 123-125 (small) = RP / RP-PvP, 112/115/118 empty.
+  Regions are split by host, not by id: us/kr/tw list the same 15 ids, but US 113 shares 0 lot ids with EU 113. So the 4 non-empty
+  EU PvP economies (110/113/116, 111/114/117, 119/120/121, 123/124/125) are inside EU (guess, not verified: language servers).
+  OURS = Horde 113 (user's in-game check 2026-11-22: Peacebloom min 2s40 = 113's price). Blackwater: probably 116 (id pattern
+  110/113/116; prices only weakly closer to 113 than 117's are: median |log ratio| 0.51 vs 0.56), NOT confirmed in game.
+  Lots incl. commodities: 113 = 308k, 114 = 284k, 120 = 34k, 124 = 40k (Goblin Kassa's "EU PvP Horde ≈ 326k" fits 113 or 114).
+- Two endpoints per house: `ruleset/1/auctions/{id}` = non-stackables, every lot `quantity` 1, `buyout`/`bid` (copper), item
+  `{id, context?, modifiers?, bonus_lists?}`, `time_left`; `ruleset/1/auctions/{id}/commodities` = stackables with `unit_price`.
+  No seller. Top keys: `_links, auctions, id, name, commodities, ruleset`.
+- Sizes (gzip on the wire, <0.6 s each): big Horde 113: 16.5 MB / 166k lots / 5.6k items + commodities 12.4 MB / 1.36k items /
+  2.6M units; 114 similar; small houses (120, 124) ≈ 1.5–1.8 MB each. Last-Modified ≈ hourly. ~300 of 1360 commodity ids are > 200000
+  (new Forever items, need names from the item API).
+Decisions (2026-11-22): GitHub Actions + Python (stdlib only). Site: hourly per-item aggregates for 7 days + daily for 30 days.
+Local: raw gzipped snapshots kept LONGER than 30 days in `D:\PythonProject\wow-ah-data` (user's choice, aware of the Blizzard terms
+note above); run by hand for now (no Task Scheduler).
+Done: `scripts/ah.py` (uncommitted at time of writing): fetches 113/116 items + commodities, archives raw gz as
+`YYYY/MM/DD/HHMM_<house>_<kind>.json.gz` (time = Last-Modified UTC, no duplicates), prints [min, market (avg of cheapest 10% units),
+qty, lots]. Verified: `--selftest`, a live run, a repeat run. Snapshot Last-Modified stayed 13:23 UTC for >1 h → roughly hourly.
+Built (uncommitted, SQL NOT run yet): `supabase.sql` section "auction prices": hidden `ah_hour(house, at, d)` (7 days) and
+`ah_day(house, day, at, d)` (30 days, Paris day: min of mins, avg of the rest, recomputed on every publish), `d` =
+`{item id: [min, market, qty, lots]}`; `ah_publish(secret, house, at, d)` (anon-callable, guarded by `bnet_config` k='ah_secret',
+houses 113/116 only, also deletes old rows), page reads `ah_latest(house)`, `ah_item(house, item)`. Kept out of `docs` because
+the page loads all of `docs` + realtime. `scripts/ah.py --publish` (Supabase URL/anon key read from config.js);
+`.github/workflows/ah.yml` hourly at :35 + manual run. Body ≈ 180 KB (113) / 104 KB (116). Reviewed by an independent agent:
+no blocking issues. Verified: selftest; publish request reaches Supabase (404 = function not created yet).
+User's steps: run supabase.sql; insert `ah_secret`; GitHub secrets BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET / AH_SECRET; merge
+(schedules run only on `main`). Then: the page (`#ah`), item names/icons for ~7k items.
 
 ## Pending decisions
 
-- `docs/INSTRUCTION_PROPOSALS.md`: proposed project `CLAUDE.md` updates (old.html, full catalogue in `gcat`, orders,
-  favourites). Not applied until the user approves.
+- `docs/INSTRUCTION_PROPOSALS.md`: proposals for project `CLAUDE.md` NOT applied (dungeon page + design tokens; comparison + `wchars`;
+  talents, `#streamers`, `#ah`). Apply only on the user's approval.
 
-## Next recommended step
+## Open ideas (need a go-ahead)
 
-Check craft orders end to end with two accounts on the live site (after re-running `supabase.sql`), then item 1
-(character comparison) or item 2 (Discord), whichever the user picks.
+1. Discord notifications for craft orders (webhook via `pg_net`, URL in a hidden table; open question: @mentions need Discord ids).
+2. Raider.IO population stats (no public API; server-side scrape of forever.raider.io/population/eu/pvp, needs a new cron job).
+3. Picture for Shaper's Terrace (Wowhead has no guide yet); dungeon art is `DG_ART` (Blizzard zones) / `DG_WH` (Wowhead guide covers).
+4. Recipe sources (trainer/vendor/drop) parsed from Wowhead; cron-load tidy-ups (not allowed for now); Cloudflare cache for `modelviewer`.
+
+## Not verified / known gaps
+
+- News pictures and descriptions on the live page (SQL was re-run; `news_sync` runs every 30 min): not looked at.
+- Talents for guild characters on the live page; `patch_doc` rules for `orders` with two real accounts.
+- Everything was checked in headless Chrome with live data; the user's own phone screenshots are the only real-device check.
+
+## Working notes for the next session
+
+- Python 3.13.9 IS installed: run it as `py` (plain `python` hits the Microsoft Store stub). `gh` CLI not found in PATH (checked
+  2026-11-22). Node 24 is also there. Old note: served with a tiny node static server on port 8000; screenshots via Chrome headless + DevTools (scripts
+  lived in the session scratchpad and may be gone).
+- Editing `supabase.sql` / `index.html` from scripts: NEVER use `String.replace` with text containing `$$` or `$'` (it corrupted the SQL
+  once; caught by review). Use plain splices (`indexOf` + `slice`). Files are CRLF in git; keep line endings.
+- Send risky or SQL changes past an independent reviewer agent; report only what was actually run.

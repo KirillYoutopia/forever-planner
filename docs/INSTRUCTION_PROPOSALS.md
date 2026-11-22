@@ -53,3 +53,16 @@ the full recipe catalogue in `gcat`, craft orders and favourites, none of which 
 - Comparison (`#cmp/<id>/<id>`, view "cmp", `renderCmp()`): two characters as mirrored bars plus two-line day-by-day charts; opened from «Сравнить с» on the character card. An id is a guild slug or `<region>.<slug>` for a watched character.
 - `wchars/{region}.{slug}`: characters outside the guild (streamers, friends) `{ at, label, region, name, surname, level, cls, race, ilvl, avatar, items, st, pvp, profs, ast, achn, q, hist: { day: { lv, il, qd, hk, dt } }, deleted }`. The list lives in the hidden `bnet_watch` table; admins add and remove via `watch_add` / `watch_del` on the comparison page; `watch_sync()` (called by `guild_sync()`) refreshes them hourly. Read-only for the page.
 ```
+
+## 2026-11-22: project CLAUDE.md, talents, streamers page, auction stub
+
+**Reason:** new data and views that the file does not describe.
+
+**Affected file:** `CLAUDE.md` (project)
+
+**Proposed wording** (new bullets under the "Гильдия" tab section):
+```
+- `gtalents/forever`: `{ at, t: { [treeId]: [[talentId, row, col, icon, maxRank, requiredTalentId, itsRank, treePointsNeeded, name, [description per rank], [spell id per rank]]] } }`, the talent trees of all classes, loaded weekly by `talents_import()` from Wowhead's WoW Forever talent calculator (Blizzard has no layout API). `gchars/{slug}.tl` / `.tl2` = learned talents `[[blizzardTalentId, rank, spellId]]` of the active / second set (from `bnet_talents()`); the page matches them to the trees by spell id (`talIndex()`), because Blizzard's talent ids differ from Wowhead's. Shown on the card tab «Таланты» (`cardTalents()`, tree ids per class in `TAL_TREES`).
+- «Стримеры и друзья» (`#streamers`, `renderStreamers()`): cards for `wchars`; a watched character opens the normal character card (`#char/<region>.<slug>`).
+- «Аукцион» (`#ah`): hourly prices of houses 113 (PvP Horde) and 116 (PvP Blackwater) from Blizzard's `ruleset/1/auctions/{id}` (+ `/commodities`). GitHub Actions (`.github/workflows/ah.yml`, `scripts/ah.py`) sends per-item aggregates `{ [itemId]: [min, market, qty, lots] }` (copper) to `ah_publish` (shared secret `bnet_config.ah_secret`) into the hidden tables `ah_hour` (7 days) and `ah_day` (30 days), kept out of `docs` because the page loads all of `docs`. The page reads them with `db.call('ah_latest', { p_house })` and `db.call('ah_item', { p_house, p_item })`.
+```

@@ -1546,3 +1546,63 @@ insert into public.accounts (player_id, pass_hash, must_change)
 values ('p_alexey', extensions.crypt('Forever', extensions.gen_salt('bf')), true)
 on conflict (player_id) do nothing;
 -- Twinks: players also get an optional "alts" {slug: true} (false = unlinked), set on the character sheet.
+
+-- 2026-11-22: auction prices for the "Аукцион" page. Houses: 113 = PvP Horde (checked in game), 116 = PvP Blackwater.
+-- Blizzard's snapshot (ruleset/1/auctions/{id} + /commodities) is ~30 MB an hour, too big for the http extension here, so
+-- GitHub Actions (scripts/ah.py, .github/workflows/ah.yml) fetches it and pushes per-item aggregates through ah_publish,
+-- guarded by a shared secret: insert into bnet_config values ('ah_secret', '<long random>') (never committed).
+-- d = { "<item id>": [min unit price, market (avg of the cheapest 10% of units), quantity, lots] }, prices in copper.
+-- Kept OUT of docs on purpose: the page loads the whole docs table on start and gets every change by realtime.
+-- ah_hour: one row per snapshot, 7 days. ah_day: per Paris day, 30 days: min of the hourly mins, average of the rest.
+create table if not exists public.ah_hour (house int not null, at timestamptz not null, d jsonb not null, primary key (house, at));
+create table if not exists public.ah_day (house int not null, day date not null, at timestamptz not null, d jsonb not null,
+  primary key (house, day));
+alter table public.ah_hour enable row level security;
+alter table public.ah_day enable row level security;
+revoke all on public.ah_hour, public.ah_day from anon, authenticated;
+
+create or replace function public.ah_publish(p_secret text, p_house int, p_at timestamptz, p_d jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare sec text; v_day date; n int;
+begin
+  select v into sec from bnet_config where k = 'ah_secret';
+  if coalesce(sec, '') = '' or length(sec) < 24 or p_secret is distinct from sec then raise exception 'denied'; end if;
+  if p_house not in (113, 116) then raise exception 'bad house'; end if;
+  if p_at is null or p_at > now() + interval '1 hour' or p_at < now() - interval '7 days' then raise exception 'bad time'; end if;
+  if jsonb_typeof(p_d) <> 'object' or pg_column_size(p_d) > 8000000 then raise exception 'bad data'; end if;
+  insert into ah_hour (house, at, d) values (p_house, p_at, p_d)
+    on conflict (house, at) do update set d = excluded.d;
+  v_day := (p_at at time zone 'Europe/Paris')::date;
+  insert into ah_day (house, day, at, d)
+  select p_house, v_day, now(), coalesce(jsonb_object_agg(k, jsonb_build_array(mn, mk, qty, lots)), '{}'::jsonb)
+  from (select e.key k, min((e.value->>0)::bigint) mn, round(avg((e.value->>1)::numeric))::bigint mk,
+               round(avg((e.value->>2)::numeric))::bigint qty, round(avg((e.value->>3)::numeric))::bigint lots
+        from ah_hour h, jsonb_each(h.d) e
+        where h.house = p_house and h.at >= (v_day::timestamp at time zone 'Europe/Paris')
+          and h.at < ((v_day + 1)::timestamp at time zone 'Europe/Paris')
+        group by e.key) s
+  on conflict (house, day) do update set d = excluded.d, at = excluded.at;
+  delete from ah_hour where at < now() - interval '7 days';
+  delete from ah_day where day < (now() at time zone 'Europe/Paris')::date - 30;
+  select count(*) into n from jsonb_object_keys(p_d);
+  return jsonb_build_object('house', p_house, 'at', p_at, 'day', v_day, 'items', n);
+end $$;
+revoke execute on function public.ah_publish(text, int, timestamptz, jsonb) from public;
+grant execute on function public.ah_publish(text, int, timestamptz, jsonb) to anon, authenticated;
+
+-- Page reads: the latest snapshot of a house, and one item's history (hourly 7 days, daily 30 days).
+create or replace function public.ah_latest(p_house int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('at', floor(extract(epoch from at) * 1000), 'd', d)
+  from ah_hour where house = p_house order by at desc limit 1;
+$$;
+create or replace function public.ah_item(p_house int, p_item int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'h', coalesce((select jsonb_agg(jsonb_build_array(floor(extract(epoch from at) * 1000), x.v) order by at)
+                   from ah_hour, lateral (select d->(p_item::text) v) x where house = p_house and x.v is not null), '[]'::jsonb),
+    'd', coalesce((select jsonb_agg(jsonb_build_array(day, x.v) order by day)
+                   from ah_day, lateral (select d->(p_item::text) v) x where house = p_house and x.v is not null), '[]'::jsonb));
+$$;
+revoke execute on function public.ah_latest(int), public.ah_item(int, int) from public;
+grant execute on function public.ah_latest(int), public.ah_item(int, int) to anon, authenticated;
