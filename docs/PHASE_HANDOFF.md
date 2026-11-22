@@ -136,6 +136,19 @@ Next (agreed 2026-11-22): redesign the «Предметы» tab after wowfah.com
 market price explained, «Ушло за 24 ч (оценка)» + sell-through from per-item flow (new column `ah_hour.g`, RPCs `ah_prev_g`,
 `ah_flow24`, `ah_spark`), 7-day sparklines, left filter panel (categories with counts, sorts, quick views, rarity/level/price),
 hover card with the Wowhead tooltip as text. Step 1 = data (SQL written in supabase.sql, script next), step 2 = list, step 3 = hover.
+Step 1 LIVE (PR #44, SQL run by the user): money `12g 34s 5c` (`fmtCu` returns HTML, `fmtCuT` plain for SVG axes; tokens
+`--coin-g/s/c` in all three theme blocks), `ah_hour.g` per-item flow from `scripts/ah.py` (`flow()`), RPCs `ah_prev_g`,
+`ah_flow24`, `ah_spark`. The job skips a snapshot it already published. First flow rows after deploy have units only; "gone"
+needs two consecutive snapshots with g.
+Steps 2 + 3 (built, reviewed separately): `ahItemsRender` (static filter markup #ah-items/#ah-filt; `ahGet` cache per key +
+snapshot; categories, sorts `AH_SORTS`, quick views `AH_QUICK`, columns 1 ч / Ушло 24 ч / Уходит / 7 дней), KPI «Ушло за час»;
+hover card `ahTipShow` (`gTipPlace` shared with gear tooltips). Review fixes: sparkline cache per item with a 400 ms debounce
+(`ahSparkNeed`), paging reset, 250 ms hover intent, ahGet errors retried after 30 s, flow-based quick views explain missing data.
+Architecture decision 2026-11-22 (docs/DECISIONS.md, user's request): dimension tables in the DB refreshed daily, facts hourly,
+Blizzard first, Wowhead marked, the page calls no game API. First applied to items: hidden `dim_item` (tooltip lines + src),
+`dim_item_put` (Blizzard previews formatted by `bnet_item_tip`), `dim_item_ids`, `dim_item_get`; `scripts/ah.py --dims` +
+`.github/workflows/dims.yml` (daily 04:10 UTC); hourly job adds new ids (≤ 2000/run). Speed check: 200 ids in 4.8 s (143
+Blizzard, 57 Wowhead). Other one-off caches (recipes, achievements, quests, icons) still to move to the daily refresh.
 Other ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions

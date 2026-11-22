@@ -654,6 +654,9 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 #gtt .il { color: var(--gold); }
 #gtt p { margin: 0; display: flex; justify-content: space-between; gap: 16px; }
 #gtt .g { color: var(--q-unc); } #gtt .y { color: var(--gold); } #gtt .m { color: var(--frame-muted); }
+#gtt .ah-tstats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--frame-line); }
+#gtt .ah-tstats span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--frame-muted); }
+#gtt .ah-tstats b { font-variant-numeric: tabular-nums; }
 .gown { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--muted); }
 .gown button { border: 1px solid var(--line); background: var(--cell); color: var(--fg); border-radius: 6px; padding: 4px 10px; font: inherit; }
 .gown button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
@@ -1217,6 +1220,30 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 .ah-miss { color: var(--horde); }
 .ah-vend { color: var(--healer); }
 .cu { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ah-items { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }
+.ah-side { position: sticky; top: 12px; display: grid; gap: 10px; }
+.ah-sidebox summary { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; cursor: pointer; padding: 4px 0; }
+.ah-cat { display: flex; justify-content: space-between; gap: 8px; width: 100%; border: 0; background: none; padding: 5px 8px; border-radius: var(--radius-sm); font: inherit; font-size: 13px; color: var(--fg); text-align: left; cursor: pointer; }
+.ah-cat:hover { background: var(--cell); } .ah-cat[aria-pressed="true"] { color: var(--accent); background: var(--cell); font-weight: 600; }
+.ah-cat.sub { padding-left: 22px; font-size: 12.5px; } .ah-cat small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ah-quick { margin-bottom: 10px; } .ah-filt { margin-bottom: 10px; }
+.ah-fgrid { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; padding-top: 8px; }
+.ah-fgrid input, .ah-fgrid select { min-height: 36px; max-width: 120px; }
+.ah-ihead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 4px 0 8px; font-size: 14px; }
+.ah-pg button { min-width: 44px; }
+.ah-help { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 4px; border-radius: 50%; background: var(--cell); color: var(--muted); font-size: 10px; font-weight: 700; position: relative; cursor: help; text-transform: none; letter-spacing: 0; }
+.ah-help:hover::after, .ah-help:focus::after { content: attr(data-tip); position: absolute; z-index: 20; top: 20px; right: -8px; width: 260px; padding: 9px 11px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); color: var(--fg); font-size: 12px; font-weight: 400; line-height: 1.4; white-space: normal; text-align: left; box-shadow: var(--shadow-2); }
+.ah-badge { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; font-size: 11px; border: 1px solid currentColor; }
+.ah-badge.low { color: var(--horde); } .ah-badge.under { color: var(--healer); }
+.ah-bar { display: inline-block; width: 46px; height: 5px; margin-right: 6px; border-radius: 3px; background: var(--track); vertical-align: middle; overflow: hidden; }
+.ah-bar i { display: block; height: 100%; background: var(--accent); }
+.ah-spk { display: block; margin-left: auto; overflow: visible; } .ah-spk path { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
+.ah-spk-up path { stroke: var(--healer); } .ah-spk-dn path { stroke: var(--horde); } .ah-spk-eq path { stroke: var(--muted); }
+.ah-spk0 { color: var(--muted); }
+.ah-itab td { vertical-align: middle; }
+.ah-itab tbody th { min-width: 200px; white-space: normal; }
+.ah-itab th, .ah-itab td { padding: 7px 7px; } .ah-itab thead th { font-size: 10.5px; }
+@media (max-width: 899px) { .ah-items { grid-template-columns: minmax(0, 1fr); } .ah-side { position: static; } }
 .cu i { font-style: normal; font-size: .82em; font-weight: 600; margin-left: 1px; }
 .cu-g { color: var(--coin-g); } .cu-s { color: var(--coin-s); } .cu-c { color: var(--coin-c); }
 .ah-trends { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; margin-bottom: 12px; }
@@ -1291,6 +1318,26 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
     <div class="rchips ah-raw" role="group" aria-label="Сырьё" id="ah-raw" hidden></div>
     <div class="rtools ah-tools"><input id="ahq" type="search" maxlength="60" placeholder="Найти предмет (название по-английски)" aria-label="Поиск предмета" autocomplete="off">
       <select id="ah-cls" aria-label="Тип предмета"></select><select id="ah-prof" aria-label="Профессия" hidden></select></div>
+    <div class="ah-items" id="ah-items" hidden>
+      <aside class="ah-side">
+        <details class="ah-sidebox" open><summary>Категории</summary><div id="ah-cats"></div></details>
+        <details class="ah-sidebox" open><summary>Сортировка</summary><div id="ah-sorts"></div></details>
+      </aside>
+      <div class="ah-main">
+        <div class="rchips sm ah-quick" id="ah-quick" role="group" aria-label="Быстрые подборки"></div>
+        <details class="rfilt ah-filt" id="ah-filt"><summary>Фильтры<span id="ah-fn"></span></summary>
+          <div class="ah-fgrid">
+            <label class="rf"><span>Редкость</span><select id="ahf-q"><option value="">Любая</option><option value="2">Необычные и выше</option><option value="3">Редкие и выше</option><option value="4">Эпические и выше</option></select></label>
+            <div class="rf"><span>Требуемый уровень</span><div class="rr"><input id="ahf-l0" type="number" min="0" max="60" inputmode="numeric" placeholder="от" aria-label="Требуемый уровень от"><input id="ahf-l1" type="number" min="0" max="60" inputmode="numeric" placeholder="до" aria-label="Требуемый уровень до"></div></div>
+            <div class="rf"><span>Мин. выкуп, g</span><div class="rr"><input id="ahf-p0" type="number" min="0" step="any" inputmode="decimal" placeholder="от" aria-label="Цена от, золото"><input id="ahf-p1" type="number" min="0" step="any" inputmode="decimal" placeholder="до" aria-label="Цена до, золото"></div></div>
+            <label class="rf"><span>Ушло за 24 ч, от</span><input id="ahf-s0" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+            <label class="rf"><span>Выставлено, от</span><input id="ahf-n0" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+            <button type="button" class="glink" data-act="ahfclr">Сбросить фильтры</button>
+          </div>
+        </details>
+        <div id="ah-ilist"></div>
+      </div>
+    </div>
     <div id="ah-list"></div>
   </section>
 
@@ -2667,11 +2714,18 @@ document.addEventListener("click", e => {
     renderSheet();
   }
   else if (act === "close") closeSheet();
-  else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; renderAh(); }
+  else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; ahPage = 50; renderAh(); }
   else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : b.dataset.t === "f" ? ahFSort : b.dataset.t === "n" ? ahNSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
     if (c) ahCSort = ns; else if (b.dataset.t === "f") ahFSort = ns; else if (b.dataset.t === "n") ahNSort = ns; else ahSort = ns; renderAh(); }
   else if (act === "ahtab") { ahTab = ["overview", "trends", "raw", "flip", "craft", "npc"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
   else if (act === "ahtwin") { ahTWin = [1, 6, 24].includes(+b.dataset.v) ? +b.dataset.v : 6; renderAh(); }
+  else if (act === "ahcat") { const v = b.dataset.v || "";
+    if (v && !v.includes(".")) { if (ahCat === v && ahOpenCats.has(v)) ahOpenCats.delete(v); else ahOpenCats.add(v); }
+    ahCat = v; ahPage = 50; renderAh(); }
+  else if (act === "ahsortset") { ahSort = { k: b.dataset.k, dir: +b.dataset.d === 1 ? 1 : -1 }; renderAh(); }
+  else if (act === "ahquick") { const v = b.dataset.v; ahQuick = ahQuick === v ? "" : v; const qv = AH_QUICK.find(x => x[0] === ahQuick); if (qv?.[3]) ahSort = { ...qv[3] }; ahPage = 50; renderAh(); }
+  else if (act === "ahpage") { ahPage = Math.min(5000, Math.max(50, +b.dataset.v || 50)); renderAh(); }
+  else if (act === "ahfclr") { for (const id of ["#ahf-q", "#ahf-l0", "#ahf-l1", "#ahf-p0", "#ahf-p1", "#ahf-s0", "#ahf-n0"]) $(id).value = ""; ahPage = 50; renderAh(); }
   else if (act === "ahomode") { ahOMode = b.dataset.v === "d" ? "d" : "h"; renderAh(); }
   else if (act === "ahntarget") { ahNTarget = [100, 500, 1000, 2000].includes(+b.dataset.v) ? +b.dataset.v : 0; ahLimit = 100; renderAh(); }
   else if (act === "ahnall") { ahNAll = !ahNAll; ahLimit = 100; renderAh(); }
@@ -4294,6 +4348,7 @@ function renderStreamers() {
 // Item tooltip like the armory's: name in the quality colour, item level, then the lines the server prepared (bnet_item_tip).
 function gTipShow(el) {
   const tt = $("#gtt"), [rp, rid] = (el.dataset.rid || "").split(":"), rc = rid && gcat[rp]?.r?.[rid];
+  tt.style.removeProperty("--q"); // the auction card sets it inline; gear tooltips take it from the gq-* class
   const it = el.dataset.tal ? { tal: talTipHtml(el) } : rc ? { name: rc.i || rc.n, q: rc.iq, lvl: rc.il, tip: rc.tip } : (gchars[gOpen] || wchars[gOpen])?.items?.[el.dataset.slot];
   if (!it || it.tal === "") return gTipHide();
   if (it.tal) { tt.className = ""; tt.innerHTML = it.tal; } else {
@@ -4303,7 +4358,11 @@ function gTipShow(el) {
     `<p class="${["g", "y", "m"].includes(l[1]) ? l[1] : ""}"><span>${esc(l[0])}</span>${l[2] ? `<span>${esc(l[2])}</span>` : ""}</p>`).join("");
   }
   tt.hidden = false;
-  const r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight, icon = el.classList.contains("gslot") || el.classList.contains("ri") || el.classList.contains("tal");
+  gTipPlace(el, el.classList.contains("gslot") || el.classList.contains("ri") || el.classList.contains("tal"));
+}
+// Puts #gtt next to el: beside an icon, below a text; flips when there is no room.
+function gTipPlace(el, icon) {
+  const tt = $("#gtt"), r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight;
   let x = icon ? r.right + 8 : r.left + 90, y = icon ? r.top : r.bottom + 4;
   if (x + w > innerWidth - 8) x = icon ? r.left - 8 - w : innerWidth - 8 - w;
   if (x < 8) { x = Math.max(8, Math.min(r.left, innerWidth - 8 - w)); y = r.bottom + 6; } // phone: no room at the sides, go below
@@ -4325,6 +4384,40 @@ function gTipHide() { $("#gtt").hidden = true; }
   list.addEventListener("focusout", gTipHide);
   window.addEventListener("scroll", gTipHide, { passive: true });
   document.addEventListener("pointerdown", e => { const el = e.target.closest?.("#gc-box [data-slot], #gc-box [data-tal], #rlist [data-rid]"); el ? gTipShow(el) : gTipHide(); }); // tap on phones
+}
+// Hover card for auction items: the item's description from the dim_item table (Blizzard's API, or Wowhead's WoW Forever data
+// marked as such for items Blizzard doesn't have), plus our numbers. Mouse only; a tap opens the item card as before.
+const ahWh = {}; // item id -> { src, tip } | "loading" | null
+function ahTipShow(el) {
+  const id = +el.dataset.id, d = ahData[ahHouse]?.now?.d, v = d?.[id], n = ahNames?.items?.[id] || [];
+  if (!id || !v) return gTipHide();
+  if (ahWh[id] === undefined && dbRef) {
+    ahWh[id] = "loading";
+    dbRef.call("dim_item_get", { p_id: id }).then(r => { ahWh[id] = r || null; }).catch(() => { ahWh[id] = null; })
+      .then(() => { if (ahWh[id] === null) setTimeout(() => { if (ahWh[id] === null) delete ahWh[id]; }, 3e4); }) // missing or failed: ask again later, never in a loop
+      .then(() => { if (ahTipEl === el && el.isConnected) ahTipShow(el); });
+  }
+  const W = ahWh[id], f = (ahCache["f24:" + ahHouse]?.v || {}).f?.[id], name = n[0] || `Предмет #${id}`;
+  // Wowhead draws the sell price with coin pictures, which don't survive as text: our own vendor price replaces that line
+  const tip = W && W !== "loading" && Array.isArray(W.tip) ? W.tip : [];
+  const lines = tip.filter((l, i) => Array.isArray(l) && l[0] && !(i === 0 && l[0] === name) && !/^Sell Price/i.test(l[0]));
+  if (W?.src === "blizzard" && +n[4]) lines.unshift([`Item Level ${+n[4]}`, "y"]); // Wowhead's text has it already
+  const stat = (t, x) => `<div><span>${t}</span><b>${x}</b></div>`;
+  const tt = $("#gtt");
+  tt.className = ""; tt.style.setProperty("--q", AH_QC[n[1] ?? 1] || "var(--frame-fg)");
+  tt.innerHTML = `<h4>${esc(name)}</h4>` + lines.map(l => `<p class="${["g", "y", "m"].includes(l[1]) ? l[1] : ""}"><span>${esc(l[0])}</span>${l[2] ? `<span>${esc(l[2])}</span>` : ""}</p>`).join("")
+    + (+n[7] ? `<p class="m"><span>Торговец платит ${fmtCu(n[7])}</span></p>` : "")
+    + (W === "loading" ? `<p class="m"><span>Загружаю описание…</span></p>` : W?.src === "wowhead" ? `<p class="m"><span>описание: Wowhead</span></p>` : "")
+    + `<div class="ah-tstats">${stat("Мин. выкуп", fmtCu(v[0])) + stat("Рыночная", fmtCu(v[1])) + stat("Выставлено", fmtN(v[2])) + stat("Ушло 24 ч", f ? fmtN(f[0]) : "—")}</div>`;
+  tt.hidden = false;
+  gTipPlace(el, false);
+}
+let ahTipEl = null, ahTipT = 0;
+for (const id of ["#ah-items", "#ah-list"]) { // a short pause first, so sweeping the mouse down the list doesn't fetch every row
+  const box = $(id), at = e => e.pointerType === "mouse" ? e.target.closest?.(".ah-n[data-id]") : null;
+  box.addEventListener("pointerover", e => { const el = at(e); if (el === ahTipEl) return; ahTipEl = el; clearTimeout(ahTipT); gTipHide();
+    if (el) ahTipT = setTimeout(() => { if (ahTipEl === el && el.isConnected) ahTipShow(el); }, 250); });
+  box.addEventListener("pointerleave", () => { ahTipEl = null; clearTimeout(ahTipT); gTipHide(); });
 }
 // Crosshair: snaps to the nearest day and lists every line of that chart for it.
 function gHover(e) {
@@ -4370,7 +4463,7 @@ const AH_VENDOR = new Set([159, 1179, 2320, 2321, 2324, 2325, 2604, 2605, 2678, 
 // «Сырьё»: Trade Goods subclasses (Blizzard class 7) that gatherers sell.
 const AH_RAW = [["7.9", "Травы"], ["7.7", "Руда и камень"], ["7.6", "Кожа"], ["7.5", "Ткань"], ["7.8", "Кулинария"], ["7.10", "Стихии"], ["7.12", "Чары"]];
 const AH_QC = ["var(--q-poor)", "var(--fg)", "var(--q-unc)", "var(--q-rare)", "var(--q-epic)", "var(--q-leg)", "var(--q-leg)", "var(--q-leg)"];
-let ahHouse = 113, ahSel = 0, ahMode = "h", ahSort = { k: "lots", dir: -1 }, ahLimit = 100, ahDrawn = "", ahItemDrawn = "", ahClsKey = "";
+let ahHouse = 113, ahSel = 0, ahMode = "h", ahSort = { k: "turn", dir: -1 }, ahLimit = 100, ahDrawn = "", ahItemDrawn = "", ahClsKey = "";
 let ahFSort = { k: "profit", dir: -1 }, ahFlipProf = false, ahFlipMin = 0;
 let ahRaw = "7.9", ahTab = "items", ahCSort = { k: "profit", dir: -1 }, ahProfKey = "", ahByName = null, ahByNameSrc = null;
 try { ahHouse = AH_HOUSES.some(([id]) => id === +localStorage.getItem("wf-ah-house")) ? +localStorage.getItem("wf-ah-house") : 113; } catch {}
@@ -4419,8 +4512,9 @@ function renderAh() {
   if ($("#ah-house").innerHTML !== hb) $("#ah-house").innerHTML = hb;
   const tb = [["overview", "Обзор"], ["trends", "Тренды"], ["items", "Предметы"], ["raw", "Сырьё"], ["flip", "Вендор флип"], ["craft", "Крафт гильдии"], ["npc", "Крафт → NPC"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
   if ($("#ah-tab").innerHTML !== tb) $("#ah-tab").innerHTML = tb;
-  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip", npc = ahTab === "npc", ov = ahTab === "overview", trn = ahTab === "trends";
-  $("#ah-cls").hidden = craft || raw || npc || ov || trn; $("#ah-prof").hidden = !craft && !npc; $("#ah-raw").hidden = !raw && !flip; $("#ahq").hidden = ov || trn;
+  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip", npc = ahTab === "npc", ov = ahTab === "overview", trn = ahTab === "trends", items = ahTab === "items";
+  $("#ah-items").hidden = !items; $("#ah-list").hidden = items;
+  $("#ah-cls").hidden = craft || raw || npc || ov || trn || items; $("#ah-prof").hidden = !craft && !npc; $("#ah-raw").hidden = !raw && !flip; $("#ahq").hidden = ov || trn;
   const rb = flip ? [["", "Все"], ["prof", "Реагенты профессий гильдии"]].map(([v, t]) => `<button type="button" data-act="ahflipprof" data-v="${v}" aria-pressed="${ahFlipProf === !!v}">${t}</button>`).join("")
       + [0, 5, 10, 25].map(n => `<button type="button" data-act="ahflipmin" data-v="${n}" aria-pressed="${ahFlipMin === n}">${n ? `от ${n}%` : "любая маржа"}</button>`).join("")
     : AH_RAW.map(([v, t]) => `<button type="button" data-act="ahraw" data-v="${v}" aria-pressed="${ahRaw === v}">${t}</button>`).join("");
@@ -4431,6 +4525,7 @@ function renderAh() {
   const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab, raw ? ahRaw : "", ...(flip ? [ahFlipProf, ahFlipMin, ahFSort.k, ahFSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
     ...(npc ? [$("#ah-prof").value, ahNTarget, ahNAll, ahNSort.k, ahNSort.dir, ahStamp(ahLad[h]?.v), guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
     ...(ov ? [ahOMode, ahStamp(ahTot[h]?.v), $("#ah-list").clientWidth] : []),
+    ...(items ? [ahCat, ahQuick, ahPage, JSON.stringify(ahFilters()), [...ahOpenCats].join()] : []),
     ...(trn ? [ahTWin, ahStamp(ahBase[h + ":" + ahTWin]?.v), ahBase[h + ":" + ahTWin]?.v?.at] : []),
     ...(craft ? [$("#ah-prof").value, ahCSort.k, ahCSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : [])].join("|");
   renderAhItem();
@@ -4438,7 +4533,7 @@ function renderAh() {
   ahDrawn = key;
   if (!d?.now) {
     $("#ah-kpi").innerHTML = "";
-    $("#ah-list").innerHTML = `<p class="empty">${offline ? "Нет связи с базой данных." : d?.err ? "Не получилось загрузить аукцион. Попробуй обновить страницу."
+    $("#ah-list").innerHTML = $("#ah-ilist").innerHTML = `<p class="empty">${offline ? "Нет связи с базой данных." : d?.err ? "Не получилось загрузить аукцион. Попробуй обновить страницу."
       : d && !d.loading ? "Снимков аукциона пока нет: первый появится в течение часа." : "Загружаю…"}</p>`;
     return;
   }
@@ -4468,7 +4563,15 @@ function renderAh() {
     + tile("Предметов", fmtN(all.length)) + tile("Лотов", fmtN(lots), lotsPrev ? `${ahPct((lots - lotsPrev) / lotsPrev)} за сутки` : "")
     + tile("Штук на продаже", fmtN(sum(all, "qty")))
     + tile("За сутки", prevD ? `<span class="ah-up">▲ ${up}</span> <span class="ah-dn">▼ ${dn}</span>` : "—", prevD ? "дороже / дешевле на 10%+" : "сравним через сутки")
-    + tile("Дешевле торговца", fmtN(cheap), "мин. цена ниже, чем даёт NPC")}</div>`;
+    + tile("Дешевле торговца", fmtN(cheap), "мин. цена ниже, чем даёт NPC")
+    + (() => { // what left the auction since the previous snapshot, priced at market (an estimate: sold, cancelled or expired)
+      const G = ahGet("g:" + h, d.now.at, "ah_prev_g", { p_house: h }), g = G && G !== "loading" && !G.err && G.at === d.now.at ? G.g : null;
+      if (!g || !Object.values(g).some(v => v.length > 2)) return tile("Ушло за час", "—", "оценка, считается со второго снимка");
+      let units = 0, cu = 0; const D = d.now.d;
+      for (const [id, v] of Object.entries(g)) if (v[2] > 0) { units += +v[2]; cu += +v[2] * (+(D[id]?.[1]) || +(d.prev?.d?.[id]?.[1]) || 0); }
+      return tile("Ушло за час", fmtCu(cu), `${fmtN(units)} шт. · оценка по рыночной цене`);
+    })()}</div>`;
+  if (items) { ahItemsRender(d, all, q); return; }
   if (craft) { $("#ah-list").innerHTML = ahCraftHtml(d, q); return; }
   if (flip) { $("#ah-list").innerHTML = ahFlipHtml(d, all, q, cls); return; }
   if (npc) { $("#ah-list").innerHTML = ahNpcHtml(d, q); return; }
@@ -4770,6 +4873,128 @@ function ahTrendsHtml(d, all) {
     + list("Пропало", `${goneL.length} · раскупили или сняли`, goneL, r => `было ${fmtN(r.lots)} ${plural(r.lots, "лот", "лота", "лотов")} · ${fmtCu(r.mk)}`)
     + `</div><p class="gnote">Цены: рыночная (средняя самых дешёвых 10% штук), только у предметов, где с обеих сторон хотя бы 3 лота. «Скупают» и «Завалили»: изменение числа выставленных штук, от 20 штук. «Пропало»: предмета больше нет на аукционе, проданный, снятый или истёкший, API не различает.</p>`;
 }
+// «Предметы» as an auction tracker: categories and sorts on the left, quick views, filters, and a table with the change over the
+// last hour, units gone in 24 hours (an estimate from ah_hour.g: previous units + new - now) and a 7-day sparkline per row.
+const ahCache = {}; // "kind:house[:...]" -> { at: the snapshot it belongs to, v: data | null | "loading" | { err } }
+function ahGet(key, at, fn, args) { // one request per key and snapshot; redraw when it arrives
+  const c = ahCache[key];
+  if (c && c.at === at) return c.v;
+  ahCache[key] = { at, v: "loading" };
+  if (dbRef) dbRef.call(fn, args).then(r => { if (ahCache[key]?.at !== at) return; ahCache[key] = { at, v: r ?? null }; ahDrawn = ""; renderAh(); })
+    .catch(() => { if (ahCache[key]?.at !== at) return; ahCache[key] = { at, v: { err: true } }; ahDrawn = ""; renderAh();
+      setTimeout(() => { if (ahCache[key]?.v?.err) { delete ahCache[key]; ahDrawn = ""; renderAh(); } }, 3e4); }); // one failure must not last the hour
+  return "loading";
+}
+// 7-day sparklines: one cache per house and snapshot, per item; only missing ids are asked for, once the list stops changing.
+const ahSp = {}; let ahSpT = 0;
+function ahSparkNeed(h, at, ids) {
+  let c = ahSp[h];
+  if (!c || c.at !== at) c = ahSp[h] = { at, pts: {}, busy: false, failAt: 0 };
+  const miss = ids.filter(i => !(i in c.pts));
+  if (miss.length && !c.busy && Date.now() - c.failAt > 3e4 && dbRef) {
+    clearTimeout(ahSpT);
+    ahSpT = setTimeout(() => {
+      const want = miss.filter(i => !(i in c.pts)).sort((a, b) => a - b).slice(0, 200);
+      if (ahSp[h] !== c || c.busy || !want.length) return;
+      c.busy = true;
+      dbRef.call("ah_spark", { p_house: h, p_ids: want }).then(r => { for (const i of want) c.pts[i] = r?.[i] || null; })
+        .catch(() => { c.failAt = Date.now(); }).finally(() => { c.busy = false; ahDrawn = ""; renderAh(); });
+    }, 400);
+  }
+  return c;
+}
+let ahCat = "", ahQuick = "", ahPage = 50;
+const ahOpenCats = new Set();
+const AH_QUICK = [ // id, label, filter, sort it switches to
+  ["turn", "Больше оборот", r => r.turn > 0, { k: "turn", dir: -1 }],
+  ["fast", "Быстро уходит", r => r.gone >= 10, { k: "st", dir: -1 }],
+  ["drop", "Подешевело за час", r => r.ch1 != null && r.ch1 <= -0.03, { k: "ch1", dir: 1 }],
+  ["cheap", "До 1g", r => r.mn < 1e4, null],
+  ["under", "Ниже рынка", r => r.under != null, { k: "under", dir: 1 }],
+  ["rare", "Редкие и выше", r => r.q >= 3, null],
+  ["new", "Новое в Forever", r => r.id >= 200000, null],
+  ["vendor", "Дешевле NPC", r => r.fu > 0, null],
+  ["low", "Заканчивается", r => r.low, { k: "gone", dir: -1 }]];
+const AH_SORTS = [["turn", -1, "Оборот (оценка)"], ["st", -1, "Быстрее уходит"], ["gone", -1, "Больше ушло"], ["ch1", 1, "Подешевело за час"],
+  ["ch1", -1, "Подорожало за час"], ["qty", -1, "Больше выставлено"], ["mk", -1, "Дороже"], ["mk", 1, "Дешевле"], ["n", 1, "По названию"]];
+const ahNum = id => { const v = $(id).value.trim(); return v === "" || !isFinite(+v) ? null : +v; };
+const ahFilters = () => ({ q: $("#ahf-q").value, l0: ahNum("#ahf-l0"), l1: ahNum("#ahf-l1"), p0: ahNum("#ahf-p0"), p1: ahNum("#ahf-p1"), s0: ahNum("#ahf-s0"), n0: ahNum("#ahf-n0") });
+function ahSpark(pts) {
+  const v = (pts || []).map(p => +p[1]).filter(x => x > 0);
+  if (v.length < 2) return `<span class="ah-spk0">—</span>`;
+  const lo = Math.min(...v), hi = Math.max(...v), W = 72, H = 22, span = hi - lo || 1;
+  const path = v.map((x, i) => `${i ? "L" : "M"}${(i / (v.length - 1) * W).toFixed(1)} ${(H - 2 - (x - lo) / span * (H - 4)).toFixed(1)}`).join("");
+  const tr = v[v.length - 1] / v[0], c = tr >= 1.02 ? "ah-spk-up" : tr <= 0.98 ? "ah-spk-dn" : "ah-spk-eq";
+  return `<svg class="ah-spk ${c}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><path d="${path}"/></svg>`;
+}
+function ahItemsRender(d, all, q) {
+  const h = ahHouse, at = d.now.at, C = ahNames?.classes || {};
+  const P1 = ahGet("p1:" + h, at, "ah_before", { p_house: h, p_at: new Date(at - 6e4).toISOString() });
+  const F = ahGet("f24:" + h, at, "ah_flow24", { p_house: h });
+  const p1 = P1 && P1 !== "loading" && !P1.err ? P1.d || {} : null, f24 = F && F !== "loading" && !F.err ? F : null, fl = f24?.f || {};
+  const rows = all.map(r => {
+    const o = p1?.[r.id], f = fl[r.id], gone = f ? +f[0] : null;
+    return { ...r, ch1: o && +o[1] ? (r.mk - o[1]) / o[1] : null, gone, st: gone != null && gone + r.qty > 0 ? gone / (gone + r.qty) : null,
+      turn: gone ? gone * r.mk : 0, under: r.mk && r.mn < r.mk * 0.7 && r.lots >= 3 ? (r.mn - r.mk) / r.mk : null,
+      low: gone != null && gone >= 10 && r.qty < gone * 0.25 };
+  });
+  // left: categories with counts (all items on sale), then sorts
+  const by = {};
+  for (const r of rows) if (r.c != null) { const b = by[r.c] ||= { n: 0, s: {} }; b.n++; if (r.sc != null) b.s[r.sc] = (b.s[r.sc] || 0) + 1; }
+  const catBtn = (v, t, n, cls = "") => `<button type="button" class="ah-cat${cls}" data-act="ahcat" data-v="${esc(v)}" aria-pressed="${ahCat === v}"><span>${esc(t)}</span><small>${fmtN(n)}</small></button>`;
+  $("#ah-cats").innerHTML = catBtn("", "Все предметы", rows.length) + Object.entries(by).sort((a, b) => (C[a[0]] || "").localeCompare(C[b[0]] || "")).map(([c, b]) => {
+    const open = ahOpenCats.has(c) || ahCat === c || ahCat.startsWith(c + ".");
+    return catBtn(c, `${open ? "▾" : "▸"} ${C[c] || "Класс " + c}`, b.n) + (open ? Object.entries(b.s).sort((x, y) => (C[c + "." + x[0]] || "").localeCompare(C[c + "." + y[0]] || ""))
+      .map(([s, n]) => catBtn(c + "." + s, C[c + "." + s] || "?", n, " sub")).join("") : "");
+  }).join("");
+  $("#ah-sorts").innerHTML = AH_SORTS.map(([k, dir, t]) => `<button type="button" class="ah-cat" data-act="ahsortset" data-k="${k}" data-d="${dir}" aria-pressed="${ahSort.k === k && ahSort.dir === dir}"><span>${t}</span></button>`).join("");
+  $("#ah-quick").innerHTML = AH_QUICK.map(([id, t]) => `<button type="button" data-act="ahquick" data-v="${id}" aria-pressed="${ahQuick === id}">${t}</button>`).join("");
+  // filters
+  const f = ahFilters();
+  let list = rows;
+  if (ahCat) { const [c, s] = ahCat.split("."); list = list.filter(r => String(r.c) === c && (s == null || String(r.sc) === s)); }
+  const qv = AH_QUICK.find(x => x[0] === ahQuick);
+  const needsFlow = ["turn", "fast", "low"].includes(ahQuick) && !(f24?.hours > 0);
+  if (qv && !needsFlow) list = list.filter(qv[2]);
+  if (q) list = list.filter(r => r.n.toLowerCase().includes(q) || String(r.id) === q);
+  if (f.q) list = list.filter(r => r.q >= +f.q);
+  if (f.l0 != null) list = list.filter(r => r.rl >= f.l0);
+  if (f.l1 != null) list = list.filter(r => r.rl <= f.l1);
+  if (f.p0 != null) list = list.filter(r => r.mn >= f.p0 * 1e4);
+  if (f.p1 != null) list = list.filter(r => r.mn <= f.p1 * 1e4);
+  if (f.s0 != null) list = list.filter(r => (r.gone || 0) >= f.s0);
+  if (f.n0 != null) list = list.filter(r => r.qty >= f.n0);
+  const nf = Object.values(f).filter(v => v != null && v !== "").length;
+  $("#ah-fn").textContent = nf ? ` · ${nf}` : "";
+  const { k, dir } = ahSort;
+  list.sort((a, b) => { const x = a[k], y = b[k]; if (x == null || y == null) return (x == null) - (y == null);
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * dir || b.lots - a.lots; });
+  const page = list.slice(0, ahPage);
+  // 7-day sparklines for the rows on screen only
+  const spc = ahSparkNeed(h, at, page.slice(0, 200).map(r => r.id)); // the rows past 200 get no sparkline
+  const help = t => `<span class="ah-help" tabindex="0" data-tip="${esc(t)}">?</span>`;
+  const COLS = [["n", "Предмет"], ["mn", "Мин. выкуп"], ["ch1", "1 ч"], ["mk", "Рыночная" + help("Средняя цена самых дешёвых 10% выставленных штук. В отличие от минимальной, её не сбивает один демпинговый лот: это цена, по которой реально можно купить заметное количество.")],
+    ["qty", "Выставлено"], ["gone", "Ушло 24 ч" + help("Оценка: сколько штук исчезло с аукциона за последние сутки (было час назад + новые лоты − есть сейчас, по каждому часу). Сюда входят и проданные, и снятые, и истёкшие лоты: Blizzard не говорит, что именно продано.")],
+    ["st", "Уходит" + help("Какая доля штук ушла за сутки: ушло / (ушло + выставлено сейчас). Чем выше, тем быстрее раскупают.")], ["", "7 дней"]];
+  const th = ([c, t]) => c ? `<th scope="col"${c !== "n" ? ` class="num"` : ""}${k === c ? ` aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="ahsort" data-k="${c}">${t}${k === c ? (dir > 0 ? " ↑" : " ↓") : ""}</button></th>`
+    : `<th scope="col" class="num">${t}</th>`;
+  const tr = (r, i) => { const ic = ahIcon(r.ic), cat = r.sc != null ? C[r.c + "." + r.sc] : r.c != null ? C[r.c] : "";
+    const badges = (r.low ? `<span class="ah-badge low">мало осталось</span>` : "") + (r.under != null ? `<span class="ah-badge under">${Math.round(-r.under * 100)}% ниже рынка</span>` : "");
+    return `<tr data-ahid="${r.id}"><th scope="row"><button type="button" class="ah-n" data-act="ahitem" data-id="${r.id}" style="--q:${AH_QC[r.q] || "var(--fg)"}">${ic ? `<img src="${ic}" alt="" loading="lazy">` : `<i></i>`}<span>${esc(r.n)}</span></button>
+      <small class="ah-re">${esc(cat || "")}${badges}</small></th>
+      <td class="num">${fmtCu(r.mn)}</td><td class="num">${r.ch1 == null ? "—" : ahPct(r.ch1)}</td><td class="num">${fmtCu(r.mk)}</td>
+      <td class="num">${fmtN(r.qty)}</td><td class="num">${r.gone == null ? "—" : fmtN(r.gone)}</td>
+      <td class="num">${r.st == null ? "—" : `<span class="ah-bar"><i style="width:${Math.round(r.st * 100)}%"></i></span>${Math.round(r.st * 100)}%`}</td>
+      <td class="num">${r.id in spc.pts ? ahSpark(spc.pts[r.id]) : i < 200 ? `<span class="ah-spk0">…</span>` : ""}</td></tr>`; };
+  const hours = f24?.hours || 0;
+  $("#ah-ilist").innerHTML = `<div class="ah-ihead"><span><b>${fmtN(list.length)}</b> ${plural(list.length, "предмет", "предмета", "предметов")}</span>
+      <span class="seg ah-pg" role="group" aria-label="Строк на странице">${[50, 100, 200].map(n => `<button type="button" data-act="ahpage" data-v="${n}" aria-pressed="${ahPage === n}">${n}</button>`).join("")}</span></div>`
+    + (page.length ? `<div class="scroll"><table class="rtab ah-tab ah-itab"><thead><tr>${COLS.map(th).join("")}</tr></thead><tbody>${page.map(tr).join("")}</tbody></table></div>`
+      + (list.length > ahPage ? `<p class="ovnote">Показано ${fmtN(ahPage)} из ${fmtN(list.length)}. <button type="button" class="glink" data-act="ahpage" data-v="${ahPage + 200}">Показать ещё</button></p>` : "")
+      : `<p class="empty">Под эти фильтры ничего нет.</p>`)
+    + (needsFlow ? `<p class="note">«${esc(qv[1])}» считается по оценке «ушло», а она ещё ${F === "loading" ? "загружается" : "копится: нужны два снимка подряд"}. Пока показаны все предметы.</p>` : "")
+    + `<p class="gnote">Цены за штуку. «1 ч»: изменение рыночной цены с прошлого снимка. «Ушло 24 ч» и «Уходит» — оценка${hours < 24 ? `: пока собрано ${hours} ч из 24, числа будут расти` : ""}. «Ниже рынка»: самый дешёвый лот на 30% и больше дешевле рыночной цены. «Мало осталось»: выставлено меньше четверти того, что ушло за сутки. Нажми на предмет, чтобы открыть его график.</p>`;
+}
 function renderAhItem() {
   const el = $("#ah-item"), h = ahHouse, d = ahData[h];
   if (!ahSel) { if (ahItemDrawn) { el.innerHTML = ""; ahItemDrawn = ""; } return; }
@@ -4834,9 +5059,11 @@ function ahChart(id, xs0, series, o) {
   gModels[id] = { days: xs0, series, xs, W, lab: i => o.tip(xs0[i]), fmt: o.fmt };
   return `<div class="gplot" data-chart="${esc(id)}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label)}">${svg}</svg><div class="gtip" hidden></div></div>`;
 }
-$("#ahq").addEventListener("input", () => { ahLimit = 100; renderAh(); });
+$("#ahq").addEventListener("input", () => { ahLimit = 100; ahPage = 50; renderAh(); });
 $("#ah-cls").addEventListener("change", () => { ahLimit = 100; renderAh(); });
 $("#ah-prof").addEventListener("change", () => { ahLimit = 100; renderAh(); });
+for (const ev of ["input", "change"]) $("#ah-filt").addEventListener(ev, () => { ahPage = 50; renderAh(); });
+if (matchMedia("(max-width: 899px)").matches) document.querySelectorAll(".ah-sidebox").forEach(x => { x.open = false; }); // phones: folded
 function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = !el.dataset.view.split(" ").includes(view); });
   document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === ({ dungeon: "dungeons", cmp: "char" }[view] || view))));
