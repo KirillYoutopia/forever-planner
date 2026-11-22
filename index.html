@@ -1206,7 +1206,13 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 .ah-head small { color: var(--muted); }
 .ah-x { font-size: 18px; padding: 6px 10px; }
 .ah-card .seg { margin: 4px 0 10px; }
-@media (max-width: 599px) { .ah-tab th, .ah-tab td { padding: 7px 6px; } .ah-n img, .ah-n i { width: 20px; height: 20px; } }
+.ah-tabs { margin-bottom: 12px; }
+.ah-re { display: block; font-size: 12px; color: var(--muted); white-space: normal; margin: 3px 0 0 32px; max-width: 520px; }
+.ah-ri { display: inline; font-size: 12px; padding: 0; min-height: 0; text-align: left; }
+.ah-craft tbody th { min-width: 260px; white-space: normal; }
+.ah-miss { color: var(--horde); }
+.ah-tab td small { display: block; font-size: 11px; color: var(--muted); }
+@media (max-width: 599px) { .ah-tab th, .ah-tab td { padding: 7px 6px; } .ah-n img, .ah-n i { width: 20px; height: 20px; } .ah-re { margin-left: 0; } .ah-craft tbody th { min-width: 220px; } }
 </style>
 
 </head>
@@ -1263,8 +1269,9 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
     <div class="panel-head"><h2 id="h-ah">Аукцион</h2><div class="seg" role="group" aria-label="Аукцион" id="ah-house"></div></div>
     <div id="ah-item"></div>
     <div id="ah-kpi"></div>
+    <div class="seg ah-tabs" role="group" aria-label="Раздел аукциона" id="ah-tab"></div>
     <div class="rtools ah-tools"><input id="ahq" type="search" maxlength="60" placeholder="Найти предмет (название по-английски)" aria-label="Поиск предмета" autocomplete="off">
-      <select id="ah-cls" aria-label="Тип предмета"></select></div>
+      <select id="ah-cls" aria-label="Тип предмета"></select><select id="ah-prof" aria-label="Профессия" hidden></select></div>
     <div id="ah-list"></div>
   </section>
 
@@ -2642,7 +2649,9 @@ document.addEventListener("click", e => {
   }
   else if (act === "close") closeSheet();
   else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; renderAh(); }
-  else if (act === "ahsort") { const k = b.dataset.k; ahSort = ahSort.k === k ? { k, dir: -ahSort.dir } : { k, dir: k === "n" ? 1 : -1 }; renderAh(); }
+  else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
+    if (c) ahCSort = ns; else ahSort = ns; renderAh(); }
+  else if (act === "ahtab") { ahTab = b.dataset.v === "craft" ? "craft" : "items"; ahLimit = 100; renderAh(); }
   else if (act === "ahmore") { ahLimit += 200; renderAh(); }
   else if (act === "ahitem") { ahSel = +id; try { history.replaceState(null, "", "#ah/" + ahSel); } catch {} renderAh(); $("#ah-item").scrollIntoView({ block: "start", behavior: "smooth" }); }
   else if (act === "ahclose") { ahSel = 0; try { history.replaceState(null, "", "#ah"); } catch {} renderAh(); }
@@ -4330,6 +4339,7 @@ window.addEventListener("resize", () => { clearTimeout(gResize); gResize = setTi
 const AH_HOUSES = [[113, "Орда"], [116, "Blackwater"]];
 const AH_QC = ["var(--q-poor)", "var(--fg)", "var(--q-unc)", "var(--q-rare)", "var(--q-epic)", "var(--q-leg)", "var(--q-leg)", "var(--q-leg)"];
 let ahHouse = 113, ahSel = 0, ahMode = "h", ahSort = { k: "lots", dir: -1 }, ahLimit = 100, ahDrawn = "", ahItemDrawn = "", ahClsKey = "";
+let ahTab = "items", ahCSort = { k: "profit", dir: -1 }, ahProfKey = "", ahByName = null, ahByNameSrc = null;
 try { ahHouse = AH_HOUSES.some(([id]) => id === +localStorage.getItem("wf-ah-house")) ? +localStorage.getItem("wf-ah-house") : 113; } catch {}
 const ahData = {}, ahHist = {};  // house -> { now, prev, got } | { err }; "house:item" -> { h, d } | "loading" | { err }
 let ahNames = null, ahNamesP = null;
@@ -4373,9 +4383,15 @@ function renderAh() {
   else if (!ahNamesP) ahLoad(h);
   const hb = AH_HOUSES.map(([id, t]) => `<button type="button" data-act="ahhouse" data-v="${id}" aria-pressed="${id === h}">${t}</button>`).join("");
   if ($("#ah-house").innerHTML !== hb) $("#ah-house").innerHTML = hb;
+  const tb = [["items", "Предметы"], ["craft", "Крафт гильдии"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
+  if ($("#ah-tab").innerHTML !== tb) $("#ah-tab").innerHTML = tb;
+  const craft = ahTab === "craft";
+  $("#ah-cls").hidden = craft; $("#ah-prof").hidden = !craft;
+  $("#ahq").placeholder = craft ? "Найти рецепт или реагент (по-английски)" : "Найти предмет (название по-английски)";
   const q = $("#ahq").value.trim().toLowerCase();
   let cls = $("#ah-cls").value;
-  const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline].join("|");
+  const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab,
+    ...(craft ? [$("#ah-prof").value, ahCSort.k, ahCSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : [])].join("|");
   renderAhItem();
   if (key === ahDrawn) return;
   ahDrawn = key;
@@ -4412,6 +4428,7 @@ function renderAh() {
     + tile("Штук на продаже", fmtN(sum(all, "qty")))
     + tile("За сутки", prevD ? `<span class="ah-up">▲ ${up}</span> <span class="ah-dn">▼ ${dn}</span>` : "—", prevD ? "дороже / дешевле на 10%+" : "сравним через сутки")
     + tile("Дешевле торговца", fmtN(cheap), "мин. цена ниже, чем даёт NPC")}</div>`;
+  if (craft) { $("#ah-list").innerHTML = ahCraftHtml(d, q); return; }
   // the list
   let rows = all;
   if (cls === "?") rows = rows.filter(r => r.c == null);
@@ -4430,6 +4447,69 @@ function renderAh() {
       + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
       + `<p class="gnote">Цены за штуку. «Мин. цена»: самый дешёвый лот. «Рыночная»: средняя цена самых дешёвых 10% выставленных штук, её не сбивает один демпинговый лот. «За сутки»: изменение рыночной цены. Данные Blizzard API, снимок раз в час; продавцов в данных нет. Нажми на предмет, чтобы увидеть график.</p>`
     : `<p class="empty">${q || cls ? "Ничего не нашлось." : "Пусто."}</p>`;
+}
+// «Крафт гильдии»: recipes someone in the guild knows, priced from the current snapshot. Recipes list reagents by NAME
+// (gcat.r[id].re = [[name, qty]]), matched to item ids through the auction's name catalogue.
+// shortcut: reagents sold by NPC vendors (thread, vials, flux) are priced at the auction like everything else; a vendor price list would fix it.
+function ahCraftRows(d) {
+  const mem = guild?.members || {}, cur = d.now.d, N = ahNames?.items || {};
+  if (ahByNameSrc !== ahNames) {
+    ahByName = new Map(); ahByNameSrc = ahNames;
+    for (const [id, v] of Object.entries(N)) if (v?.[0]) { const k = String(v[0]).toLowerCase(); if (!ahByName.has(k)) ahByName.set(k, []); ahByName.get(k).push(id); }
+  }
+  const idOf = n => { const l = ahByName.get(String(n).toLowerCase()) || []; return l.find(i => cur[i]) || l[0] || null; };
+  const by = {}; // profession -> recipe id -> [character slug]
+  for (const [slug, g] of Object.entries(grec)) if (mem[slug])
+    for (const [prof, ids] of Object.entries(g.r || {})) for (const id of Array.isArray(ids) ? ids : []) ((by[prof] ||= {})[id] ||= []).push(slug);
+  const cut = ahHouse === 116 ? 0.15 : 0.05, rows = [];
+  for (const [prof, ids] of Object.entries(by)) for (const [rid, who] of Object.entries(ids)) {
+    const r = gcat[prof]?.r?.[rid];
+    if (!r || !Array.isArray(r.re) || !r.re.length || (r.n || "") === prof) continue;
+    const re = r.re.map(([n, k]) => { const id = idOf(n), v = id && cur[id]; return { n: String(n ?? "?"), k: Math.max(1, +k || 1), id, p: v ? +v[1] : null }; });
+    const miss = re.filter(x => x.p == null).length, cost = re.reduce((s, x) => s + (x.p || 0) * x.k, 0);
+    const iid = +r.iid || 0, pv = iid ? cur[iid] : null, yieldN = Math.max(1, +r.q || 1);
+    const sell = pv ? Math.round(+pv[0] * yieldN * (1 - cut)) : null, ok = sell != null && !miss;
+    rows.push({ prof, rid, n: String(r.n || `Рецепт ${rid}`), icon: r.icon, iq: r.iq, who, re, miss, cost, iid, yieldN, sell,
+      lots: pv ? +pv[3] : 0, profit: ok ? sell - cost : null, margin: ok && cost ? (sell - cost) / cost : null });
+  }
+  return rows;
+}
+function ahCraftHtml(d, q) {
+  const all = ahCraftRows(d), mem = guild?.members || {};
+  const cnt = {}; for (const r of all) cnt[r.prof] = (cnt[r.prof] || 0) + 1;
+  const pk = JSON.stringify(cnt), ps = $("#ah-prof");
+  if (pk !== ahProfKey) {
+    ahProfKey = pk;
+    const was = ps.value;
+    ps.innerHTML = `<option value="">Все профессии · ${all.length}</option>` + Object.entries(cnt).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([p, n]) => `<option value="${esc(p)}">${esc(p)} · ${n}</option>`).join("");
+    ps.value = [...ps.options].some(o => o.value === was) ? was : "";
+  }
+  if (!all.length) return `<p class="empty">${got.has("grecipes") ? "Рецептов гильдии с реагентами пока нет." : "Загружаю рецепты…"}</p>`;
+  let rows = all;
+  if (ps.value) rows = rows.filter(r => r.prof === ps.value);
+  if (q) rows = rows.filter(r => r.n.toLowerCase().includes(q) || r.re.some(x => x.n.toLowerCase().includes(q)));
+  const { k, dir } = ahCSort;
+  rows = [...rows].sort((a, b) => { const x = a[k], y = b[k];
+    if (x == null || y == null) return (x == null) - (y == null);
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * dir || a.n.localeCompare(b.n); });
+  const COLS = [["n", "Рецепт"], ["cost", "Реагенты"], ["sell", "Продажа"], ["profit", "Прибыль"], ["margin", "Маржа"], ["lots", "Лотов"]];
+  const th = ([c, t]) => `<th scope="col"${c !== "n" ? ` class="num"` : ""}${k === c ? ` aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="ahsort" data-t="c" data-k="${c}">${t}${k === c ? (dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
+  const nm = s => mem[s] ? `${mem[s].name}${mem[s].surname ? " " + mem[s].surname : ""}` : s;
+  const ing = x => `${x.k}× ${x.id ? `<button type="button" class="glink ah-ri${x.p == null ? " ah-miss" : ""}" data-act="ahitem" data-id="${+x.id}">${esc(x.n)}</button>` : `<span class="ah-miss">${esc(x.n)}</span>`}${x.p == null ? " (нет на аукционе)" : ` ${fmtCu(x.p)}`}`;
+  const tr = r => { const ic = bimg(r.icon);
+    const name = `${ic ? `<img src="${ic}" alt="" loading="lazy">` : `<i></i>`}<span>${esc(r.n)}</span>`;
+    return `<tr><th scope="row">${r.iid ? `<button type="button" class="ah-n rq-${esc(r.iq || "")}" data-act="ahitem" data-id="${r.iid}">${name}</button>` : `<span class="ah-n rq-${esc(r.iq || "")}">${name}</span>`}
+      <small class="ah-re">${esc(r.prof)} · ${esc(r.who.map(nm).sort((a, b) => a.localeCompare(b)).join(", "))}</small>
+      <small class="ah-re">${r.re.map(ing).join(" · ")}</small></th>
+      <td class="num">${r.miss ? "≥ " : ""}${fmtCu(r.cost)}</td>
+      <td class="num">${r.sell == null ? (r.iid ? "нет на аукционе" : "—") : fmtCu(r.sell)}${r.yieldN > 1 && r.sell != null ? `<small>за ${r.yieldN} шт.</small>` : ""}</td>
+      <td class="num">${r.profit == null ? "—" : `<b class="${r.profit >= 0 ? "ah-up" : "ah-dn"}">${r.profit < 0 ? "−" : ""}${fmtCu(Math.abs(r.profit))}</b>`}</td>
+      <td class="num">${ahPct(r.margin)}</td><td class="num">${r.lots ? fmtN(r.lots) : "—"}</td></tr>`; };
+  return (rows.length ? `<div class="scroll"><table class="rtab ah-tab ah-craft"><thead><tr>${COLS.map(th).join("")}</tr></thead><tbody>${rows.slice(0, ahLimit).map(tr).join("")}</tbody></table></div>`
+      + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
+    : `<p class="empty">Ничего не нашлось.</p>`)
+    + `<p class="gnote">Рецепты, которые знает кто-то в гильдии (персонажи с ${G_MIN} уровня). «Реагенты»: рыночная цена каждого реагента × количество; реагенты у NPC-торговцев (нитки, колбы, флюс) тоже считаются по цене аукциона, на деле они дешевле. «Продажа»: минимальная цена изделия × сколько штук даёт крафт, минус комиссия аукциона ${ahHouse === 116 ? "15%" : "5%"}; залог за выставление не учтён. Чары без изделия показывают только цену реагентов. Это оценка по последнему снимку, не гарантия.</p>`;
 }
 function renderAhItem() {
   const el = $("#ah-item"), h = ahHouse, d = ahData[h];
@@ -4497,6 +4577,7 @@ function ahChart(id, xs0, series, o) {
 }
 $("#ahq").addEventListener("input", () => { ahLimit = 100; renderAh(); });
 $("#ah-cls").addEventListener("change", () => { ahLimit = 100; renderAh(); });
+$("#ah-prof").addEventListener("change", () => { ahLimit = 100; renderAh(); });
 function applyView() {
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = !el.dataset.view.split(" ").includes(view); });
   document.querySelectorAll(".side [data-nav]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.nav === ({ dungeon: "dungeons", cmp: "char" }[view] || view))));
