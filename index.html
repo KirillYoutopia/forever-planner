@@ -1215,6 +1215,7 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 /* raid readiness + yesterday */
 #rd-ready .ok { color: var(--healer); } #rd-ready .late { color: var(--horde); }
 #rd-ready td.reps { white-space: normal; text-align: left; min-width: 180px; font-size: 12px; color: var(--muted); }
+#yday.off { display: none; }
 .yday { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
 .yday li { line-height: 1.4; }
 .kstrip small { display: block; font-size: 11px; color: var(--muted); }
@@ -1367,7 +1368,7 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 
   <div class="kpis" id="kpis" data-view="home"></div>
 
-  <section class="panel" id="yday" data-view="home" hidden></section>
+  <section class="panel off" id="yday" data-view="home" hidden></section>
 
   <section class="panel" aria-labelledby="h-ov" data-view="home">
     <div class="panel-head"><h2 id="h-ov">Состав гильдии</h2><div class="seg" role="group" aria-label="Кого считать в классах и расах" id="ov-f"></div></div>
@@ -1660,19 +1661,19 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
         <li>Первый бросает 1–N, второй — 1–выпавшее, и так по очереди.</li>
         <li>Кто выбросил <b>1</b>, проиграл и отдаёт ставку второму.</li>
         <li>Кости бросает сервер, а не браузер: подкрутить нельзя. Бросить можно только в свой ход и только за себя.</li>
-        <li>Крестик убирает дуэль совсем, например созданную по ошибке. Убранная дуэль не считается в кошельке.</li>
+        <li>Крестик убирает дуэль, например созданную по ошибке. Убранная дуэль не считается в кошельке. Законченную дуэль убирает только админ: это долг.</li>
       </ol></div>
       <div><h3>Ставки</h3><ol>
         <li>Выбрать вариант можно бесплатно. Золото к нему — по желанию.</li>
         <li>Пока итога нет, вариант и сумму можно менять. После итога — нельзя.</li>
         <li><b>Тотализатор:</b> золото тех, кто не угадал, делится между угадавшими пропорционально их ставкам. Угадал без золота — просто молодец.</li>
         <li>Если с золотом никто не угадал, все ставки возвращаются.</li>
-        <li>Итог отмечает любой, когда событие случилось. Ошибся — можно отменить итог.</li>
+        <li>Итог отмечает любой, когда событие случилось. Изменить или отменить итог может только автор ставки.</li>
       </ol></div>
       <div><h3>Кошелёк</h3><ol>
         <li>Всё считается вместе: дуэли и ставки. Долги между двумя игроками взаимно гасятся.</li>
         <li>Плюс — тебе должны, минус — должен ты.</li>
-        <li>Отдал золото в игре — нажми «Рассчитались». Нажать может любой из двоих, и это попадёт в историю.</li>
+        <li>Отдали тебе золото в игре — нажми «Рассчитались». Нажимает тот, кто получил, и это попадёт в историю.</li>
         <li>Пока не нажали «Рассчитались», долг висит, даже если золото уже передано.</li>
       </ol></div>
     </div>
@@ -3663,14 +3664,14 @@ function renderRaidReady() {
 function renderYday() {
   const box = $("#yday"); if (!box) return;
   const ids = glevels.map(r => r.id).filter(id => id < parisDay()).sort(), Y = glevels.find(r => r.id === ids.at(-1)), P = glevels.find(r => r.id === ids.at(-2));
-  if (!Y || !P || dayGap(P.id, Y.id) !== 1) { box.hidden = true; return; } // a missed day would lump several days
+  if (!Y || !P || dayGap(P.id, Y.id) !== 1) { box.classList.add("off"); return; } // a missed day would lump several days
   const diff = (k, s) => (+Y[k]?.[s] || 0) - (+P[k]?.[s] || 0), sumObj = o => Object.values(o || {}).reduce((a, v) => a + (+v || 0), 0);
   const rows = Object.keys(Y.lv || {}).filter(s => P.lv?.[s] != null).map(s => ({ s, lv: diff("lv", s), q: diff("qd", s), hk: diff("hk", s), dt: diff("dt", s),
     bk: sumObj(Y.bk?.[s]) - sumObj(P.bk?.[s]), pr: sumObj(Y.pr?.[s]) - sumObj(P.pr?.[s]) }))
     .filter(r => r.lv > 0 || r.q > 0 || r.hk > 0 || r.bk > 0 || r.pr > 0).sort((a, b) => b.lv - a.lv || b.q - a.q);
   const d = new Date(Y.id + "T12:00"), parts = r => [r.lv > 0 && `<b>${Y.lv[r.s] - r.lv} → ${Y.lv[r.s]}</b>`, r.q > 0 && `${r.q} ${plural(r.q, "задание", "задания", "заданий")}`,
     r.bk > 0 && `${r.bk} ${plural(r.bk, "босс", "босса", "боссов")} в подземельях`, r.hk > 0 && `${r.hk} HK`, r.pr > 0 && `+${r.pr} к профессиям`, r.dt > 0 && `💀 ${r.dt}`].filter(Boolean).join(" · ");
-  box.hidden = false;
+  box.classList.remove("off"); // not .hidden: applyView() owns that
   box.innerHTML = `<div class="panel-head"><h2>Вчера, ${d.getDate()} ${MON[d.getMonth()]}</h2><span class="cap">${rows.length ? `играли ${rows.length} ${plural(rows.length, "персонаж", "персонажа", "персонажей")}` : "никто не играл"}</span></div>${
     rows.length ? `<ul class="yday">${rows.map(r => `<li><button type="button" class="glink" data-act="gchar" data-id="${esc(r.s)}">${esc(gName(r.s))}</button> ${parts(r)}</li>`).join("")}</ul>` : ""}`;
 }
