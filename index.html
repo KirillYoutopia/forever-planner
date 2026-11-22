@@ -1206,7 +1206,8 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 .ah-head small { color: var(--muted); }
 .ah-x { font-size: 18px; padding: 6px 10px; }
 .ah-card .seg { margin: 4px 0 10px; }
-.ah-tabs { margin-bottom: 12px; }
+.ah-tabs { margin-bottom: 12px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ah-tiles b span { display: inline; font-size: inherit; margin: 0; color: inherit; } .ah-tiles b .ah-up { color: var(--healer); } .ah-tiles b .ah-dn { color: var(--horde); } /* values, not labels (.gtiles span is the label style) */
 .ah-re { display: block; font-size: 12px; color: var(--muted); white-space: normal; margin: 3px 0 0 32px; max-width: 520px; }
 .ah-ri { display: inline; font-size: 12px; padding: 0; min-height: 0; text-align: left; }
 .ah-craft tbody th { min-width: 260px; white-space: normal; }
@@ -2652,9 +2653,11 @@ document.addEventListener("click", e => {
   }
   else if (act === "close") closeSheet();
   else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; renderAh(); }
-  else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
-    if (c) ahCSort = ns; else ahSort = ns; renderAh(); }
-  else if (act === "ahtab") { ahTab = ["raw", "craft"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : b.dataset.t === "f" ? ahFSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
+    if (c) ahCSort = ns; else if (b.dataset.t === "f") ahFSort = ns; else ahSort = ns; renderAh(); }
+  else if (act === "ahtab") { ahTab = ["raw", "flip", "craft"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahflipprof") { ahFlipProf = b.dataset.v === "prof"; ahLimit = 100; renderAh(); }
+  else if (act === "ahflipmin") { ahFlipMin = [5, 10, 25].includes(+b.dataset.v) ? +b.dataset.v : 0; ahLimit = 100; renderAh(); }
   else if (act === "ahraw") { ahRaw = AH_RAW.some(([v]) => v === b.dataset.v) ? b.dataset.v : "7.9"; ahLimit = 100; renderAh(); }
   else if (act === "ahmore") { ahLimit += 200; renderAh(); }
   else if (act === "ahitem") { ahSel = +id; try { history.replaceState(null, "", "#ah/" + ahSel); } catch {} renderAh(); $("#ah-item").scrollIntoView({ block: "start", behavior: "smooth" }); }
@@ -4349,6 +4352,7 @@ const AH_VENDOR = new Set([159, 1179, 2320, 2321, 2324, 2325, 2604, 2605, 2678, 
 const AH_RAW = [["7.9", "Травы"], ["7.7", "Руда и камень"], ["7.6", "Кожа"], ["7.5", "Ткань"], ["7.8", "Кулинария"], ["7.10", "Стихии"], ["7.12", "Чары"]];
 const AH_QC = ["var(--q-poor)", "var(--fg)", "var(--q-unc)", "var(--q-rare)", "var(--q-epic)", "var(--q-leg)", "var(--q-leg)", "var(--q-leg)"];
 let ahHouse = 113, ahSel = 0, ahMode = "h", ahSort = { k: "lots", dir: -1 }, ahLimit = 100, ahDrawn = "", ahItemDrawn = "", ahClsKey = "";
+let ahFSort = { k: "profit", dir: -1 }, ahFlipProf = false, ahFlipMin = 0;
 let ahRaw = "7.9", ahTab = "items", ahCSort = { k: "profit", dir: -1 }, ahProfKey = "", ahByName = null, ahByNameSrc = null;
 try { ahHouse = AH_HOUSES.some(([id]) => id === +localStorage.getItem("wf-ah-house")) ? +localStorage.getItem("wf-ah-house") : 113; } catch {}
 const ahData = {}, ahHist = {};  // house -> { now, prev, got } | { err }; "house:item" -> { h, d } | "loading" | { err }
@@ -4383,7 +4387,7 @@ function ahRows(d) {
   return Object.entries(cur).map(([id, v]) => {
     const n = N[id] || [], o = old[id];
     return { id: +id, n: n[0] || `Предмет #${id}`, q: n[1] ?? 1, c: n[2], sc: n[3], il: n[4] || 0, rl: n[5] || 0, ic: n[6], sell: n[7] || 0,
-      mn: +v[0], mk: +v[1], qty: +v[2], lots: +v[3], ch: o && +o[1] ? (+v[1] - o[1]) / o[1] : null };
+      mn: +v[0], mk: +v[1], qty: +v[2], lots: +v[3], ch: o && +o[1] ? (+v[1] - o[1]) / o[1] : null, fu: +v[4] || 0, fc: +v[5] || 0 };
   });
 }
 function renderAh() {
@@ -4393,16 +4397,18 @@ function renderAh() {
   else if (!ahNamesP) ahLoad(h);
   const hb = AH_HOUSES.map(([id, t]) => `<button type="button" data-act="ahhouse" data-v="${id}" aria-pressed="${id === h}">${t}</button>`).join("");
   if ($("#ah-house").innerHTML !== hb) $("#ah-house").innerHTML = hb;
-  const tb = [["items", "Предметы"], ["raw", "Сырьё"], ["craft", "Крафт гильдии"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
+  const tb = [["items", "Предметы"], ["raw", "Сырьё"], ["flip", "Вендор флип"], ["craft", "Крафт гильдии"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
   if ($("#ah-tab").innerHTML !== tb) $("#ah-tab").innerHTML = tb;
-  const craft = ahTab === "craft", raw = ahTab === "raw";
-  $("#ah-cls").hidden = craft || raw; $("#ah-prof").hidden = !craft; $("#ah-raw").hidden = !raw;
-  const rb = AH_RAW.map(([v, t]) => `<button type="button" data-act="ahraw" data-v="${v}" aria-pressed="${ahRaw === v}">${t}</button>`).join("");
+  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip";
+  $("#ah-cls").hidden = craft || raw; $("#ah-prof").hidden = !craft; $("#ah-raw").hidden = !raw && !flip;
+  const rb = flip ? [["", "Все"], ["prof", "Реагенты профессий гильдии"]].map(([v, t]) => `<button type="button" data-act="ahflipprof" data-v="${v}" aria-pressed="${ahFlipProf === !!v}">${t}</button>`).join("")
+      + [0, 5, 10, 25].map(n => `<button type="button" data-act="ahflipmin" data-v="${n}" aria-pressed="${ahFlipMin === n}">${n ? `от ${n}%` : "любая маржа"}</button>`).join("")
+    : AH_RAW.map(([v, t]) => `<button type="button" data-act="ahraw" data-v="${v}" aria-pressed="${ahRaw === v}">${t}</button>`).join("");
   if ($("#ah-raw").innerHTML !== rb) $("#ah-raw").innerHTML = rb;
   $("#ahq").placeholder = craft ? "Найти рецепт или реагент (по-английски)" : "Найти предмет (название по-английски)";
   const q = $("#ahq").value.trim().toLowerCase();
   let cls = $("#ah-cls").value;
-  const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab, raw ? ahRaw : "",
+  const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab, raw ? ahRaw : "", ...(flip ? [ahFlipProf, ahFlipMin, ahFSort.k, ahFSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
     ...(craft ? [$("#ah-prof").value, ahCSort.k, ahCSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : [])].join("|");
   renderAhItem();
   if (key === ahDrawn) return;
@@ -4432,7 +4438,7 @@ function renderAh() {
   const sum = (l, k) => l.reduce((n, r) => n + r[k], 0), lots = sum(all, "lots"), prevD = d.prev?.d;
   const lotsPrev = prevD ? Object.values(prevD).reduce((n, v) => n + (+v[3] || 0), 0) : 0;
   const moved = all.filter(r => r.ch != null && r.lots >= 3), up = moved.filter(r => r.ch >= 0.1).length, dn = moved.filter(r => r.ch <= -0.1).length;
-  const cheap = all.filter(r => r.sell > 0 && r.mn < r.sell).length, mins = Math.round((Date.now() - d.now.at) / 6e4);
+  const cheap = all.filter(r => r.fu > 0).length || all.filter(r => r.sell > 0 && r.mn < r.sell).length, mins = Math.round((Date.now() - d.now.at) / 6e4);
   const tile = (t, v, sub = "") => `<div><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
   $("#ah-kpi").innerHTML = `<div class="gtiles ah-tiles">${
     tile("Снимок", `${ahDM(d.now.at)}, ${ahHM(d.now.at)}`, mins < 90 ? `${mins} мин. назад` : `${Math.round(mins / 60)} ч. назад`)
@@ -4441,6 +4447,7 @@ function renderAh() {
     + tile("За сутки", prevD ? `<span class="ah-up">▲ ${up}</span> <span class="ah-dn">▼ ${dn}</span>` : "—", prevD ? "дороже / дешевле на 10%+" : "сравним через сутки")
     + tile("Дешевле торговца", fmtN(cheap), "мин. цена ниже, чем даёт NPC")}</div>`;
   if (craft) { $("#ah-list").innerHTML = ahCraftHtml(d, q); return; }
+  if (flip) { $("#ah-list").innerHTML = ahFlipHtml(d, all, q, cls); return; }
   // the list
   let rows = all;
   if (raw) rows = rows.filter(r => `${r.c}.${r.sc}` === ahRaw);
@@ -4465,16 +4472,22 @@ function renderAh() {
 // «Крафт гильдии»: recipes someone in the guild knows, priced from the current snapshot. Recipes list reagents by NAME
 // (gcat.r[id].re = [[name, qty]]), matched to item ids through the auction's name catalogue.
 // Reagents NPC vendors sell (AH_VENDOR) count at the vendor's price when it's lower than the auction's.
-function ahCraftRows(d) {
-  const mem = guild?.members || {}, cur = d.now.d, N = ahNames?.items || {};
+function ahIdOf(cur) { // item name (as recipes list reagents) -> item id, preferring one that is on sale now
+  const N = ahNames?.items || {};
   if (ahByNameSrc !== ahNames) {
     ahByName = new Map(); ahByNameSrc = ahNames;
     for (const [id, v] of Object.entries(N)) if (v?.[0]) { const k = String(v[0]).toLowerCase(); if (!ahByName.has(k)) ahByName.set(k, []); ahByName.get(k).push(id); }
   }
-  const idOf = n => { const l = ahByName.get(String(n).toLowerCase()) || []; return l.find(i => cur[i]) || l[0] || null; };
-  const by = {}; // profession -> recipe id -> [character slug]
+  return n => { const l = ahByName.get(String(n).toLowerCase()) || []; return l.find(i => cur[i]) || l[0] || null; };
+}
+function ahGuildRecipes() { // profession -> recipe id -> [character slug], recipes known by guild members
+  const mem = guild?.members || {}, by = {};
   for (const [slug, g] of Object.entries(grec)) if (mem[slug])
     for (const [prof, ids] of Object.entries(g.r || {})) for (const id of Array.isArray(ids) ? ids : []) ((by[prof] ||= {})[id] ||= []).push(slug);
+  return by;
+}
+function ahCraftRows(d) {
+  const cur = d.now.d, N = ahNames?.items || {}, idOf = ahIdOf(cur), by = ahGuildRecipes();
   const cut = ahHouse === 116 ? 0.15 : 0.05, rows = [];
   for (const [prof, ids] of Object.entries(by)) for (const [rid, who] of Object.entries(ids)) {
     const r = gcat[prof]?.r?.[rid];
@@ -4527,6 +4540,38 @@ function ahCraftHtml(d, q) {
       + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
     : `<p class="empty">Ничего не нашлось.</p>`)
     + `<p class="gnote">Рецепты, которые знает кто-то в гильдии (персонажи с ${G_MIN} уровня). «Реагенты»: рыночная цена каждого реагента × количество. То, что продают NPC-торговцы (нитки, колбы, краски, флюс, специи, соль, древки), считается по цене торговца из API Blizzard, если она ниже аукционной (без скидки за репутацию); какие реагенты продаются у торговцев, мы отметили вручную. «Продажа»: минимальная цена изделия × сколько штук даёт крафт, минус комиссия аукциона ${ahHouse === 116 ? "15%" : "5%"}; залог за выставление не учтён. Чары без изделия показывают только цену реагентов. Это оценка по последнему снимку, не гарантия.</p>`;
+}
+// «Вендор флип»: lots listed below what an NPC pays for the item (scripts/ah.py counts them per item: units and their buyout
+// cost). Buy them out, sell to the vendor. The vendor price is the most one can pay per unit without a loss.
+function ahFlipHtml(d, all, q, cls) {
+  let rows = all.filter(r => r.fu > 0 && r.sell > 0).map(r => { const profit = r.sell * r.fu - r.fc; return { ...r, profit, margin: r.fc ? profit / r.fc : null }; });
+  if (!ahNames) return `<p class="empty">Загружаю названия…</p>`;
+  if (!all.some(r => r.fu > 0)) return `<p class="empty">Данные для флипа появятся со следующим снимком аукциона (раз в час).</p>`;
+  if (ahFlipProf) { // reagents of recipes someone in the guild knows
+    const idOf = ahIdOf(d.now.d), ids = new Set(), by = ahGuildRecipes();
+    for (const [prof, rs] of Object.entries(by)) for (const rid of Object.keys(rs)) for (const [n] of gcat[prof]?.r?.[rid]?.re || []) { const id = idOf(n); if (id) ids.add(+id); }
+    rows = rows.filter(r => ids.has(r.id));
+  }
+  if (ahFlipMin) rows = rows.filter(r => r.margin != null && r.margin * 100 >= ahFlipMin);
+  if (cls === "?") rows = rows.filter(r => r.c == null);
+  else if (cls) { const [c, s] = cls.split("."); rows = rows.filter(r => String(r.c) === c && (s == null || String(r.sc) === s)); }
+  if (q) rows = rows.filter(r => r.n.toLowerCase().includes(q) || String(r.id) === q);
+  const sum = k => rows.reduce((n, r) => n + r[k], 0), tile = (t, v, sub = "") => `<div><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const { k, dir } = ahFSort;
+  rows.sort((a, b) => { const x = a[k], y = b[k]; if (x == null || y == null) return (x == null) - (y == null);
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * dir || b.profit - a.profit; });
+  const COLS = [["n", "Предмет"], ["sell", "Макс. цена закупки"], ["mn", "Мин. цена"], ["fu", "Штук дешевле"], ["fc", "Вложить"], ["profit", "Прибыль"], ["margin", "Маржа"]];
+  const th = ([c, t]) => `<th scope="col"${c !== "n" ? ` class="num"` : ""}${k === c ? ` aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="ahsort" data-t="f" data-k="${c}">${t}${k === c ? (dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
+  const tr = r => { const ic = ahIcon(r.ic);
+    return `<tr><th scope="row"><button type="button" class="ah-n" data-act="ahitem" data-id="${r.id}" style="--q:${AH_QC[r.q] || "var(--fg)"}">${ic ? `<img src="${ic}" alt="" loading="lazy">` : `<i></i>`}<span>${esc(r.n)}</span></button></th>
+      <td class="num">${fmtCu(r.sell)}<small>столько даёт NPC</small></td><td class="num">${fmtCu(r.mn)}</td><td class="num">${fmtN(r.fu)}</td><td class="num">${fmtCu(r.fc)}</td>
+      <td class="num"><b class="ah-up">${fmtCu(r.profit)}</b><small>${fmtCu(Math.round(r.profit / r.fu))} за шт.</small></td><td class="num">${ahPct(r.margin)}</td></tr>`; };
+  return `<div class="gtiles ah-tiles">${tile("Предметов", fmtN(rows.length)) + tile("Штук", fmtN(sum("fu"))) + tile("Вложить", fmtCu(sum("fc")))
+      + tile("Прибыль", `<span class="ah-up">${fmtCu(sum("profit"))}</span>`, rows.length ? `маржа ${ahPct(sum("profit") / Math.max(1, sum("fc")))}` : "")}</div>`
+    + (rows.length ? `<div class="scroll"><table class="rtab ah-tab"><thead><tr>${COLS.map(th).join("")}</tr></thead><tbody>${rows.slice(0, ahLimit).map(tr).join("")}</tbody></table></div>`
+      + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
+      : `<p class="empty">Под эти фильтры ничего нет.</p>`)
+    + `<p class="gnote">Лоты, которые выставлены дешевле, чем за предмет платит NPC-торговец: выкупи и продай торговцу. «Макс. цена закупки»: сколько NPC платит за штуку, дороже покупать нет смысла. «Штук дешевле», «Вложить» и «Прибыль»: все такие лоты целиком, по цене выкупа; ставки не учитываются. Снимок раз в час (последний: ${ahHM(d.now.at)}), выгодные лоты быстро выкупают, так что в игре часть уже может пропасть.</p>`;
 }
 function renderAhItem() {
   const el = $("#ah-item"), h = ahHouse, d = ahData[h];

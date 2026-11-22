@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-22 (auction: vendor flip)
+
+- «Аукцион» → «Вендор флип»: lots listed below what an NPC vendor pays: the most to pay per unit, how many units, what to invest, profit and margin; filters for guild profession reagents and a minimum margin.
+
 ## 2026-11-22 (auction: raw materials, vendor reagents)
 
 - «Аукцион» → «Сырьё»: herbs, ore and stone, leather, cloth, cooking, elemental and enchanting materials on our auction, with the same prices, daily change and sorting as the item list.

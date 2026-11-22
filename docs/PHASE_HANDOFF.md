@@ -115,7 +115,15 @@ the auction price).
 LIVE: PR #38 (`f5ce89f`) + #39 (search retries). On GitHub's runner Blizzard's search answered HTTP 500 twice in a row (locally
 the same lookups passed), so `search()` now retries 5xx twice and logs the failing query; the next run backfilled 6920 entries
 (vendor price present on 6920 of 7130; the rest are Wowhead-sourced or unknown). Live check: 15 vendor reagents, «Сырьё» 40 herbs.
-Next ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
+«Вендор флип» (2026-11-22, stage 1 of the user's 4-stage plan): `scripts/ah.py` reads vendor sell prices (ah_names field 7) at the
+start and appends [units below vendor price, their buyout cost] to an item's array when such lots exist (no SQL change; daily
+aggregates use indices 0..3 only). Page `ahFlipHtml`: max buy price = vendor price, units, invest, profit, margin; filters
+«Реагенты профессий гильдии» (`ahGuildRecipes` + `ahIdOf`, shared with «Крафт гильдии») and minimum margin. Snapshot 18:23:
+231 items, ~1559g to invest for ~1.9g profit (mostly crafted gear listed 2–10c below vendor), a few real finds (Thick Leather +175%).
+Agreed plan with the user, still to do: stage 2 «Крафт → торговец» (max reagent buy price, price ladder per reagent, product
+vendor prices from gcat iids; needs SQL), stage 3 auction overview KPIs over time (totals per snapshot, new lots per hour via
+rising lot ids, «исчезло» = sold/cancelled/expired; needs SQL), stage 4 «Тренды» (new on AH, biggest moves, new flips).
+Other ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions
 
