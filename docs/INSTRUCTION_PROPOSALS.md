@@ -2,7 +2,7 @@
 
 Proposed changes to CLAUDE.md files. Not active until approved.
 
-## 2026-11-23: project CLAUDE.md, stricter write rules, lazy collections, English UI (PROPOSED)
+## 2026-11-23: project CLAUDE.md, stricter write rules, lazy collections, English UI (APPROVED 2026-11-23; items 1–5 APPLIED 2026-11-23, item 6 is applied together with the language switch)
 
 **Reason:** `patch_doc` rules changed (applied live 2026-11-23, approved by the user); `store.js` now loads `gcat` and
 `gtalents` only on demand; the user chose an EN/RU interface switch with English as the default, which contradicts
@@ -34,7 +34,7 @@ Proposed changes to CLAUDE.md files. Not active until approved.
    ```
 6. Replace the first paragraph's "The UI text is in Russian, so keep all user-facing text in Russian (game names stay in English)." with (only once the switch exists):
    ```
-   The UI has English (default) and Russian, switched next to the theme; every user-facing string goes through `t()` with both languages. Game names stay in English.
+   The UI has English (default) and Russian, switched next to the theme; every user-facing string goes through `tx()` (Russian text as the key, English in `i18n.js`). Game names stay in English.
    ```
 
 ## 2026-11-18: project CLAUDE.md, after v2 became the main page (APPLIED 2026-11-20, approved by the user)

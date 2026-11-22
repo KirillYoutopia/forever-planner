@@ -10,11 +10,12 @@ You're working on the guild site of a small WoW Forever group (Kute Expats, EU, 
   - `db.collection(name).onSnapshot(cb)` gets `{ docs: [{ id, data() }] }`. `.add(data)` and `.doc(id)` are also available.
   - `db.doc("coll/id")` has `.update(patch)` (deep merge), `.set(data)`, `.delete()` and `.onSnapshot(cb)`.
   - Updates are applied locally first, then confirmed by Supabase realtime. The data is fully reloaded when the tab becomes visible again.
+  - Big collections (`LAZY`: `gcat`, `gtalents`) are not in the initial load; `db.want(coll)` fetches one and keeps it live. `wantLazy()` asks for them when a view that uses them opens; a new user of these collections must be covered there.
 - `config.js`: Supabase URL and anon key.
 - `supabase.sql`: schema and seed data. It's safe to re-run.
   - One table, `docs(coll, id, data jsonb)`, primary key `(coll, id)`.
   - RPC `patch_doc(p_coll, p_id, p_patch)` deep-merges a patch on the server, so two people editing different fields don't overwrite each other.
-  - `patch_doc` is the only write path for the page (security definer, merge-only, validates collection names, vote values and that voters are group players). A new collection must be added to its allow-list. Anon can only `select` the table directly, never insert/update/delete.
+  - `patch_doc` is the only write path for the page (security definer, merge-only, validates collection names, vote values and that voters are group players). A new collection must be added to its allow-list. `players` rows accept only known keys with checked shapes (class, race, role and pick values from the lists). Anon can only `select` the table directly, never insert/update/delete.
   - `docs_history` keeps the previous version of every changed row (not readable by anon), for undoing vandalism.
   - Realtime is enabled on the table.
   - The page loads ALL of `docs` on start and gets every change by realtime, so big or fast-changing data (the auction, item descriptions) lives in separate hidden tables read through RPCs (`db.call(fn, args)`), never in `docs`.
@@ -46,11 +47,11 @@ You're working on the guild site of a small WoW Forever group (Kute Expats, EU, 
   - All four collections use `deleted: true` for removal, like players.
 - `orders/{id}`: `{ by, prof, rid, n, note, st: "open" | "taken" | "done", taker, doneAt, at, deleted }`, craft orders on the "Профессии" page. `patch_doc` lets the author create, comment and cancel; a player whose main or twink knows the recipe takes it and marks it done. `players/{id}.fav` `{ "Profession:recipeId": true | false }` holds favourite recipes. The menu badge (`renderOrderBadge()`) counts orders waiting for the logged-in player.
 - "Таверна" (`#tavern`), "Ставки" (`#bets`) and "Зал славы" (`#fame`) tabs. "Ты —" (`#me`, localStorage `wf-me`) says who is acting there.
-  - `rolls/{id}`: Roll to Death duels `{ a, b, start, stakeS (silver; older duels have stake in gold, read via stakeOf()), rolls: [{ by, max, r, at }], winner, loser, endedAt, at }`. Created and rolled only by the RPCs `deathroll_new` / `deathroll_roll` (dice rolled on the server, turns enforced). `patch_doc` lets the page set only `deleted` on them. Hiding a finished duel removes it from the debt ledger.
-  - `bets/{id}`: `{ q, opts: [text], picks: { [playerId]: optionIndex | -1 }, result: optionIndex | -1, resolvedAt, at }`.
+  - `rolls/{id}`: Roll to Death duels `{ a, b, start, stakeS (silver; older duels have stake in gold, read via stakeOf()), rolls: [{ by, max, r, at }], winner, loser, endedAt, at }`. Created and rolled only by the RPCs `deathroll_new` / `deathroll_roll` (dice rolled on the server, turns enforced). `patch_doc` lets the page set only `deleted` on them. A finished duel (`loser` set) is hidden only by an admin. Hiding a finished duel removes it from the debt ledger.
+  - `bets/{id}`: `{ q, opts: [text], picks: { [playerId]: optionIndex | -1 }, result: optionIndex | -1, resolvedAt, at }`. `q`, `opts`, `cat` and `by` are fixed after creation; anyone sets the first `result`, only the author or an admin changes it.
   - `fame/{id}`: `{ who: playerId | "" (whole group), title, icon, at, auto }`. `fameCands()` derives achievements from the data, and `syncFame()` writes each new one once, under a deterministic id. Hidden ones (`deleted`) never come back. Manual entries come from the form.
   - Bets can carry gold: `bets.stakes: { [playerId]: silver }`. Pari-mutuel: losers' gold is split among the winners in proportion to their stakes. If no one with gold guessed right, nothing changes hands. Picks and stakes are frozen server-side once `result >= 0`.
-  - `pays/{id}`: `{ from, to, s (silver), by, at }`, the "Рассчитались" settlements. Either party (or the admin) can record one, and it can't be edited afterwards.
+  - `pays/{id}`: `{ from, to, s (silver), by, at }`, the "Рассчитались" settlements. Only the receiver (`to`, with `by` = themselves) or the admin records one, and it can't be edited afterwards.
   - The wallet (`walletDebts`/`walletPairs`) nets duels + bets − payments per pair. The rules shown in the Таверна panel must stay in sync with this logic.
   - Таверна shows who has the site open (Supabase Realtime presence via `db.presence()` in store.js, nothing stored). Online players also get a green dot on their party frame.
   - `data-view` can list several views separated by spaces (e.g. `"tavern bets"`).
