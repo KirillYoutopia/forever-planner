@@ -59,6 +59,7 @@
   --q-rare: #3d8fe8;
   --q-epic: #b45cf5;
   --q-leg: #ff8000;
+  --coin-g: #e3c05c; --coin-s: #c3c8d0; --coin-c: #d08a55; /* money: gold, silver, copper */
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
@@ -105,6 +106,7 @@
     --q-rare: #0058b8;
     --q-epic: #7a1fc2;
     --q-leg: #b35a00;
+    --coin-g: #9a7208; --coin-s: #6f757e; --coin-c: #9a5524; /* money: gold, silver, copper */
     --shadow-1: 0 1px 2px rgb(0 0 0 / .05);
     --shadow-2: 0 6px 24px rgb(0 0 0 / .07);
     --material: color-mix(in srgb, #fbfbfd 75%, transparent);
@@ -144,6 +146,7 @@
   --q-rare: #0058b8;
   --q-epic: #7a1fc2;
   --q-leg: #b35a00;
+  --coin-g: #9a7208; --coin-s: #6f757e; --coin-c: #9a5524; /* money: gold, silver, copper */
   --shadow-1: 0 1px 2px rgb(0 0 0 / .05);
   --shadow-2: 0 6px 24px rgb(0 0 0 / .07);
   --material: color-mix(in srgb, #fbfbfd 75%, transparent);
@@ -1213,6 +1216,9 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
 .ah-craft tbody th { min-width: 260px; white-space: normal; }
 .ah-miss { color: var(--horde); }
 .ah-vend { color: var(--healer); }
+.cu { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cu i { font-style: normal; font-size: .82em; font-weight: 600; margin-left: 1px; }
+.cu-g { color: var(--coin-g); } .cu-s { color: var(--coin-s); } .cu-c { color: var(--coin-c); }
 .ah-trends { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; margin-bottom: 12px; }
 .ah-trend { background: var(--cell); border-radius: var(--radius-md); padding: 12px 14px; min-width: 0; }
 .ah-trend h3 { margin: 0 0 8px; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
@@ -4372,10 +4378,11 @@ const ahData = {}, ahHist = {};  // house -> { now, prev, got } | { err }; "hous
 let ahNames = null, ahNamesP = null;
 const ahIcon = ic => typeof ic === "number" && ic > 0 ? `https://render.worldofwarcraft.com/forever-eu/icons/56/${ic}.jpg`
   : typeof ic === "string" && /^[a-z0-9_]{1,80}$/.test(ic) ? ICON(ic) : "";
-const fmtCu = c => { // copper -> "12з 34с", "5с 6м", "7м"
-  c = Math.round(+c || 0); const g = Math.floor(c / 1e4), s = Math.floor(c / 100) % 100, m = c % 100;
-  return g ? (g >= 100 ? `${fmtN(g)}з` : `${g}з${s ? ` ${s}с` : ""}`) : s ? `${s}с${m ? ` ${m}м` : ""}` : `${m}м`;
-};
+// Money as in the game: 12g 34s, 5s 6c, 7c (letters coloured gold / silver / copper). fmtCuT is the plain-text form (chart axes).
+const cuParts = c => { c = Math.round(+c || 0); const g = Math.floor(c / 1e4), s = Math.floor(c / 100) % 100, m = c % 100;
+  return g ? (g >= 100 ? [[g, "g"]] : s ? [[g, "g"], [s, "s"]] : [[g, "g"]]) : s ? (m ? [[s, "s"], [m, "c"]] : [[s, "s"]]) : [[m, "c"]]; };
+const fmtCuT = c => cuParts(c).map(([n, u]) => `${u === "g" ? fmtN(n) : n}${u}`).join(" ");
+const fmtCu = c => `<span class="cu">${cuParts(c).map(([n, u]) => `${u === "g" ? fmtN(n) : n}<i class="cu-${u}">${u}</i>`).join(" ")}</span>`;
 const ahPct = r => r == null || !isFinite(r) ? "—" : `<span class="${r > 0.005 ? "ah-up" : r < -0.005 ? "ah-dn" : ""}">${r > 0 ? "+" : ""}${Math.round(r * 100)}%</span>`;
 const ahHM = t => { const d = new Date(t); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
 const ahDM = t => { const d = new Date(t); return `${d.getDate()} ${MON[d.getMonth()]}`; };
@@ -4793,7 +4800,7 @@ function renderAhItem() {
     const sr = (slug, name, color, j) => ({ slug, name, color, pts: pts.map((p, i) => ({ i, lv: +p.v[j] })).filter(p => p.lv > 0) });
     const price = [sr("mn", ahMode === "h" ? "Мин. цена" : "Мин. цена за день", "var(--accent)", 0), sr("mk", "Рыночная", "var(--s3)", 1)];
     const qty = [sr("qty", ahMode === "h" ? "Штук" : "Штук (в среднем за день)", "var(--s2)", 2)];
-    chart = gKeys(price) + ahChart("ah-p", xs, price, { W, H: W < 480 ? 200 : 260, fmt: fmtCu, tip: lab, xl, tw: ahMode === "h" && !short ? 130 : 90, label: "Цена предмета по времени" })
+    chart = gKeys(price) + ahChart("ah-p", xs, price, { W, H: W < 480 ? 200 : 260, fmt: fmtCu, axis: fmtCuT, tip: lab, xl, tw: ahMode === "h" && !short ? 130 : 90, label: "Цена предмета по времени" })
       + `<h4 class="cc-h4">Сколько выставлено</h4>` + ahChart("ah-q", xs, qty, { W, H: 140, fmt: fmtN, tip: lab, xl, tw: ahMode === "h" && !short ? 130 : 90, label: "Количество на аукционе по времени" });
   }
   el.innerHTML = `<div class="ah-card">
@@ -4815,7 +4822,7 @@ function ahChart(id, xs0, series, o) {
   const t0 = xs0[0], span = xs0[xs0.length - 1] - t0, xs = xs0.map(t => span ? m.l + (t - t0) / span * pw : m.l + pw / 2);
   const { hi, step } = niceTop(Math.max(1, ...series.flatMap(s => s.pts.map(p => p.lv))) * 1.05), y = v => m.t + (hi - v) / hi * ph;
   let svg = "";
-  for (let v = 0; v <= hi; v += step) svg += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${o.fmt(v)}</text>`;
+  for (let v = 0; v <= hi; v += step) svg += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${(o.axis || o.fmt)(v)}</text>`;
   const n = Math.max(1, Math.min(xs0.length - 1, Math.floor(pw / (o.tw || 90))));
   for (let k = 0; k <= n; k++) { const i = Math.round(k * (xs0.length - 1) / n); svg += `<text x="${xs[i]}" y="${H - 6}" text-anchor="${k === 0 ? "start" : k === n ? "end" : "middle"}">${o.xl(xs0[i])}</text>`; }
   svg += `<line class="xh" y1="${m.t}" y2="${m.t + ph}" hidden/>`;

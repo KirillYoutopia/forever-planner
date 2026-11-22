@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 (auction: money format, flow data)
+
+- Auction prices read like in the game: 12g 34s 5c, with gold, silver and copper letters in their colours.
+- The hourly auction job now also counts, per item, the units listed, new this hour and gone this hour (sold, cancelled or expired: an estimate), for the upcoming item list. Needs `supabase.sql` re-run.
+
 ## 2026-11-22 (auction: trends)
 
 - «Аукцион» → «Тренды»: the latest snapshot against one 1, 6 or 24 hours earlier: biggest price rises and drops, new vendor flips, items being bought up or flooded, new on the auction and gone.
