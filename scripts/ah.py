@@ -161,15 +161,29 @@ def stats(lots):
     return [lots[0][0], round(cost / take), qty, len(lots)]
 
 
-def summarize(items, commodities):
-    """Both lists of one house -> {item id: [min, market, quantity, lots]}. Lots without a buyout are skipped."""
+def flips(lots, vendor):
+    """Units listed below what an NPC pays for the item -> [units, buyout cost], or None. Bids don't count (not guaranteed)."""
+    cheap = [(p, q) for p, q in lots if p < vendor]
+    return [sum(q for _, q in cheap), sum(p * q for p, q in cheap)] if vendor > 0 and cheap else None
+
+
+def summarize(items, commodities, vendor=None):
+    """Both lists of one house -> {item id: [min, market, quantity, lots]} plus [..., flip units, flip cost] for items with
+    lots below the vendor sell price (vendor = {item id: copper}). Lots without a buyout are skipped."""
+    vendor = vendor or {}
     by = {}
     for a in items.get('auctions', []):
         if a.get('buyout'):
             by.setdefault(a['item']['id'], []).append((a['buyout'] // max(1, a.get('quantity', 1)), a.get('quantity', 1)))
     for a in commodities.get('auctions', []):
         by.setdefault(a['item']['id'], []).append((a['unit_price'], a['quantity']))
-    return {i: stats(v) for i, v in by.items()}
+    out = {}
+    for i, v in by.items():
+        out[i] = stats(v)
+        f = flips(v, vendor.get(i, 0))
+        if f:
+            out[i] += f
+    return out
 
 
 def selftest():
@@ -177,6 +191,9 @@ def selftest():
     assert stats([(30, 5), (10, 5)]) == [10, 10, 10, 2]  # 10% of 10 units = 1 unit, the cheapest
     assert stats([(1, 1)] + [(100, 1)] * 19) == [1, 50, 20, 20]  # 2 cheapest units: 1 and 100
     assert summarize({'auctions': [{'item': {'id': 7}, 'buyout': 0, 'quantity': 1}]}, {}) == {}
+    com = {'auctions': [{'item': {'id': 9}, 'unit_price': 3, 'quantity': 4}, {'item': {'id': 9}, 'unit_price': 10, 'quantity': 2}]}
+    assert summarize({}, com, {9: 5}) == {9: [3, 3, 6, 2, 4, 12]}  # 4 units at 3 are below the vendor's 5
+    assert summarize({}, com, {9: 3}) == {9: [3, 3, 6, 2]}  # not below: no flip fields
     print('selftest ok')
 
 
@@ -197,6 +214,13 @@ def main():
     tok = token(*creds(a.env))
     show = [int(x) for x in a.show.split(',') if x]
     seen = set()
+    # vendor sell prices from the item catalogue, for the "vendor flip" numbers (field 7)
+    try:  # optional: without it the snapshot is still published, just with no flip numbers and no catalogue update
+        known = (rpc('ah_names', {}) or {}).get('items', {})
+    except (SystemExit, OSError, ValueError) as e:
+        print(f'names: not read this run ({e})')
+        known = None
+    vendor = {int(k): v[7] for k, v in (known or {}).items() if len(v) > 7 and v[7]}
     for house, name in HOUSES.items():
         snaps, ats = {}, []
         for kind, path in (('items', f'{house}'), ('commodities', f'{house}/commodities')):
@@ -216,8 +240,8 @@ def main():
                 note += ' ' + f
             print(f'{house} {kind}: {at:%Y-%m-%d %H:%M} UTC, {len(data.get("auctions", []))} lots, '
                   f'{len(raw) / 1e6:.2f} MB gz{note}')
-        s = summarize(snaps['items'], snaps['commodities'])
-        print(f'{house} ({name}): {len(s)} items')
+        s = summarize(snaps['items'], snaps['commodities'], vendor)
+        print(f'{house} ({name}): {len(s)} items, {sum(1 for v in s.values() if len(v) > 4)} with lots below the vendor price')
         if a.publish:
             print('  published:', rpc('ah_publish', {'p_secret': secret, 'p_house': house, 'p_at': max(ats).isoformat(), 'p_d': s}))
             seen |= set(s)
@@ -225,8 +249,7 @@ def main():
             if i in s:
                 print(f'  {i:>7}  min {s[i][0]:>7}  market {s[i][1]:>7}  qty {s[i][2]:>7}  lots {s[i][3]:>5}')
 
-    if a.publish:
-        known = (rpc('ah_names', {}) or {}).get('items', {})
+    if a.publish and known is not None:
         # entries from before the vendor buy price was kept (8 fields) are looked up again once
         missing = (seen - {int(k) for k in known}) | {int(k) for k, v in known.items() if v and v[0] and v[2] is not None and len(v) < 9}
         if missing:
