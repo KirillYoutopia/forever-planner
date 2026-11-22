@@ -1565,12 +1565,17 @@ revoke all on public.ah_hour, public.ah_day from anon, authenticated;
 -- ah_day.t: per Paris day, items / lots / units averaged, new / gone summed, n = snapshots that day.
 alter table public.ah_hour add column if not exists t jsonb;
 alter table public.ah_day add column if not exists t jsonb;
+-- 2026-11-22: g = per item { "<item id>": [units listed now (all lots, also bid-only), new units this hour (lot ids above the
+-- previous snapshot's highest), units gone this hour (previous units + new - now: sold, cancelled or expired; only when the
+-- previous snapshot is at most 90 minutes older)] }, items gone completely included with 0 units now. 7 days, like the rest.
+alter table public.ah_hour add column if not exists g jsonb;
 
 -- p_t: the snapshot's totals; p_ladder: { "<item id>": [[unit price, units listed at or below it], ...] } for stackables, the
 -- cheapest price steps only, kept for the latest snapshot in ah_meta ('ladder:<house>'). Both optional.
 drop function if exists public.ah_publish(text, int, timestamptz, jsonb);
+drop function if exists public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb);  -- 2026-11-22: gained p_g
 create or replace function public.ah_publish(p_secret text, p_house int, p_at timestamptz, p_d jsonb, p_t jsonb default null,
-  p_ladder jsonb default null)
+  p_ladder jsonb default null, p_g jsonb default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare sec text; v_day date; n int;
 begin
@@ -1581,8 +1586,9 @@ begin
   if jsonb_typeof(p_d) <> 'object' or pg_column_size(p_d) > 8000000 then raise exception 'bad data'; end if;
   if p_t is not null and jsonb_typeof(p_t) <> 'object' then raise exception 'bad totals'; end if;
   if p_ladder is not null and (jsonb_typeof(p_ladder) <> 'object' or pg_column_size(p_ladder) > 4000000) then raise exception 'bad ladder'; end if;
-  insert into ah_hour (house, at, d, t) values (p_house, p_at, p_d, p_t)
-    on conflict (house, at) do update set d = excluded.d, t = coalesce(excluded.t, ah_hour.t);
+  if p_g is not null and (jsonb_typeof(p_g) <> 'object' or pg_column_size(p_g) > 4000000) then raise exception 'bad flow'; end if;
+  insert into ah_hour (house, at, d, t, g) values (p_house, p_at, p_d, p_t, p_g)
+    on conflict (house, at) do update set d = excluded.d, t = coalesce(excluded.t, ah_hour.t), g = coalesce(excluded.g, ah_hour.g);
   v_day := (p_at at time zone 'Europe/Paris')::date;
   insert into ah_day (house, day, at, d, t)
   select p_house, v_day, now(), coalesce(jsonb_object_agg(k, jsonb_build_array(mn, mk, qty, lots)), '{}'::jsonb),
@@ -1605,8 +1611,8 @@ begin
   select count(*) into n from jsonb_object_keys(p_d);
   return jsonb_build_object('house', p_house, 'at', p_at, 'day', v_day, 'items', n);
 end $$;
-revoke execute on function public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb) from public;
-grant execute on function public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb) to anon, authenticated;
+revoke execute on function public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb, jsonb) from public;
+grant execute on function public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb, jsonb) to anon, authenticated;
 
 -- Page reads: the latest snapshot of a house, and one item's history (hourly 7 days, daily 30 days).
 create or replace function public.ah_latest(p_house int)
@@ -1685,3 +1691,32 @@ returns jsonb language sql stable security definer set search_path = public as $
 $$;
 revoke execute on function public.ah_totals(int), public.ah_ladder(int), public.ah_craft_items() from public;
 grant execute on function public.ah_totals(int), public.ah_ladder(int), public.ah_craft_items() to anon, authenticated;
+
+-- 2026-11-22: item list like an auction tracker. ah_prev_g: the latest snapshot's flow (scripts/ah.py compares against it).
+-- ah_flow24: per item over the last 24 hours of snapshots { "<item id>": [units gone, new units] } plus how many hours had data.
+-- ah_spark: market price per snapshot for up to 200 items over 7 days, for the little charts in the list.
+create or replace function public.ah_prev_g(p_house int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('at', floor(extract(epoch from at) * 1000), 'g', g, 't', t)
+  from ah_hour where house = p_house order by at desc limit 1;
+$$;
+create or replace function public.ah_flow24(p_house int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with last as (select max(at) m from ah_hour where house = p_house),
+       rows as (select h.g from ah_hour h, last where h.house = p_house and h.g is not null and h.at > last.m - interval '24 hours')
+  select jsonb_build_object('hours', (select count(*) from rows), 'f', coalesce((
+    select jsonb_object_agg(k, jsonb_build_array(gone, nw)) from (
+      select e.key k, sum(coalesce((e.value->>2)::bigint, 0)) gone, sum(coalesce((e.value->>1)::bigint, 0)) nw
+      from rows r, jsonb_each(r.g) e group by e.key) x), '{}'::jsonb));
+$$;
+create or replace function public.ah_spark(p_house int, p_ids int[])
+returns jsonb language sql stable security definer set search_path = public as $$
+  -- each snapshot is unpacked once (jsonb_each), not once per id
+  select coalesce(jsonb_object_agg(k, pts), '{}'::jsonb) from (
+    select e.key k, jsonb_agg(jsonb_build_array(floor(extract(epoch from h.at) * 1000), e.value->1) order by h.at) pts
+    from ah_hour h, jsonb_each(h.d) e
+    where h.house = p_house and e.key = any (array(select distinct i::text from unnest(p_ids[1:200]) i))
+    group by e.key) x;
+$$;
+revoke execute on function public.ah_prev_g(int), public.ah_flow24(int), public.ah_spark(int, int[]) from public;
+grant execute on function public.ah_prev_g(int), public.ah_flow24(int), public.ah_spark(int, int[]) to anon, authenticated;

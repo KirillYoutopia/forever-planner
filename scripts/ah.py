@@ -199,6 +199,28 @@ def totals(items, commodities, prev=None):
     return t
 
 
+def flow(items, commodities, prev=None):
+    """Per item {id: [units listed now, new units, units gone]} for the list's "ушло" (gone) estimate. All lots count, also
+    bid-only ones. prev = the previous snapshot as {'t': totals, 'g': its flow}: new units are those in lots with a higher id
+    than its highest; gone = its units + new - units now (sold, cancelled or expired, the API can't tell). Without prev only
+    the units now."""
+    now = {}
+    for a in items.get('auctions', []) + commodities.get('auctions', []):
+        now[a['item']['id']] = now.get(a['item']['id'], 0) + a.get('quantity', 1)
+    top, before = ((prev or {}).get('t') or {}).get('max'), (prev or {}).get('g')  # rows from before t / g have nulls there
+    if not top or not isinstance(before, dict):
+        return {i: [q] for i, q in now.items()}
+    new = {}
+    for a in items.get('auctions', []) + commodities.get('auctions', []):
+        if a['id'] > top:
+            new[a['item']['id']] = new.get(a['item']['id'], 0) + a.get('quantity', 1)
+    out = {}
+    for i in set(now) | {int(k) for k in before}:
+        was = before.get(str(i), before.get(i, [0]))[0]
+        out[i] = [now.get(i, 0), new.get(i, 0), max(0, was + new.get(i, 0) - now.get(i, 0))]
+    return out
+
+
 def ladder(commodities, steps=12):
     """Stackables -> {item id: [[unit price, units listed at or below it], ...]}, the cheapest `steps` prices only:
     how many units one can buy up to a given price (the page uses it for the most one can pay for a reagent)."""
@@ -229,6 +251,9 @@ def selftest():
     com2 = {'auctions': [{'id': 7, 'item': {'id': 9}, 'unit_price': 3, 'quantity': 4}, {'id': 3, 'item': {'id': 9}, 'unit_price': 2, 'quantity': 1}]}
     assert totals(its, com2) == {'items': 2, 'lots': 3, 'units': 6, 'max': 7}
     assert totals(its, com2, {'max': 4, 'lots': 3}) == {'items': 2, 'lots': 3, 'units': 6, 'max': 7, 'new': 2, 'gone': 2}
+    assert flow(its, com2) == {1: [1], 9: [5]}
+    # before: item 9 had 3 units, item 8 had 2 (now gone); lot 7 (4 units of 9) is new -> 9: 3 + 4 - 5 = 2 gone
+    assert flow(its, com2, {'t': {'max': 5}, 'g': {'9': [3], '8': [2], '1': [1]}}) == {1: [1, 0, 0], 9: [5, 4, 2], 8: [0, 0, 2]}
     print('selftest ok')
 
 
@@ -278,22 +303,38 @@ def main():
         s = summarize(snaps['items'], snaps['commodities'], vendor)
         print(f'{house} ({name}): {len(s)} items, {sum(1 for v in s.values() if len(v) > 4)} with lots below the vendor price')
         if a.publish:
-            at, prev = max(ats), None
-            try:  # optional: the previous snapshot's totals, to count new lots
-                hist = (rpc('ah_totals', {'p_house': house}) or {}).get('h', [])
-                # the previous snapshot, only if it's at most 90 minutes older: across a gap "new" would lump several hours
+            at, prev, same = max(ats), None, False
+            try:  # optional: the previous snapshot (totals + flow), to count new and gone lots
+                p = rpc('ah_prev_g', {'p_house': house}) or {}
+                # only if it's at most 90 minutes older: across a gap "new" and "gone" would lump several hours
                 now_ms = at.timestamp() * 1000
-                prev = next((t for ms, t in reversed(hist) if now_ms - 90 * 60e3 <= ms < now_ms - 60e3), None)
+                same = bool(p.get('at')) and abs(p['at'] - now_ms) < 1000
+                if p.get('at') and now_ms - 90 * 60e3 <= p['at'] < now_ms - 60e3:
+                    prev = p
             except (SystemExit, OSError, ValueError) as e:
-                print(f'  totals: previous not read ({e})')
-            t = totals(snaps['items'], snaps['commodities'], prev)
-            print('  totals:', t)
-            args = {'p_secret': secret, 'p_house': house, 'p_at': at.isoformat(), 'p_d': s}
+                print(f'  previous snapshot not read ({e})')
+            if same:  # Blizzard hasn't refreshed yet: publishing again would only wipe this snapshot's new / gone numbers
+                print('  already published, skipped')
+                seen |= set(s)
+                continue
             try:
-                res = rpc('ah_publish', {**args, 'p_t': t, 'p_ladder': ladder(snaps['commodities'])})
-            except SystemExit as e:  # the database may still have the older ah_publish (supabase.sql not re-run yet)
-                print(f'  publish with totals failed ({e}), sending prices only')
-                res = rpc('ah_publish', args)
+                t = totals(snaps['items'], snaps['commodities'], (prev or {}).get('t'))
+                g = flow(snaps['items'], snaps['commodities'], prev)
+            except (KeyError, TypeError, AttributeError) as e:  # extras must never cost the prices
+                print(f'  totals / flow skipped ({e})')
+                t = g = None
+            print('  totals:', t, '| flow:', len(g or {}), 'items,', sum(1 for v in (g or {}).values() if len(v) > 2 and v[2]), 'with units gone')
+            args = {'p_secret': secret, 'p_house': house, 'p_at': at.isoformat(), 'p_d': s}
+            # newest ah_publish first; older databases (supabase.sql not re-run yet) get fewer fields
+            for extra in ({'p_t': t, 'p_ladder': ladder(snaps['commodities']), 'p_g': g}, {'p_t': t, 'p_ladder': ladder(snaps['commodities'])}, {}):
+                extra = {k: v for k, v in extra.items() if v is not None} if extra else extra
+                try:
+                    res = rpc('ah_publish', {**args, **extra})
+                    break
+                except SystemExit as e:
+                    if not extra:
+                        raise
+                    print(f'  publish with {", ".join(extra)} failed ({e}), trying with less')
             print('  published:', res)
             seen |= set(s)
         for i in show:
