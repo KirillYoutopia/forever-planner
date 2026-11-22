@@ -11,7 +11,7 @@ Site (GitHub Actions, hourly): py scripts/ah.py --publish
     sends per-item aggregates to Supabase's ah_publish (supabase.sql). Supabase URL and anon key come from config.js.
 Credentials: BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET and AH_SECRET from the environment, or from the --env file.
 """
-import argparse, base64, gzip, json, os, re, sys, urllib.error, urllib.request
+import argparse, base64, gzip, json, os, re, sys, time, urllib.error, urllib.request
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
@@ -59,8 +59,15 @@ def search(tok, kind, lo, game='forever'):
     """One page (up to 1000) of Blizzard's static search, ids >= lo in id order."""
     url = (f'https://{REGION}.api.blizzard.com/data/wow/search/{kind}?namespace=static-{game}-{REGION}'
            f'&orderby=id&_pageSize=1000&id=[{lo},]' + ('&tags=item' if kind == 'media' else ''))
-    with urllib.request.urlopen(urllib.request.Request(url, headers={'Authorization': 'Bearer ' + tok}), timeout=60) as r:
-        return [x['data'] for x in json.load(r).get('results', [])]
+    for attempt in range(3):  # Blizzard's search now and then answers 500 (seen from GitHub's runners): try again
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={'Authorization': 'Bearer ' + tok}), timeout=60) as r:
+                return [x['data'] for x in json.load(r).get('results', [])]
+        except urllib.error.HTTPError as e:
+            if e.code < 500 or attempt == 2:
+                print(f'search {kind} {game} from {lo}: HTTP {e.code}')
+                raise
+            time.sleep(3 * (attempt + 1))
 
 
 def walk(tok, kind, ids, game='forever'):
