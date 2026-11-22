@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 (auction)
+
+- «Аукцион» is live: our PvP Horde and Blackwater houses from Blizzard's hourly snapshot. Totals (lots, items, units, what got dearer or cheaper over a day, items cheaper than a vendor pays), a searchable list with type filter and sorting, and an item card with price and quantity charts by hour (7 days) and by day (30 days).
+- Prices are collected every hour by a GitHub Actions job (`scripts/ah.py`), not by the database. Needs `supabase.sql` re-run (auction tables and item names).
+
 ## 2026-11-20 (talents, streamers)
 
 - Character card: «Таланты» tab with the game's talent trees, rank badges, prerequisite arrows, a tooltip per talent and both sets (dual spec).
