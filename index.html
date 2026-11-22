@@ -729,6 +729,16 @@ select { background: var(--cell); border: 1px solid var(--line); border-radius: 
 .dtile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dart { position: relative; display: block; aspect-ratio: 2 / 1; background: var(--track); overflow: hidden; }
 .dart img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gmlog { list-style: none; margin: 0; padding: 0; columns: 2 320px; column-gap: 28px; }
+.gmlog li { break-inside: avoid; display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.gmlog li > span { min-width: 52px; color: var(--muted); font-variant-numeric: tabular-nums; } .gmlog small { color: var(--muted); }
+.gmlog .in > b { color: var(--healer); } .gmlog .out > b { color: var(--horde); }
+.rd-cd { text-align: center; padding: 18px 0 26px; }
+.rd-cd h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.rd-num { display: flex; justify-content: center; gap: clamp(14px, 4vw, 40px); }
+.rd-num span { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.rd-num b { font: 400 clamp(44px, 9vw, 88px)/1 var(--font-display); color: var(--fg); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.rd-done { font: 600 32px/1.2 var(--font-display); color: var(--accent); }
 .dart.none { background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 45%, var(--track)), var(--track) 70%); }
 .dnew { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; }
 .dbody { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
@@ -1279,6 +1289,7 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
   <button type="button" data-act="nav" data-nav="streamers" aria-pressed="false">Стримеры и друзья</button>
   <div class="ng">Активности</div>
   <button type="button" data-act="nav" data-nav="dungeons" aria-pressed="false">Подземелья</button>
+  <button type="button" data-act="nav" data-nav="raids" aria-pressed="false">Рейды</button>
   <button type="button" data-act="nav" data-nav="recipes" aria-pressed="false">Профессии<span class="nbadge" id="nb-recipes" hidden></span></button>
   <button type="button" data-act="nav" data-nav="pvp" aria-pressed="false">PvP</button>
   <button type="button" data-act="nav" data-nav="stats" aria-pressed="false">Статистика</button>
@@ -1491,6 +1502,11 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
     <details class="gtable"><summary>Таблица по дням</summary><div class="scroll" id="gtable"></div></details>
   </section>
 
+  <section class="panel" aria-labelledby="h-gmem" data-view="guild" hidden>
+    <div class="panel-head"><h2 id="h-gmem">Состав гильдии</h2><span class="cap">Кто вступил и кто вышел, по ежедневным снимкам ростера</span></div>
+    <div id="gmembers"></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-gpchart" data-view="guild" hidden>
     <div class="panel-head"><h2 id="h-gpchart">Профессии по дням</h2><span class="cap">Навык на конец дня, по одной линии на персонажа</span></div>
     <div id="gpcharts"></div>
@@ -1557,6 +1573,18 @@ select, .add input, .rtools input, .rf select, .rf input { border-radius: var(--
   </section>
 
   <section class="panel dgpage" id="dg-box" data-view="dungeon" aria-labelledby="dg-title" hidden></section>
+
+  <section class="panel" aria-labelledby="h-raids" data-view="raids" hidden>
+    <div class="panel-head"><h2 id="h-raids">Рейды</h2><span class="cap">Прогресс гильдии появится после открытия</span></div>
+    <div class="rd-cd">
+      <h3>До открытия рейдов</h3>
+      <div class="rd-num" id="rd-num"><span><b id="rd-d">--</b>дней</span><span><b id="rd-h">--</b>часов</span><span><b id="rd-m">--</b>минут</span><span><b id="rd-s">--</b>секунд</span></div>
+      <div class="rd-done" id="rd-done" hidden>Рейды открыты</div>
+      <p class="cd-sub" id="rd-sub"></p>
+    </div>
+    <div class="dcards" id="rd-cards"></div>
+    <p class="gnote">Арты Onyxia's Lair и Hyjal Summit: Blizzard. Barrow Deeps, нового рейда Forever: скриншот из обзора рейдов на Wowhead.</p>
+  </section>
 
   <section class="panel" aria-labelledby="h-dgwho" data-view="dungeons" hidden>
     <div class="panel-head"><h2 id="h-dgwho">Кто сколько ходил</h2><span class="cap">По каждому персонажу</span></div>
@@ -2123,8 +2151,10 @@ const DUNGEONS = [
   { id: "scholo", name: "Scholomance", min: 58, max: 60 }, { id: "strat", name: "Stratholme", min: 58, max: 60 },
   { id: "dmaul", name: "Dire Maul", min: 58, max: 60 }, { id: "shapers", name: "Shaper's Terrace", min: 58, max: 60, n: true },
 ];
-const RAIDS = [ // WoW Forever, открываются 9 декабря
-  { id: "barrow", name: "Barrow Deeps", size: 10 }, { id: "hyjal", name: "Hyjal Summit", size: 20 }, { id: "ony", name: "Onyxia's Lair", size: 40 },
+const RAIDS = [ // WoW Forever, открываются 9 декабря. art: Blizzard's zone art where it has one; Barrow Deeps is new, so Wowhead's screenshot
+  { id: "barrow", name: "Barrow Deeps", size: 10, bosses: 8, art: "https://wow.zamimg.com/uploads/screenshots/normal/1300020.jpg" },
+  { id: "hyjal", name: "Hyjal Summit", size: 20, art: "https://render.worldofwarcraft.com/eu/zones/the-battle-for-mount-hyjal-small.jpg" },
+  { id: "ony", name: "Onyxia's Lair", size: 40, art: "https://render.worldofwarcraft.com/eu/zones/onyxias-lair-small.jpg" },
 ];
 let wants = [], deaths = [], tasks = [], goals = [], orders = []; // orders: craft orders on the "Профессии" page
 const live = docs => docs.map(d => ({ id: d.id, ...d.data() })).filter(x => !x.deleted);
@@ -3032,6 +3062,7 @@ function renderGuild() {
   renderKpis(g, upAll, core);
   renderOverview(g);
   renderDays(g);
+  renderMembers(g);
   renderGChart(g);
 }
 // 3D model in the full-screen view of a character: Wowhead's viewer (the same build as armorywowforever.com), its files
@@ -3169,6 +3200,33 @@ function renderRoster(g, list, core, alt, owner, delta) {
 $("#rsearch").addEventListener("input", () => renderGuild());
 // Day by day: what each character gained since the previous synced day. Plain differences of the daily snapshots
 // (glevels: lv, pr, hk, pd); a value missing on either day counts as nothing, so a new profession or a first sync shows no jump.
+// Joins and leaves from the daily roster snapshots (glevels/{day}.lv lists every member that day, any level). The first
+// snapshot is the starting point, not a wave of joins. A character can't be told apart from a renamed one: a rename shows as
+// one leave and one join (the API gives no character id history).
+function renderMembers(g) {
+  const el = $("#gmembers"), days = g.days;
+  if (days.length < 2) { el.innerHTML = `<p class="empty">Нужно хотя бы два дня снимков.</p>`; return; }
+  const pretty = sl => g.mem[sl] ? g.name(sl) : sl.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  const ev = []; // [day index, slug, +1 joined | -1 left]
+  for (let i = 1; i < days.length; i++) {
+    const a = days[i - 1].lv, b = days[i].lv;
+    for (const sl of Object.keys(b)) if (!(sl in a)) ev.push([i, sl, 1]);
+    for (const sl of Object.keys(a)) if (!(sl in b)) ev.push([i, sl, -1]);
+  }
+  const now = days[days.length - 1], wk = days.findIndex(d => dayNum(d.id) >= dayNum(now.id) - 6);
+  const inWeek = ev.filter(e => e[0] >= Math.max(1, wk)), cnt = k => inWeek.filter(e => e[2] === k).length;
+  const W = Math.max(280, Math.round(el.clientWidth) || 680), n = days.map(d => Object.keys(d.lv).length);
+  const { hi, step } = niceTop(Math.max(...n) * 1.1);
+  const chart = lineChart("members", days, [{ slug: "n", name: "Участников", color: "var(--accent)", pts: n.map((lv, i) => ({ i, lv })) }],
+    { W, H: W < 480 ? 160 : 190, lo: 0, hi, step, label: "Сколько участников в гильдии по дням" });
+  const rows = [...ev].reverse().slice(0, 60).map(([i, sl, k]) => `<li class="${k > 0 ? "in" : "out"}"><span>${dayShort(days[i].id)}</span>
+    <b>${k > 0 ? "+" : "−"}</b> ${g.mem[sl] ? `<button type="button" class="glink" data-act="gchar" data-id="${esc(sl)}">${esc(pretty(sl))}</button>` : esc(pretty(sl))}
+    <small>${k > 0 ? `вступил(а)${days[i].lv[sl] ? `, ${+days[i].lv[sl]} ур.` : ""}` : `вышел(вышла)${days[i - 1].lv[sl] ? `, был(а) ${+days[i - 1].lv[sl]} ур.` : ""}`}</small></li>`).join("");
+  el.innerHTML = `<div class="gtiles">${[["Сейчас в гильдии", fmtN(n[n.length - 1])], ["Вступили за 7 дней", fmtN(cnt(1))], ["Вышли за 7 дней", fmtN(cnt(-1))],
+      ["Снимки с", dayShort(days[0].id)]].map(([t, v]) => `<div><span>${t}</span><b>${v}</b></div>`).join("")}</div>${chart}`
+    + (rows ? `<h4 class="cc-h4">Журнал</h4><ul class="gmlog">${rows}</ul>` : `<p class="gnote">С ${dayShort(days[0].id)} никто не вступал и не выходил.</p>`)
+    + `<p class="gnote">Снимок ростера раз в день (последний за день). Переименованный персонаж выглядит как «вышел» и «вступил»: Blizzard не даёт истории имён.</p>`;
+}
 function renderDays(g) {
   const el = $("#gdays"), days = g.days, mem = g.mem;
   if (days.length < 2) { el.innerHTML = `<p class="empty">Нужна история хотя бы за два дня.</p>`; return; }
@@ -4437,7 +4495,7 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box", "#cmp-box", "#st-box", "#ah-item", "#ah-list"]) {
+for (const id of ["#gchart", "#gmembers", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box", "#cmp-box", "#st-box", "#ah-item", "#ah-list"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
@@ -5092,7 +5150,7 @@ function setTheme(t) {
   document.querySelectorAll("[data-act=theme]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || ""))));
 }
 setTheme(document.documentElement.dataset.theme || "");
-const VIEWS = ["home", "char", "streamers", "ah", "news", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "stats", "tavern", "bets", "fame", "plan"];
+const VIEWS = ["home", "char", "streamers", "ah", "news", "calendar", "soon", "guild", "recipes", "pvp", "dungeons", "raids", "stats", "tavern", "bets", "fame", "plan"];
 function readHash() { // #view, or #char/<slug> for a character card
   const h = location.hash.slice(1), c = /^char\/(.+)$/.exec(h), dg = /^dg\/(.+)$/.exec(h), cm = /^cmp\/([^/]+)\/([^/]+)$/.exec(h), ah = /^ah\/(\d{1,9})$/.exec(h);
   if (ah) { view = "ah"; ahSel = +ah[1]; }
@@ -5122,6 +5180,10 @@ function tick() {
     $("#cd-m").textContent = pad2(Math.floor(s % 3600 / 60));
     $("#cd-s").textContent = pad2(s % 60);
   }
+  $("#rd-num").hidden = left <= 0; $("#rd-done").hidden = left > 0; // the big one on «Рейды»
+  if (left > 0) { const s = Math.floor(left / 1000);
+    $("#rd-d").textContent = Math.floor(s / 86400); $("#rd-h").textContent = pad2(Math.floor(s % 86400 / 3600));
+    $("#rd-m").textContent = pad2(Math.floor(s % 3600 / 60)); $("#rd-s").textContent = pad2(s % 60); }
   $("#scd-r").textContent = left > 0 ? `${Math.floor(left / 864e5)} дн ${pad2(Math.floor(left % 864e5 / 36e5))}:${pad2(Math.floor(left % 36e5 / 6e4))}:${pad2(Math.floor(left % 6e4 / 1e3))}` : "открыты";
   const hc = HC_AT - Date.now();
   if (hc > 0) {
@@ -5138,7 +5200,7 @@ function tick() {
 function setLaunchNote() {
   let local = "";
   try { local = " У тебя: " + new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(new Date(RAIDS_AT)) + "."; } catch {}
-  $("#cd-launch-sub").textContent = "10 декабря, 00:00 по Центральной Европе (CET)." + local;
+  $("#cd-launch-sub").textContent = $("#rd-sub").textContent = "10 декабря, 00:00 по Центральной Европе (CET)." + local;
 }
 
 /* ---------- boot ---------- */
@@ -5185,6 +5247,8 @@ async function boot() {
     render();
   }, () => {});
 }
+$("#rd-cards").innerHTML = RAIDS.map(r => `<div class="dtile rd-tile"><span class="dart"><img src="${esc(r.art)}" alt="" loading="lazy" onerror="this.remove()"><span class="dnew">Скоро</span></span>
+  <span class="dbody"><b class="dname">${esc(r.name)}</b><small>${r.size} игроков${r.bosses ? ` · ${r.bosses} боссов` : ""}</small><span class="dnum">Откроется вместе со всеми рейдами</span></span></div>`).join("");
 readHash(); applyView(); setLaunchNote(); tick(); setInterval(tick, 1000);
 window.addEventListener("hashchange", () => { readHash(); applyView(); });
 boot();

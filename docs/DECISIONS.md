@@ -28,7 +28,8 @@ external site is slow or down.
 | Item descriptions (tooltip lines) | `dim_item` (`src` blizzard / wowhead / none) | daily (same job) + new ids hourly |
 | Auction prices, flow, totals, price ladder | `ah_hour`, `ah_day`, `ah_meta` 'ladder:*' | hourly (`ah.yml`) |
 | Character sheets, roster, levels | `docs` (`gchars`, `guild`, `glevels`, ...) | hourly (`guild_sync`) |
-| Recipes, achievements, quests, icons, 3D display ids | `bnet_recipes`, `bnet_ach*`, `bnet_quest*`, `bnet_icons`, `bnet_display` | loaded **once** per id, never refreshed: to move to the daily refresh |
+| Recipes (details, crafted item tooltip), achievement descriptions, quests per zone | `bnet_recipes`, `bnet_ach_info`, `bnet_quest_areas` + `bnet_quests` | daily: the 5-minute fill jobs re-fetch rows older than a day (`at` / `item_at`) after the missing ones, keeping old values until replaced |
+| Icons, 3D display ids, achievement categories, Spelunker definitions | `bnet_icons`, `bnet_display`, `bnet_ach_cat`, `bnet_ach`, recipe icons | once per id: an id's picture / definition doesn't change, so no refresh |
 | Talent trees | `docs` `gtalents/forever` (Wowhead) | weekly |
 
-**Not done yet**: the "loaded once" dimension caches above don't follow the daily refresh; there is no admin console button.
+**Not done yet**: no admin console button. Hand-made lists still live in `index.html` (`AH_VENDOR`, `DUNGEONS`, `RAIDS`, dates): moving them into tables only pays off together with an admin console to edit them.

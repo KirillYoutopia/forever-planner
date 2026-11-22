@@ -471,6 +471,10 @@ create table if not exists public.bnet_prof_cat (prof text primary key, at times
 -- item = the crafted item's tooltip: null = not fetched yet, {} = none, else {iq: quality, il: item level, tip: lines}.
 -- Details saved before this (no "v" marker) are fetched again once.
 alter table public.bnet_recipes add column if not exists item jsonb;
+-- 2026-11-22 (docs/DECISIONS.md): daily refresh. at = when the details were last fetched, item_at = the crafted item's tooltip;
+-- guild_recipes_fill fetches rows older than a day again after the missing ones, keeping the old values until then.
+alter table public.bnet_recipes add column if not exists at timestamptz not null default now();
+alter table public.bnet_recipes add column if not exists item_at timestamptz not null default now();
 update public.bnet_recipes set detail = null, item = null where detail is not null and not (detail ? 'v');
 update public.bnet_recipes set icon = null where icon = '' and detail is null;
 alter table public.bnet_recipes enable row level security;
@@ -495,6 +499,7 @@ revoke all on public.bnet_ach from anon, authenticated;
 
 -- 2026-11-14: quest progress per zone. Hidden caches: the game's zones with their quests, and each character's completed quests.
 create table if not exists public.bnet_quest_areas (id bigint primary key, name text not null, total int not null default 0, loaded boolean not null default false);
+alter table public.bnet_quest_areas add column if not exists at timestamptz not null default now();  -- 2026-11-22: daily refresh
 create table if not exists public.bnet_quests (id bigint primary key, area_id bigint not null);
 create table if not exists public.bnet_char_quests (char_slug text primary key, ids jsonb not null);
 alter table public.bnet_quest_areas enable row level security;
@@ -529,7 +534,7 @@ declare cid text; sec text; region text; st int; body text; hdr http_header[]; a
         t0 timestamptz := clock_timestamp(); lim interval := make_interval(secs => greatest(1, least(coalesce(p_seconds, 30), 50)));
 begin
   if not pg_try_advisory_xact_lock(4273002) then return jsonb_build_object('busy', true); end if;
-  if exists (select 1 from bnet_quest_areas) and not exists (select 1 from bnet_quest_areas where not loaded) then
+  if exists (select 1 from bnet_quest_areas) and not exists (select 1 from bnet_quest_areas where not loaded or at < now() - interval '1 day') then
     return jsonb_build_object('zones_to_load', 0);
   end if;
   select v into cid from bnet_config where k = 'client_id';
@@ -552,17 +557,17 @@ begin
     where a->>'id' ~ '^[0-9]+$' and coalesce(a->>'name', '') <> ''
     on conflict (id) do nothing;
   end if;
-  for aid in select a.id from bnet_quest_areas a where not a.loaded order by a.id loop
+  for aid in select a.id from bnet_quest_areas a where not a.loaded or a.at < now() - interval '1 day' order by a.loaded, a.at, a.id loop
     exit when clock_timestamp() - t0 > lim;
     select h.status, h.content into st, body from http(('GET',
       format('https://%s.api.blizzard.com/data/wow/quest/area/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
-    continue when st not in (200, 404);
+    if st not in (200, 404) then update bnet_quest_areas set at = now() - interval '23 hours' where id = aid and loaded; continue; end if;
     if st = 200 then
       insert into bnet_quests (id, area_id)
       select distinct on ((x->>'id')::bigint) (x->>'id')::bigint, aid from jsonb_array_elements(coalesce(body::jsonb->'quests', '[]'::jsonb)) x where x->>'id' ~ '^[0-9]+$'
       on conflict (id) do nothing;
     end if;
-    update bnet_quest_areas set loaded = true, total = (select count(*) from bnet_quests q where q.area_id = aid) where id = aid;
+    update bnet_quest_areas set loaded = true, at = now(), total = (select count(*) from bnet_quests q where q.area_id = aid) where id = aid;
     did := true;
   end loop;
   if did then perform guild_zones_publish(); end if;
@@ -1084,14 +1089,15 @@ create or replace function public.guild_recipes_fill(p_seconds int default 40)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare cid text; sec text; region text; st int; body text; hdr http_header[]; members jsonb; known bigint[]; rid bigint; iid bigint;
         rd jsonb; t0 timestamptz := clock_timestamp(); lim interval := make_interval(secs => greatest(1, least(coalesce(p_seconds, 40), 50)));
-        now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000); todo int;
+        now_ms numeric := floor(extract(epoch from clock_timestamp()) * 1000); todo int; miss boolean;
 begin
   if not pg_try_advisory_xact_lock(4273001) then return jsonb_build_object('busy', true); end if;  -- one loader at a time
   select data->'members' into members from docs where coll = 'guild' and id = 'roster';
   select array_agg(distinct (e.value #>> '{}')::bigint) into known
   from docs d, jsonb_each(d.data->'r') p, jsonb_array_elements(p.value) e
   where d.coll = 'grecipes' and members ? d.id;
-  select count(*) into todo from bnet_recipes b where (b.id = any(known) or b.cat is not null) and (b.detail is null or b.icon is null or b.item is null);
+  select count(*) into todo from bnet_recipes b where (b.id = any(known) or b.cat is not null) and (b.detail is null or b.icon is null or b.item is null
+    or b.at < now() - interval '1 day' or b.item_at < now() - interval '1 day');
   if coalesce(todo, 0) > 0 then
     select v into cid from bnet_config where k = 'client_id';
     select v into sec from bnet_config where k = 'client_secret';
@@ -1105,17 +1111,23 @@ begin
     if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
     hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
     -- 1. recipe details
-    for rid in select b.id from bnet_recipes b where (b.id = any(known) or b.cat is not null) and b.detail is null order by (b.id = any(known)) desc nulls last, b.id loop
-      exit when clock_timestamp() - t0 > lim;
+    -- stale rows (daily refresh) get at most half of the time; a failed or 404 refresh keeps what is stored
+    for rid, miss in select b.id, b.detail is null from bnet_recipes b where (b.id = any(known) or b.cat is not null) and (b.detail is null or b.at < now() - interval '1 day')
+               order by (b.detail is null) desc, (b.id = any(known)) desc nulls last, b.at, b.id loop
+      exit when clock_timestamp() - t0 > case when miss then lim else lim / 2 end;
       select h.status, h.content into st, body from http(('GET',
         format('https://%s.api.blizzard.com/data/wow/recipe/%s?namespace=static-forever-%s&locale=en_US', region, rid, region), hdr, null, null)::http_request) h;
-      continue when st not in (200, 404);
+      if st not in (200, 404) or (st = 404 and not miss) then
+        update bnet_recipes set at = case when st = 404 then now() else now() - interval '23 hours' end where id = rid;
+        continue;
+      end if;
       rd := case when st = 200 then body::jsonb else '{}'::jsonb end;
       update bnet_recipes set
         detail = jsonb_strip_nulls(jsonb_build_object('v', 2, 'i', rd->'crafted_item'->'name', 'iid', rd->'crafted_item'->'id',
           'q', rd->'crafted_quantity'->'value', 'ds', nullif(rd->>'description', ''),
           're', (select jsonb_agg(jsonb_build_array(g->'reagent'->'name', g->'quantity')) from jsonb_array_elements(coalesce(rd->'reagents', '[]'::jsonb)) g))),
-        item = case when rd->'crafted_item'->>'id' ~ '^[0-9]+$' then item else '{}'::jsonb end  -- nothing crafted (an enchant): no item tooltip to fetch
+        item = case when rd->'crafted_item'->>'id' ~ '^[0-9]+$' then item else '{}'::jsonb end,  -- nothing crafted (an enchant): no item tooltip to fetch
+        at = now()
       where id = rid;
     end loop;
     -- 2. recipe icons
@@ -1129,15 +1141,17 @@ begin
       where id = rid;
     end loop;
     -- 3. tooltip of the crafted item (the same lines as on the character sheet)
-    for rid, iid in select b.id, (b.detail->>'iid')::bigint from bnet_recipes b
-                    where (b.id = any(known) or b.cat is not null) and b.item is null and b.detail->>'iid' ~ '^[0-9]+$' order by (b.id = any(known)) desc nulls last, b.id loop
-      exit when clock_timestamp() - t0 > lim;
+    for rid, iid, miss in select b.id, (b.detail->>'iid')::bigint, b.item is null from bnet_recipes b
+                    where (b.id = any(known) or b.cat is not null) and (b.item is null or b.item_at < now() - interval '1 day') and b.detail->>'iid' ~ '^[0-9]+$'
+                    order by (b.item is null) desc, (b.id = any(known)) desc nulls last, b.item_at, b.id loop
+      exit when clock_timestamp() - t0 > case when miss then lim else lim / 2 end;
       select h.status, h.content into st, body from http(('GET',
         format('https://%s.api.blizzard.com/data/wow/item/%s?namespace=static-forever-%s&locale=en_US', region, iid, region), hdr, null, null)::http_request) h;
-      continue when st not in (200, 404);
+      if st not in (200, 404) then update bnet_recipes set item_at = now() - interval '23 hours' where id = rid; continue; end if;
       rd := case when st = 200 then body::jsonb->'preview_item' else null end;
       update bnet_recipes set item = case when jsonb_typeof(rd) = 'object' then jsonb_strip_nulls(jsonb_build_object(
-        'iq', rd->'quality'->'type', 'il', coalesce(rd->'level'->'value', body::jsonb->'level'), 'tip', bnet_item_tip(rd))) else '{}'::jsonb end
+        'iq', rd->'quality'->'type', 'il', coalesce(rd->'level'->'value', body::jsonb->'level'), 'tip', bnet_item_tip(rd))) else coalesce(item, '{}'::jsonb) end,
+        item_at = now()
       where id = rid;
     end loop;
   end if;
@@ -1166,6 +1180,7 @@ select cron.schedule('guild-zones', '*/5 * * * *', 'select public.guild_zones_fi
 -- What the page reads: guild/achinfo {at, a: {achievement id: {d, p, c: "Parent / Category", icon}}}
 --   for every achievement a guild character has.
 create table if not exists public.bnet_ach_info (id bigint primary key, info jsonb, icon text);
+alter table public.bnet_ach_info add column if not exists at timestamptz not null default now();  -- 2026-11-22: daily refresh of info
 create table if not exists public.bnet_ach_cat (id bigint primary key, name text not null, parent text);
 alter table public.bnet_ach_info enable row level security;
 alter table public.bnet_ach_cat enable row level security;
@@ -1182,7 +1197,7 @@ begin
   select distinct (e->>2)::bigint from docs d, jsonb_array_elements(case when jsonb_typeof(d.data->'ach') = 'array' then d.data->'ach' else '[]'::jsonb end) e
   where d.coll = 'gchars' and members ? d.id and e->>2 ~ '^[0-9]+$'
   on conflict (id) do nothing;
-  if exists (select 1 from bnet_ach_info i where i.info is null or i.icon is null
+  if exists (select 1 from bnet_ach_info i where i.info is null or i.icon is null or i.at < now() - interval '1 day'
              or (i.info->>'c' ~ '^[0-9]+$' and not exists (select 1 from bnet_ach_cat c where c.id = (i.info->>'c')::bigint))) then
     select v into cid from bnet_config where k = 'client_id';
     select v into sec from bnet_config where k = 'client_secret';
@@ -1196,16 +1211,21 @@ begin
     if st <> 200 then raise exception 'battle.net token: HTTP %', st; end if;
     hdr := array[http_header('Authorization', 'Bearer ' || (body::jsonb->>'access_token'))];
     -- 1. description, points, category
-    for aid in select i.id from bnet_ach_info i where i.info is null order by i.id loop
-      exit when clock_timestamp() - t0 > lim;
+    declare miss boolean; begin
+    for aid, miss in select i.id, i.info is null from bnet_ach_info i where i.info is null or i.at < now() - interval '1 day' order by (i.info is null) desc, i.at, i.id loop
+      exit when clock_timestamp() - t0 > case when miss then lim else lim / 2 end;
       select h.status, h.content into st, body from http(('GET',
         format('https://%s.api.blizzard.com/data/wow/achievement/%s?namespace=static-forever-%s&locale=en_US', region, aid, region), hdr, null, null)::http_request) h;
-      continue when st not in (200, 404);
+      if st not in (200, 404) or (st = 404 and not miss) then
+        update bnet_ach_info set at = case when st = 404 then now() else now() - interval '23 hours' end where id = aid;
+        continue;
+      end if;
       j := case when st = 200 then body::jsonb else '{}'::jsonb end;
       update bnet_ach_info set info = jsonb_strip_nulls(jsonb_build_object('d', nullif(j->>'description', ''),
         'p', case when jsonb_typeof(j->'points') = 'number' then j->'points' end,
-        'c', case when j->'category'->>'id' ~ '^[0-9]+$' then j->'category'->'id' end)) where id = aid;
+        'c', case when j->'category'->>'id' ~ '^[0-9]+$' then j->'category'->'id' end)), at = now() where id = aid;
     end loop;
+    end;
     -- 2. categories, with the parent's name
     for aid in select distinct (i.info->>'c')::bigint from bnet_ach_info i
                where i.info->>'c' ~ '^[0-9]+$' and not exists (select 1 from bnet_ach_cat c where c.id = (i.info->>'c')::bigint) loop

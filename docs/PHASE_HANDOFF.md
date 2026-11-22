@@ -149,6 +149,19 @@ Blizzard first, Wowhead marked, the page calls no game API. First applied to ite
 `dim_item_put` (Blizzard previews formatted by `bnet_item_tip`), `dim_item_ids`, `dim_item_get`; `scripts/ah.py --dims` +
 `.github/workflows/dims.yml` (daily 04:10 UTC); hourly job adds new ids (≤ 2000/run). Speed check: 200 ids in 4.8 s (143
 Blizzard, 57 Wowhead). Other one-off caches (recipes, achievements, quests, icons) still to move to the daily refresh.
+LIVE: PR #45 (2026-11-22). First dims.yml run took 14 min: 8260 ids, dim_item = 4901 blizzard / 3108 wowhead / 251 none; hover
+card on the live site reads it. GitHub's scheduler skipped every scheduled ah.yml run on day one: TEMPORARY pg_cron job
+`ah-watchdog` (:50 hourly, `ah_watchdog()`) dispatches ah.yml / dims.yml when data is stale; GitHub token in
+`bnet_config.gh_token` (fine-grained, Actions only, set by the user). Remove with `select cron.unschedule('ah-watchdog');` once
+GitHub's schedule runs on its own. The Supabase connector now works in Claude Code (project `hgqjimpyxfcaaflapcnw`).
+2026-11-22 later (built, not merged when written; SQL already applied live via the connector): «Рейды» view (#raids: big
+countdown #rd-*, cards from RAIDS with art: Blizzard zone art for Onyxia / Hyjal, Wowhead screenshot 1300020 for Barrow Deeps);
+«Состав гильдии» on «Гильдия» (`renderMembers`: joins / leaves from glevels day snapshots, first day = baseline); daily refresh of
+bnet_recipes (at, item_at), bnet_ach_info (at), bnet_quest_areas (at) inside the existing 5-minute fill jobs: missing rows first,
+stale rows at most half the time budget, a failed / 404 refresh keeps stored data, failures retried after ~1 h. Verified live by
+marking 3 recipes / 2 achievements / 2 zones stale and running the fill functions. Reviewed; 3 SQL findings fixed before applying.
+Open question from the user: Hele Pirozochek's Zul'Farrak = 22 in the API vs 31 in game; profile's last login 17:17 UTC, so most
+likely API lag after logout. Re-check the next day.
 Other ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions
