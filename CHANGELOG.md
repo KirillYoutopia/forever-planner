@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-22 (raids page, guild membership, daily reference refresh)
+
+- «Рейды»: a big countdown to the raid opening and cards for Barrow Deeps, Hyjal Summit and Onyxia's Lair with art; guild progress comes after the opening.
+- «Гильдия» → «Состав гильдии»: members now, joins and leaves in the last week, a member-count chart and a log of who joined or left, from the daily roster snapshots.
+- Recipes, achievement descriptions and quest lists are refreshed from Blizzard once a day instead of being loaded once (docs/DECISIONS.md).
+
 ## 2026-11-22 (auction: item list redesign)
 
 - «Предметы» works like an auction tracker: categories with counts and sorts on the left, quick views (most turnover, selling fast, dropped in the last hour, under 1g, below market, rare and above, new in Forever, below vendor price, running low), filters by rarity, level, price, units gone and listed; columns for the last hour's change, market price (explained), listed, gone in 24 h and sell-through (both estimates), and a 7-day sparkline; 50/100/200 rows.
