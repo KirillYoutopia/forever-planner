@@ -112,6 +112,9 @@ Local check with the new catalogue: 15 vendor reagents used in 208 places, profi
 list filtered by Trade Goods subclass (`AH_RAW`: 7.9 herbs, 7.7 metal & stone, 7.6 leather, 7.5 cloth, 7.8 cooking,
 7.10 elemental, 7.12 enchanting). Until the first run after deploy the live catalogue has no vendor prices (page falls back to
 the auction price).
+LIVE: PR #38 (`f5ce89f`) + #39 (search retries). On GitHub's runner Blizzard's search answered HTTP 500 twice in a row (locally
+the same lookups passed), so `search()` now retries 5xx twice and logs the failing query; the next run backfilled 6920 entries
+(vendor price present on 6920 of 7130; the rest are Wowhead-sourced or unknown). Live check: 15 vendor reagents, «Сырьё» 40 herbs.
 Next ideas: craft profit on the recipe cards in «Профессии»; stack size per item for gatherers.
 
 ## Pending decisions
