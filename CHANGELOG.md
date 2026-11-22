@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-22 (auction: trends)
+
+- «Аукцион» → «Тренды»: the latest snapshot against one 1, 6 or 24 hours earlier: biggest price rises and drops, new vendor flips, items being bought up or flooded, new on the auction and gone.
+
 ## 2026-11-22 (auction: overview, craft for vendors)
 
 - «Аукцион» → «Обзор»: lots, items, new and vanished lots per hour (and per day), and the hours of the day when most lots get listed. Starts filling after deploy.
