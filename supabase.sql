@@ -1560,8 +1560,17 @@ create table if not exists public.ah_day (house int not null, day date not null,
 alter table public.ah_hour enable row level security;
 alter table public.ah_day enable row level security;
 revoke all on public.ah_hour, public.ah_day from anon, authenticated;
+-- 2026-11-22: totals of each snapshot for the overview, t = { items, lots, units, max (highest lot id), new (lots with a higher id
+-- than the previous snapshot's max), gone (previous lots + new - lots now: sold, cancelled or expired, the API can't tell) }.
+-- ah_day.t: per Paris day, items / lots / units averaged, new / gone summed, n = snapshots that day.
+alter table public.ah_hour add column if not exists t jsonb;
+alter table public.ah_day add column if not exists t jsonb;
 
-create or replace function public.ah_publish(p_secret text, p_house int, p_at timestamptz, p_d jsonb)
+-- p_t: the snapshot's totals; p_ladder: { "<item id>": [[unit price, units listed at or below it], ...] } for stackables, the
+-- cheapest price steps only, kept for the latest snapshot in ah_meta ('ladder:<house>'). Both optional.
+drop function if exists public.ah_publish(text, int, timestamptz, jsonb);
+create or replace function public.ah_publish(p_secret text, p_house int, p_at timestamptz, p_d jsonb, p_t jsonb default null,
+  p_ladder jsonb default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare sec text; v_day date; n int;
 begin
@@ -1570,25 +1579,34 @@ begin
   if p_house not in (113, 116) then raise exception 'bad house'; end if;
   if p_at is null or p_at > now() + interval '1 hour' or p_at < now() - interval '7 days' then raise exception 'bad time'; end if;
   if jsonb_typeof(p_d) <> 'object' or pg_column_size(p_d) > 8000000 then raise exception 'bad data'; end if;
-  insert into ah_hour (house, at, d) values (p_house, p_at, p_d)
-    on conflict (house, at) do update set d = excluded.d;
+  if p_t is not null and jsonb_typeof(p_t) <> 'object' then raise exception 'bad totals'; end if;
+  if p_ladder is not null and (jsonb_typeof(p_ladder) <> 'object' or pg_column_size(p_ladder) > 4000000) then raise exception 'bad ladder'; end if;
+  insert into ah_hour (house, at, d, t) values (p_house, p_at, p_d, p_t)
+    on conflict (house, at) do update set d = excluded.d, t = coalesce(excluded.t, ah_hour.t);
   v_day := (p_at at time zone 'Europe/Paris')::date;
-  insert into ah_day (house, day, at, d)
-  select p_house, v_day, now(), coalesce(jsonb_object_agg(k, jsonb_build_array(mn, mk, qty, lots)), '{}'::jsonb)
+  insert into ah_day (house, day, at, d, t)
+  select p_house, v_day, now(), coalesce(jsonb_object_agg(k, jsonb_build_array(mn, mk, qty, lots)), '{}'::jsonb),
+    (select jsonb_build_object('items', round(avg((h.t->>'items')::numeric)), 'lots', round(avg((h.t->>'lots')::numeric)),
+       'units', round(avg((h.t->>'units')::numeric)), 'new', sum((h.t->>'new')::bigint), 'gone', sum((h.t->>'gone')::bigint), 'n', count(*))
+     from ah_hour h where h.house = p_house and h.t is not null and h.at >= (v_day::timestamp at time zone 'Europe/Paris')
+       and h.at < ((v_day + 1)::timestamp at time zone 'Europe/Paris'))
   from (select e.key k, min((e.value->>0)::bigint) mn, round(avg((e.value->>1)::numeric))::bigint mk,
                round(avg((e.value->>2)::numeric))::bigint qty, round(avg((e.value->>3)::numeric))::bigint lots
         from ah_hour h, jsonb_each(h.d) e
         where h.house = p_house and h.at >= (v_day::timestamp at time zone 'Europe/Paris')
           and h.at < ((v_day + 1)::timestamp at time zone 'Europe/Paris')
         group by e.key) s
-  on conflict (house, day) do update set d = excluded.d, at = excluded.at;
+  on conflict (house, day) do update set d = excluded.d, at = excluded.at, t = excluded.t;
+  if p_ladder is not null then
+    insert into ah_meta (k, d) values ('ladder:' || p_house, p_ladder) on conflict (k) do update set d = excluded.d;
+  end if;
   delete from ah_hour where at < now() - interval '7 days';
   delete from ah_day where day < (now() at time zone 'Europe/Paris')::date - 30;
   select count(*) into n from jsonb_object_keys(p_d);
   return jsonb_build_object('house', p_house, 'at', p_at, 'day', v_day, 'items', n);
 end $$;
-revoke execute on function public.ah_publish(text, int, timestamptz, jsonb) from public;
-grant execute on function public.ah_publish(text, int, timestamptz, jsonb) to anon, authenticated;
+revoke execute on function public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb) from public;
+grant execute on function public.ah_publish(text, int, timestamptz, jsonb, jsonb, jsonb) to anon, authenticated;
 
 -- Page reads: the latest snapshot of a house, and one item's history (hourly 7 days, daily 30 days).
 create or replace function public.ah_latest(p_house int)
@@ -1644,3 +1662,26 @@ returns jsonb language sql stable security definer set search_path = public as $
 $$;
 revoke execute on function public.ah_names(), public.ah_before(int, timestamptz) from public;
 grant execute on function public.ah_names(), public.ah_before(int, timestamptz) to anon, authenticated;
+
+-- 2026-11-22: auction overview and «Крафт → NPC». Snapshot totals (hourly 7 days, daily 30 days), the price ladder of the latest
+-- snapshot, and the crafted item ids of every catalogued recipe (scripts/ah.py adds their vendor prices to the item catalogue).
+create or replace function public.ah_totals(p_house int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'h', coalesce((select jsonb_agg(jsonb_build_array(floor(extract(epoch from at) * 1000), t) order by at)
+                   from ah_hour where house = p_house and t is not null), '[]'::jsonb),
+    'd', coalesce((select jsonb_agg(jsonb_build_array(day, t) order by day)
+                   from ah_day where house = p_house and t is not null), '[]'::jsonb));
+$$;
+create or replace function public.ah_ladder(p_house int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select d from ah_meta where k = 'ladder:' || p_house), '{}'::jsonb);
+$$;
+create or replace function public.ah_craft_items()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(distinct (r.value->>'iid')::int), '[]'::jsonb)
+  from docs d, jsonb_each(case when jsonb_typeof(d.data->'r') = 'object' then d.data->'r' else '{}'::jsonb end) r
+  where d.coll = 'gcat' and (r.value->>'iid') ~ '^[0-9]{1,9}$';
+$$;
+revoke execute on function public.ah_totals(int), public.ah_ladder(int), public.ah_craft_items() from public;
+grant execute on function public.ah_totals(int), public.ah_ladder(int), public.ah_craft_items() to anon, authenticated;

@@ -186,6 +186,36 @@ def summarize(items, commodities, vendor=None):
     return out
 
 
+def totals(items, commodities, prev=None):
+    """Snapshot totals for the overview. prev = the previous snapshot's totals: lot ids only grow, so lots with a higher id
+    than its max are new; gone = previous lots + new - lots now (sold, cancelled or expired: the API doesn't say which)."""
+    lots = items.get('auctions', []) + commodities.get('auctions', [])
+    t = {'items': len({a['item']['id'] for a in lots}), 'lots': len(lots), 'units': sum(a.get('quantity', 1) for a in lots),
+         'max': max((a['id'] for a in lots), default=0)}
+    if prev and prev.get('max'):
+        t['new'] = sum(1 for a in lots if a['id'] > prev['max'])
+        if prev.get('lots') is not None:
+            t['gone'] = max(0, prev['lots'] + t['new'] - t['lots'])
+    return t
+
+
+def ladder(commodities, steps=12):
+    """Stackables -> {item id: [[unit price, units listed at or below it], ...]}, the cheapest `steps` prices only:
+    how many units one can buy up to a given price (the page uses it for the most one can pay for a reagent)."""
+    by = {}
+    for a in commodities.get('auctions', []):
+        p = by.setdefault(a['item']['id'], {})
+        p[a['unit_price']] = p.get(a['unit_price'], 0) + a['quantity']
+    out = {}
+    for i, prices in by.items():
+        cum, rows = 0, []
+        for price in sorted(prices)[:steps]:
+            cum += prices[price]
+            rows.append([price, cum])
+        out[i] = rows
+    return out
+
+
 def selftest():
     assert stats([(5, 1)]) == [5, 5, 1, 1]
     assert stats([(30, 5), (10, 5)]) == [10, 10, 10, 2]  # 10% of 10 units = 1 unit, the cheapest
@@ -194,6 +224,11 @@ def selftest():
     com = {'auctions': [{'item': {'id': 9}, 'unit_price': 3, 'quantity': 4}, {'item': {'id': 9}, 'unit_price': 10, 'quantity': 2}]}
     assert summarize({}, com, {9: 5}) == {9: [3, 3, 6, 2, 4, 12]}  # 4 units at 3 are below the vendor's 5
     assert summarize({}, com, {9: 3}) == {9: [3, 3, 6, 2]}  # not below: no flip fields
+    assert ladder(com) == {9: [[3, 4], [10, 6]]}
+    its = {'auctions': [{'id': 5, 'item': {'id': 1}, 'buyout': 9, 'quantity': 1}]}
+    com2 = {'auctions': [{'id': 7, 'item': {'id': 9}, 'unit_price': 3, 'quantity': 4}, {'id': 3, 'item': {'id': 9}, 'unit_price': 2, 'quantity': 1}]}
+    assert totals(its, com2) == {'items': 2, 'lots': 3, 'units': 6, 'max': 7}
+    assert totals(its, com2, {'max': 4, 'lots': 3}) == {'items': 2, 'lots': 3, 'units': 6, 'max': 7, 'new': 2, 'gone': 2}
     print('selftest ok')
 
 
@@ -243,7 +278,23 @@ def main():
         s = summarize(snaps['items'], snaps['commodities'], vendor)
         print(f'{house} ({name}): {len(s)} items, {sum(1 for v in s.values() if len(v) > 4)} with lots below the vendor price')
         if a.publish:
-            print('  published:', rpc('ah_publish', {'p_secret': secret, 'p_house': house, 'p_at': max(ats).isoformat(), 'p_d': s}))
+            at, prev = max(ats), None
+            try:  # optional: the previous snapshot's totals, to count new lots
+                hist = (rpc('ah_totals', {'p_house': house}) or {}).get('h', [])
+                # the previous snapshot, only if it's at most 90 minutes older: across a gap "new" would lump several hours
+                now_ms = at.timestamp() * 1000
+                prev = next((t for ms, t in reversed(hist) if now_ms - 90 * 60e3 <= ms < now_ms - 60e3), None)
+            except (SystemExit, OSError, ValueError) as e:
+                print(f'  totals: previous not read ({e})')
+            t = totals(snaps['items'], snaps['commodities'], prev)
+            print('  totals:', t)
+            args = {'p_secret': secret, 'p_house': house, 'p_at': at.isoformat(), 'p_d': s}
+            try:
+                res = rpc('ah_publish', {**args, 'p_t': t, 'p_ladder': ladder(snaps['commodities'])})
+            except SystemExit as e:  # the database may still have the older ah_publish (supabase.sql not re-run yet)
+                print(f'  publish with totals failed ({e}), sending prices only')
+                res = rpc('ah_publish', args)
+            print('  published:', res)
             seen |= set(s)
         for i in show:
             if i in s:
@@ -251,6 +302,10 @@ def main():
 
     if a.publish and known is not None:
         # entries from before the vendor buy price was kept (8 fields) are looked up again once
+        try:  # crafted items of every catalogued recipe: their vendor price is needed even when they are not on sale
+            seen |= {int(i) for i in rpc('ah_craft_items', {}) or []}
+        except (SystemExit, OSError, ValueError) as e:
+            print(f'names: recipe products not read ({e})')
         missing = (seen - {int(k) for k in known}) | {int(k) for k, v in known.items() if v and v[0] and v[2] is not None and len(v) < 9}
         if missing:
             try:  # the names are extra: a failed lookup must not fail the run, the next run fills the gap

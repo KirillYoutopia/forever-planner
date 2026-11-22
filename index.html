@@ -2653,9 +2653,12 @@ document.addEventListener("click", e => {
   }
   else if (act === "close") closeSheet();
   else if (act === "ahhouse") { ahHouse = +b.dataset.v === 116 ? 116 : 113; try { localStorage.setItem("wf-ah-house", ahHouse); } catch {} ahLimit = 100; renderAh(); }
-  else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : b.dataset.t === "f" ? ahFSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
-    if (c) ahCSort = ns; else if (b.dataset.t === "f") ahFSort = ns; else ahSort = ns; renderAh(); }
-  else if (act === "ahtab") { ahTab = ["raw", "flip", "craft"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahsort") { const k = b.dataset.k, c = b.dataset.t === "c", st = c ? ahCSort : b.dataset.t === "f" ? ahFSort : b.dataset.t === "n" ? ahNSort : ahSort, ns = st.k === k ? { k, dir: -st.dir } : { k, dir: k === "n" ? 1 : -1 };
+    if (c) ahCSort = ns; else if (b.dataset.t === "f") ahFSort = ns; else if (b.dataset.t === "n") ahNSort = ns; else ahSort = ns; renderAh(); }
+  else if (act === "ahtab") { ahTab = ["overview", "raw", "flip", "craft", "npc"].includes(b.dataset.v) ? b.dataset.v : "items"; ahLimit = 100; renderAh(); }
+  else if (act === "ahomode") { ahOMode = b.dataset.v === "d" ? "d" : "h"; renderAh(); }
+  else if (act === "ahntarget") { ahNTarget = [100, 500, 1000, 2000].includes(+b.dataset.v) ? +b.dataset.v : 0; ahLimit = 100; renderAh(); }
+  else if (act === "ahnall") { ahNAll = !ahNAll; ahLimit = 100; renderAh(); }
   else if (act === "ahflipprof") { ahFlipProf = b.dataset.v === "prof"; ahLimit = 100; renderAh(); }
   else if (act === "ahflipmin") { ahFlipMin = [5, 10, 25].includes(+b.dataset.v) ? +b.dataset.v : 0; ahLimit = 100; renderAh(); }
   else if (act === "ahraw") { ahRaw = AH_RAW.some(([v]) => v === b.dataset.v) ? b.dataset.v : "7.9"; ahLimit = 100; renderAh(); }
@@ -4325,7 +4328,7 @@ function gHover(e) {
 }
 function gLeave(e) { const plot = e.target.closest?.(".gplot"); if (!plot) return; plot.querySelector(".gtip").hidden = true; plot.querySelector(".xh").setAttribute("hidden", ""); }
 function gDim(slug) { document.querySelectorAll(".gplot [data-s]").forEach(n => n.classList.toggle("dim", !!slug && n.dataset.s !== slug)); }
-for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box", "#cmp-box", "#st-box", "#ah-item"]) {
+for (const id of ["#gchart", "#gpcharts", "#pvp-day", "#pvp-sum", "#ov-size", "#gc-box", "#dg-box", "#cmp-box", "#st-box", "#ah-item", "#ah-list"]) {
   $(id).addEventListener("pointermove", gHover);
   $(id).addEventListener("pointerdown", gHover);
   $(id).addEventListener("pointerout", e => { if (!e.relatedTarget?.closest?.(".gplot")) gLeave(e); });
@@ -4397,18 +4400,20 @@ function renderAh() {
   else if (!ahNamesP) ahLoad(h);
   const hb = AH_HOUSES.map(([id, t]) => `<button type="button" data-act="ahhouse" data-v="${id}" aria-pressed="${id === h}">${t}</button>`).join("");
   if ($("#ah-house").innerHTML !== hb) $("#ah-house").innerHTML = hb;
-  const tb = [["items", "Предметы"], ["raw", "Сырьё"], ["flip", "Вендор флип"], ["craft", "Крафт гильдии"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
+  const tb = [["overview", "Обзор"], ["items", "Предметы"], ["raw", "Сырьё"], ["flip", "Вендор флип"], ["craft", "Крафт гильдии"], ["npc", "Крафт → NPC"]].map(([v, t]) => `<button type="button" data-act="ahtab" data-v="${v}" aria-pressed="${ahTab === v}">${t}</button>`).join("");
   if ($("#ah-tab").innerHTML !== tb) $("#ah-tab").innerHTML = tb;
-  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip";
-  $("#ah-cls").hidden = craft || raw; $("#ah-prof").hidden = !craft; $("#ah-raw").hidden = !raw && !flip;
+  const craft = ahTab === "craft", raw = ahTab === "raw", flip = ahTab === "flip", npc = ahTab === "npc", ov = ahTab === "overview";
+  $("#ah-cls").hidden = craft || raw || npc || ov; $("#ah-prof").hidden = !craft && !npc; $("#ah-raw").hidden = !raw && !flip; $("#ahq").hidden = ov;
   const rb = flip ? [["", "Все"], ["prof", "Реагенты профессий гильдии"]].map(([v, t]) => `<button type="button" data-act="ahflipprof" data-v="${v}" aria-pressed="${ahFlipProf === !!v}">${t}</button>`).join("")
       + [0, 5, 10, 25].map(n => `<button type="button" data-act="ahflipmin" data-v="${n}" aria-pressed="${ahFlipMin === n}">${n ? `от ${n}%` : "любая маржа"}</button>`).join("")
     : AH_RAW.map(([v, t]) => `<button type="button" data-act="ahraw" data-v="${v}" aria-pressed="${ahRaw === v}">${t}</button>`).join("");
   if ($("#ah-raw").innerHTML !== rb) $("#ah-raw").innerHTML = rb;
-  $("#ahq").placeholder = craft ? "Найти рецепт или реагент (по-английски)" : "Найти предмет (название по-английски)";
+  $("#ahq").placeholder = craft || npc ? "Найти рецепт или реагент (по-английски)" : "Найти предмет (название по-английски)";
   const q = $("#ahq").value.trim().toLowerCase();
   let cls = $("#ah-cls").value;
   const key = [h, !!d, d?.loading, d?.now?.at, d?.prev?.at, d?.err, !!ahNames, q, cls, ahSort.k, ahSort.dir, ahLimit, offline, ahTab, raw ? ahRaw : "", ...(flip ? [ahFlipProf, ahFlipMin, ahFSort.k, ahFSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
+    ...(npc ? [$("#ah-prof").value, ahNTarget, ahNAll, ahNSort.k, ahNSort.dir, ahStamp(ahLad[h]?.v), guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : []),
+    ...(ov ? [ahOMode, ahStamp(ahTot[h]?.v), $("#ah-list").clientWidth] : []),
     ...(craft ? [$("#ah-prof").value, ahCSort.k, ahCSort.dir, guild?.at, ...Object.values(grec).map(x => x.at), ...Object.values(gcat).map(x => x.at)] : [])].join("|");
   renderAhItem();
   if (key === ahDrawn) return;
@@ -4448,6 +4453,8 @@ function renderAh() {
     + tile("Дешевле торговца", fmtN(cheap), "мин. цена ниже, чем даёт NPC")}</div>`;
   if (craft) { $("#ah-list").innerHTML = ahCraftHtml(d, q); return; }
   if (flip) { $("#ah-list").innerHTML = ahFlipHtml(d, all, q, cls); return; }
+  if (npc) { $("#ah-list").innerHTML = ahNpcHtml(d, q); return; }
+  if (ov) { $("#ah-list").innerHTML = ahOverviewHtml(d); return; }
   // the list
   let rows = all;
   if (raw) rows = rows.filter(r => `${r.c}.${r.sc}` === ahRaw);
@@ -4573,6 +4580,128 @@ function ahFlipHtml(d, all, q, cls) {
       : `<p class="empty">Под эти фильтры ничего нет.</p>`)
     + `<p class="gnote">Лоты, которые выставлены дешевле, чем за предмет платит NPC-торговец: выкупи и продай торговцу. «Макс. цена закупки»: сколько NPC платит за штуку, дороже покупать нет смысла. «Штук дешевле», «Вложить» и «Прибыль»: все такие лоты целиком, по цене выкупа; ставки не учитываются. Снимок раз в час (последний: ${ahHM(d.now.at)}), выгодные лоты быстро выкупают, так что в игре часть уже может пропасть.</p>`;
 }
+// «Обзор»: totals of every snapshot (scripts/ah.py → ah_hour.t / ah_day.t): items, lots, units, new lots (higher lot id than the
+// previous snapshot's highest) and gone lots (sold, cancelled or expired: the API doesn't tell them apart).
+// «Крафт → NPC»: guild recipes whose product a vendor buys for more than the reagents cost. The price ladder of the latest snapshot
+// (ah_ladder: { item: [[unit price, units at or below it], ...] }, cheapest steps only) says how much of the main reagent is on sale
+// up to the most one can pay for it.
+const ahTot = {}, ahLad = {}; // house -> data | "loading" | { err }, plus the snapshot time they belong to
+let ahOMode = "h", ahNSort = { k: "total", dir: -1 }, ahNTarget = 0, ahNAll = false;
+function ahFetch(store, fn, h, at) { // one request per house and snapshot; redraw when it arrives
+  const c = store[h];
+  if (c && c.at === at) return c.v;
+  if (!dbRef || (c && c.v === "loading" && c.at === at)) return c?.v;
+  store[h] = { at, v: "loading" };
+  dbRef.call(fn, { p_house: h }).then(r => { store[h] = { at, v: r || {} }; ahDrawn = ""; renderAh(); })
+    .catch(() => { store[h] = { at, v: { err: true } }; ahDrawn = ""; renderAh(); });
+  return "loading";
+}
+const ahStamp = v => v === "loading" ? "l" : v?.err ? "e" : v ? "ok" : "";
+function ahOverviewHtml(d) {
+  const T = ahFetch(ahTot, "ah_totals", ahHouse, d.now.at);
+  if (T === "loading" || !T) return `<p class="empty">Загружаю итоги снимков…</p>`;
+  if (T.err) return `<p class="empty">Не получилось загрузить итоги.</p>`;
+  const W = Math.max(280, Math.round($("#ah-list").clientWidth) || 680), tile = (t, v, sub = "") => `<div><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const hrs = (T.h || []).filter(x => x[1]), days = (T.d || []).filter(x => x[1]), last = hrs[hrs.length - 1]?.[1];
+  const day0 = Date.now() - 864e5, inDay = hrs.filter(x => x[0] >= day0);
+  const sumOf = (l, k) => l.reduce((n, x) => n + (+x[1][k] || 0), 0);
+  // the hour of day (viewer's time) when the most lots get listed, averaged over the hourly snapshots
+  const byHour = Array.from({ length: 24 }, () => [0, 0]);
+  for (const [ms, t] of hrs) if (t.new != null) { const b = byHour[new Date(ms).getHours()]; b[0] += +t.new; b[1]++; }
+  const avgH = byHour.map(([s, n]) => n ? s / n : null), peak = avgH.reduce((m, v, i) => v != null && (m < 0 || v > avgH[m]) ? i : m, -1);
+  let html = `<div class="gtiles ah-tiles">${tile("Новых лотов за час", last?.new != null ? fmtN(last.new) : "—", last ? `снимок ${ahHM(hrs[hrs.length - 1][0])}` : "")
+    + tile("Исчезло за час", last?.gone != null ? fmtN(last.gone) : "—", "продано, снято или истекло")
+    + tile("Новых за сутки", inDay.some(x => x[1].new != null) ? fmtN(sumOf(inDay, "new")) : "—", `${inDay.length} ${plural(inDay.length, "снимок", "снимка", "снимков")}`)
+    + tile("Активнее всего", peak >= 0 ? `${pad2(peak)}:00–${pad2((peak + 1) % 24)}:00` : "—", peak >= 0 ? `≈ ${fmtN(Math.round(avgH[peak]))} новых лотов в час` : "мало данных")}</div>`;
+  html += `<div class="seg" role="group" aria-label="Период">${[["h", "По часам · 7 дн."], ["d", "По дням · 30 дн."]].map(([v, t]) =>
+    `<button type="button" data-act="ahomode" data-v="${v}" aria-pressed="${ahOMode === v}">${t}</button>`).join("")}</div>`;
+  const src = ahOMode === "h" ? hrs.map(([ms, t]) => ({ x: +ms, t })) : days.map(([day, t]) => ({ x: Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)), t }));
+  if (src.length < 2) html += `<p class="gnote">${src.length ? "Пока есть одна точка: графики появятся со следующим снимком." : "Итоги снимков начали собираться: первые точки появятся в течение часа."}</p>`;
+  else {
+    const xs = src.map(p => p.x), lab = ahOMode === "h" ? t => `${ahDM(t)}, ${ahHM(t)}` : ahDM;
+    const short = xs[xs.length - 1] - xs[0] < 36 * 36e5, xl = ahOMode === "d" ? ahDM : short ? ahHM : t => `${ahDM(t)} ${ahHM(t)}`, tw = ahOMode === "h" && !short ? 130 : 90;
+    const sr = (slug, name, color, k) => ({ slug, name, color, pts: src.map((p, i) => ({ i, lv: p.t[k] })).filter(p => p.lv != null).map(p => ({ i: p.i, lv: +p.lv })) });
+    const ch = (id, title, series, H) => series.some(s => s.pts.length) ? `<h4 class="cc-h4">${title}</h4>${gKeys(series)}${ahChart(id, xs, series, { W, H, fmt: fmtN, tip: lab, xl, tw, label: title })}` : "";
+    const per = ahOMode === "h" ? "за час" : "за день";
+    html += ch("ah-o1", "Лотов на аукционе", [sr("lots", ahOMode === "h" ? "Лотов" : "Лотов (в среднем за день)", "var(--accent)", "lots")], W < 480 ? 180 : 220)
+      + ch("ah-o2", `Новые и исчезнувшие лоты ${per}`, [sr("new", "Новые", "var(--healer)", "new"), sr("gone", "Исчезли", "var(--horde)", "gone")], W < 480 ? 180 : 220)
+      + ch("ah-o3", "Разных предметов", [sr("items", "Предметов", "var(--s3)", "items")], 150);
+  }
+  if (avgH.some(v => v != null)) {
+    const hx = Array.from({ length: 24 }, (_, i) => i * 36e5), s = [{ slug: "hr", name: "Новых лотов в час, в среднем", color: "var(--s2)", pts: avgH.map((v, i) => ({ i, lv: v })).filter(p => p.lv != null).map(p => ({ i: p.i, lv: Math.round(p.lv) })) }];
+    if (s[0].pts.length > 1) html += `<h4 class="cc-h4">Когда выставляют: по часам суток (твоё время)</h4>` + ahChart("ah-o4", hx, s, { W, H: 170, fmt: fmtN, tip: t => `${pad2(t / 36e5)}:00–${pad2((t / 36e5 + 1) % 24)}:00`, xl: t => `${pad2(t / 36e5)}:00`, tw: 60, label: "Новых лотов по часам суток" });
+  }
+  return html + `<p class="gnote">«Новые»: лоты, которых не было в прошлом снимке (у Blizzard номера лотов только растут). «Исчезли»: лоты прошлого снимка, которых больше нет: проданные, снятые и истёкшие вместе, API их не различает. Снимок раз в час, история за 7 дней по часам и 30 дней по дням.</p>`;
+}
+function ahNpcHtml(d, q) {
+  const L = ahFetch(ahLad, "ah_ladder", ahHouse, d.now.at);
+  if (!ahNames) return `<p class="empty">Загружаю названия…</p>`;
+  const cur = d.now.d, N = ahNames.items || {}, idOf = ahIdOf(cur), by = ahGuildRecipes(), mem = guild?.members || {}, lad = L && L !== "loading" && !L.err ? L : null;
+  const nm = s => mem[s] ? `${mem[s].name}${mem[s].surname ? " " + mem[s].surname : ""}` : s;
+  let rows = [];
+  for (const [prof, rs] of Object.entries(by)) for (const [rid, who] of Object.entries(rs)) {
+    const r = gcat[prof]?.r?.[rid], iid = +r?.iid || 0, pv = iid ? +N[iid]?.[7] || 0 : 0;
+    if (!r || !pv || !Array.isArray(r.re) || !r.re.length) continue;
+    const yieldN = Math.max(1, +r.q || 1), rev = pv * yieldN;
+    const re = r.re.map(([n, k]) => {
+      const id = idOf(n), v = id && cur[id], ah = v ? +v[1] : null, vb = id && AH_VENDOR.has(+id) ? +N[id]?.[8] || 0 : 0, vend = vb > 0 && (ah == null || vb <= ah);
+      return { n: String(n ?? "?"), k: Math.max(1, +k || 1), id, p: vend ? vb : ah, mn: v ? +v[0] : null, vend };
+    });
+    if (re.some(x => x.p == null)) continue; // a reagent nobody sells now
+    const cost = re.reduce((s, x) => s + x.p * x.k, 0), key = re.filter(x => !x.vend).sort((a, b) => b.p * b.k - a.p * a.k)[0];
+    const row = { prof, rid, n: String(r.n || r.i || `Рецепт ${rid}`), icon: r.icon, iq: r.iq, iid, who, re, yieldN, rev, cost, profit: rev - cost, key, maxP: null, units: null, more: false, crafts: null, total: null };
+    if (key) {
+      row.maxP = Math.floor((rev - (cost - key.p * key.k) - ahNTarget) / key.k);
+      const steps = lad?.[key.id];
+      if (Array.isArray(steps) && steps.length && row.maxP > 0) { // units on sale up to the max price, and what they cost
+        let units = 0;
+        for (const [p, cum] of steps) { if (p > row.maxP) break; units = cum; }
+        row.units = units; row.more = units > 0 && units === steps[steps.length - 1][1] && steps.length >= 12;
+        row.crafts = Math.floor(units / key.k);
+        // shortcut: only transmutes are treated as once-a-day cooldowns; other cooldown crafts (Mooncloth, ...) would need a list
+        if (/^Transmute/i.test(row.n)) { row.cd = true; row.crafts = Math.min(row.crafts, 1); }
+        let need = row.crafts * key.k, spent = 0, prevCum = 0; // what the units actually used cost, cheapest first
+        for (const [p, cum] of steps) { if (need <= 0) break; const take = Math.min(cum - prevCum, need); spent += take * p; need -= take; prevCum = cum; }
+        row.total = row.crafts ? Math.round(row.crafts * (rev - (cost - key.p * key.k)) - spent) : 0;
+      } else if (row.maxP <= 0) { row.units = 0; row.crafts = 0; row.total = 0; }
+    } else { row.total = row.profit > 0 ? row.profit : 0; }
+    rows.push(row);
+  }
+  if (!rows.length) return `<p class="empty">${got.has("grecipes") ? "Пока нет рецептов, чьё изделие покупает NPC: цены торговцев для изделий подтянутся со следующим снимком." : "Загружаю рецепты…"}</p>`;
+  const ps = $("#ah-prof"), cnt = {};
+  for (const r of rows) cnt[r.prof] = (cnt[r.prof] || 0) + 1;
+  const pk = "npc|" + JSON.stringify(cnt);
+  if (pk !== ahProfKey) {
+    ahProfKey = pk; const was = ps.value;
+    ps.innerHTML = `<option value="">Все профессии · ${rows.length}</option>` + Object.entries(cnt).sort((a, b) => a[0].localeCompare(b[0])).map(([p, n]) => `<option value="${esc(p)}">${esc(p)} · ${n}</option>`).join("");
+    ps.value = [...ps.options].some(o => o.value === was) ? was : "";
+  }
+  if (ps.value) rows = rows.filter(r => r.prof === ps.value);
+  if (!ahNAll) rows = rows.filter(r => r.key ? r.maxP > 0 && r.key.mn != null && r.key.mn <= r.maxP : r.profit - ahNTarget > 0);
+  if (q) rows = rows.filter(r => r.n.toLowerCase().includes(q) || r.re.some(x => x.n.toLowerCase().includes(q)));
+  const { k, dir } = ahNSort;
+  rows.sort((a, b) => { const x = a[k], y = b[k]; if (x == null || y == null) return (x == null) - (y == null);
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * dir || a.n.localeCompare(b.n); });
+  const COLS = [["n", "Рецепт"], ["rev", "NPC платит"], ["cost", "Реагенты"], ["profit", "За крафт"], ["maxP", "Макс. цена реагента"], ["crafts", "Можно сделать"], ["total", "Итого"]];
+  const th = ([c, t]) => `<th scope="col"${c !== "n" ? ` class="num"` : ""}${k === c ? ` aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-act="ahsort" data-t="n" data-k="${c}">${t}${k === c ? (dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
+  const ing = x => `${x.k}× ${x.id ? `<button type="button" class="glink ah-ri" data-act="ahitem" data-id="${+x.id}">${esc(x.n)}</button>` : esc(x.n)}${x.vend ? ` <span class="ah-vend">у торговца</span>` : ""} ${fmtCu(x.p)}`;
+  const money = v => v == null ? "—" : `<b class="${v >= 0 ? "ah-up" : "ah-dn"}">${v < 0 ? "−" : ""}${fmtCu(Math.abs(v))}</b>`;
+  const tr = r => { const ic = bimg(r.icon), name = `${ic ? `<img src="${ic}" alt="" loading="lazy">` : `<i></i>`}<span>${esc(r.n)}</span>`;
+    return `<tr><th scope="row"><button type="button" class="ah-n rq-${esc(r.iq || "")}" data-act="ahitem" data-id="${r.iid}">${name}</button>
+      <small class="ah-re">${esc(r.prof)} · ${esc(r.who.map(nm).sort((a, b) => a.localeCompare(b)).join(", "))}</small>
+      <small class="ah-re">${r.re.map(ing).join(" · ")}</small></th>
+      <td class="num">${fmtCu(r.rev)}${r.yieldN > 1 ? `<small>за ${r.yieldN} шт.</small>` : ""}</td><td class="num">${fmtCu(r.cost)}<small>по рынку</small></td>
+      <td class="num">${money(r.profit)}</td>
+      <td class="num">${r.key ? `${r.maxP > 0 ? `<b>${fmtCu(r.maxP)}</b>` : "<b>—</b>"}<small>${esc(r.key.n)}, сейчас от ${r.key.mn != null ? fmtCu(r.key.mn) : "—"}</small>` : `<small>все реагенты у торговца</small>`}</td>
+      <td class="num">${r.crafts == null ? (r.key ? (lad ? "—" : "…") : "сколько угодно") : `${fmtN(r.crafts)}${r.more && !r.cd ? "+" : ""}<small>${r.cd ? "раз в сутки (откат)" : `${fmtN(r.units)}${r.more ? "+" : ""} шт. до макс. цены`}</small>`}</td>
+      <td class="num">${r.key ? money(r.total) : `${money(r.profit)}<small>за крафт</small>`}</td></tr>`; };
+  const opts = [0, 100, 500, 1000, 2000].map(v => `<button type="button" data-act="ahntarget" data-v="${v}" aria-pressed="${ahNTarget === v}">${v ? `от ${fmtCu(v)} с крафта` : "без запаса"}</button>`).join("");
+  return `<div class="rchips ah-raw" role="group" aria-label="Желаемая прибыль с крафта">${opts}<button type="button" data-act="ahnall" aria-pressed="${ahNAll}">Показать и невыгодные</button></div>`
+    + (rows.length ? `<div class="scroll"><table class="rtab ah-tab ah-craft"><thead><tr>${COLS.map(th).join("")}</tr></thead><tbody>${rows.slice(0, ahLimit).map(tr).join("")}</tbody></table></div>`
+      + (rows.length > ahLimit ? `<p class="ovnote">Показано ${fmtN(ahLimit)} из ${fmtN(rows.length)}. <button type="button" class="glink" data-act="ahmore">Показать ещё</button></p>` : "")
+      : `<p class="empty">Сейчас ничего не выходит в плюс${ahNTarget ? " с таким запасом" : ""}.</p>`)
+    + `<p class="gnote">Скрафтить из купленного и продать изделие NPC-торговцу. «NPC платит»: цена изделия у торговца × сколько штук даёт крафт. «Реагенты»: по рыночной цене, то, что продают торговцы, по их цене. «Макс. цена реагента»: до какой цены за штуку можно скупать главный (самый дорогой) реагент, чтобы крафт ещё приносил выбранный запас, если остальные реагенты брать по рынку. «Можно сделать»: сколько крафтов хватит из того, что сейчас выставлено не дороже этой цены (по последнему снимку, ${ahHM(d.now.at)}); «+» значит, что дешёвых лотов может быть ещё больше. «Итого»: прибыль со всех этих крафтов. Рецепты только те, что знает кто-то в гильдии.</p>`;
+}
 function renderAhItem() {
   const el = $("#ah-item"), h = ahHouse, d = ahData[h];
   if (!ahSel) { if (ahItemDrawn) { el.innerHTML = ""; ahItemDrawn = ""; } return; }
@@ -4650,7 +4779,7 @@ function applyView() {
   if (view === "streamers") { stDrawn = ""; renderStreamers(); }
   if (view === "guild") renderGuild(); // the chart is sized from its container, which has no width while hidden
   if (view === "pvp") renderPvp();
-  if (view === "ah") { ahItemDrawn = ""; renderAh(); } // the chart is sized from its container
+  if (view === "ah") { ahItemDrawn = ahDrawn = ""; renderAh(); } // the chart is sized from its container
 }
 function menu(on) { // phone drawer; on wide screens the sidebar is always shown and this only resets state
   const was = $("#side").classList.contains("open");
