@@ -38,18 +38,81 @@ def creds(env_file):
     return cid, sec
 
 
-def publish(house, at, d, secret):
+def rpc(fn, args):
+    """Supabase RPC with the public anon key from config.js; the secret, when needed, travels in args."""
     cfg = open(os.path.join(os.path.dirname(__file__), '..', 'config.js'), encoding='utf-8').read()
     url = re.search(r'supabaseUrl:\s*"([^"]+)"', cfg).group(1)
     key = re.search(r'supabaseAnonKey:\s*"([^"]+)"', cfg).group(1)
-    body = json.dumps({'p_secret': secret, 'p_house': house, 'p_at': at.isoformat(), 'p_d': d}, separators=(',', ':')).encode()
-    req = urllib.request.Request(url + '/rest/v1/rpc/ah_publish', data=body, headers={
+    req = urllib.request.Request(url + '/rest/v1/rpc/' + fn, data=json.dumps(args, separators=(',', ':')).encode(), headers={
         'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:  # the server's message says why (denied, bad time, ...)
-        sys.exit(f'ah_publish {house}: HTTP {e.code} {e.read().decode(errors="replace")[:300]}')
+        sys.exit(f'{fn}: HTTP {e.code} {e.read().decode(errors="replace")[:300]}')
+
+
+QUALITY = {'POOR': 0, 'COMMON': 1, 'UNCOMMON': 2, 'RARE': 3, 'EPIC': 4, 'LEGENDARY': 5, 'ARTIFACT': 6, 'HEIRLOOM': 7}
+
+
+def search(tok, kind, lo, game='forever'):
+    """One page (up to 1000) of Blizzard's static search, ids >= lo in id order."""
+    url = (f'https://{REGION}.api.blizzard.com/data/wow/search/{kind}?namespace=static-{game}-{REGION}'
+           f'&orderby=id&_pageSize=1000&id=[{lo},]' + ('&tags=item' if kind == 'media' else ''))
+    with urllib.request.urlopen(urllib.request.Request(url, headers={'Authorization': 'Bearer ' + tok}), timeout=60) as r:
+        return [x['data'] for x in json.load(r).get('results', [])]
+
+
+def walk(tok, kind, ids, game='forever'):
+    """Every search result whose id is in ids; jumps from one missing id to the next, 1000 ids per request."""
+    todo, found, i = sorted(ids), {}, 0
+    while i < len(todo):
+        res = search(tok, kind, todo[i], game)
+        found.update((d['id'], d) for d in res if d['id'] in ids)
+        top = res[-1]['id'] if len(res) == 1000 else float('inf')  # a short page means nothing beyond it
+        while i < len(todo) and todo[i] <= top:
+            i += 1
+    return found
+
+
+def catalog(tok, ids):
+    """item ids -> ({id: [name, quality, class, subclass, level, req level, icon file id, sell price]}, {class names})."""
+    items, classes = {}, {}
+    # Forever's own catalogue lacks many plain Classic items (mostly gear) that are sold on its auction houses:
+    # those come from the Classic Era catalogue (same ids, names and icons).
+    icons = {}
+    data = walk(tok, 'item', set(ids))
+    for game, part in (('forever', data), ('classic1x', walk(tok, 'item', set(ids) - set(data), 'classic1x'))):
+        icons.update({m: next((a.get('file_data_id') for a in d.get('assets', []) if a.get('key') == 'icon'), 0)
+                      for m, d in walk(tok, 'media', {d.get('media', {}).get('id') for d in part.values()} - {None}, game).items()})
+        data.update(part)
+    en = lambda x: (x or {}).get('name', {}).get('en_US', '') if isinstance((x or {}).get('name'), dict) else (x or {}).get('name', '')
+    wh_left = 400  # Wowhead requests per run, one by one
+    for i in ids:
+        d = data.get(i)
+        if not d:
+            # Not in any Blizzard catalogue (new Forever items): Wowhead's Forever tooltip has the name, quality and the
+            # icon's file name (Blizzard's image server knows the older ones by name). [''] = Wowhead doesn't know it either,
+            # not searched again. Left out (over the limit, Wowhead hiccup) = tried again next run.
+            if wh_left > 0:
+                wh_left -= 1
+                try:
+                    with urllib.request.urlopen(urllib.request.Request(f'https://nether.wowhead.com/tooltip/item/{i}?dataEnv=16&locale=0',
+                            headers={'User-Agent': 'KuteExpats guild site (+https://kirillyoutopia.github.io/forever-planner/)'}), timeout=20) as r:
+                        w = json.load(r)
+                    items[i] = [w['name'], int(w.get('quality') or 1), None, None, 0, 0, w.get('icon') or 0, 0] if w.get('name') else ['']
+                except urllib.error.HTTPError as e:
+                    if e.code == 404:
+                        items[i] = ['']
+                except (OSError, ValueError):
+                    pass
+            continue
+        c, sc = d.get('item_class', {}), d.get('item_subclass', {})
+        classes[str(c.get('id'))] = en(c)
+        classes[f"{c.get('id')}.{sc.get('id')}"] = en(sc)
+        items[i] = [en(d), QUALITY.get(d.get('quality', {}).get('type'), 1), c.get('id'), sc.get('id'), d.get('level', 0),
+                    d.get('required_level', 0), icons.get(d.get('media', {}).get('id'), 0), d.get('sell_price', 0)]
+    return items, classes
 
 
 def token(cid, sec):
@@ -124,6 +187,7 @@ def main():
         sys.exit('AH_SECRET is not set')
     tok = token(*creds(a.env))
     show = [int(x) for x in a.show.split(',') if x]
+    seen = set()
     for house, name in HOUSES.items():
         snaps, ats = {}, []
         for kind, path in (('items', f'{house}'), ('commodities', f'{house}/commodities')):
@@ -146,10 +210,23 @@ def main():
         s = summarize(snaps['items'], snaps['commodities'])
         print(f'{house} ({name}): {len(s)} items')
         if a.publish:
-            print('  published:', publish(house, max(ats), s, secret))
+            print('  published:', rpc('ah_publish', {'p_secret': secret, 'p_house': house, 'p_at': max(ats).isoformat(), 'p_d': s}))
+            seen |= set(s)
         for i in show:
             if i in s:
                 print(f'  {i:>7}  min {s[i][0]:>7}  market {s[i][1]:>7}  qty {s[i][2]:>7}  lots {s[i][3]:>5}')
+
+    if a.publish:
+        known = {int(k) for k in (rpc('ah_names', {}) or {}).get('items', {})}
+        missing = seen - known
+        if missing:
+            try:  # the names are extra: a failed lookup must not fail the run, the next run fills the gap
+                items, classes = catalog(tok, missing)
+            except (OSError, ValueError, KeyError) as e:
+                print(f'names: skipped this run ({e})')
+            else:
+                print(f'names: {len(missing)} new ids, {sum(1 for v in items.values() if v[0])} found ->',
+                      rpc('ah_names_put', {'p_secret': secret, 'p_items': items, 'p_classes': classes}), 'in the catalogue')
 
 
 if __name__ == '__main__':

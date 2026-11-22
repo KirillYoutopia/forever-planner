@@ -85,8 +85,20 @@ houses 113/116 only, also deletes old rows), page reads `ah_latest(house)`, `ah_
 the page loads all of `docs` + realtime. `scripts/ah.py --publish` (Supabase URL/anon key read from config.js);
 `.github/workflows/ah.yml` hourly at :35 + manual run. Body ≈ 180 KB (113) / 104 KB (116). Reviewed by an independent agent:
 no blocking issues. Verified: selftest; publish request reaches Supabase (404 = function not created yet).
-User's steps: run supabase.sql; insert `ah_secret`; GitHub secrets BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET / AH_SECRET; merge
-(schedules run only on `main`). Then: the page (`#ah`), item names/icons for ~7k items.
+LIVE since 2026-11-22: SQL run, `ah_secret` + GitHub secrets set by the user, merged as PR #35 (`40b3ad0`). Manual
+workflow run succeeded; `ah_latest` returned 7003 items for 113 and 4226 for 116 (snapshot 14:23 UTC), `ah_item` returned one
+hourly + one daily point. Anon can't read `ah_hour` directly (401); wrong secret → `denied`.
+Page `#ah` built 2026-11-22 (NOT merged yet when written): house switch (113/116, localStorage `wf-ah-house`), KPIs, search
+(English names) + type filter + sortable list (100 rows, «Показать ещё»), item card `#ah/<id>` with price/quantity charts
+(`ahChart`, same hover as `lineChart`; hourly 7 d / daily 30 d). Goblin Kassa note removed. Item names: hidden `ah_meta`
+('items' / 'classes'), filled by `scripts/ah.py --publish` for ids it hasn't seen: Blizzard search in `static-forever-eu`, then
+`static-classic1x-eu` (Forever's catalogue lacks lots of plain Classic gear), then Wowhead tooltip (`dataEnv=16`, max 400/run);
+on live data all 7058 ids got names. New Forever icons (Skyborne) are not on Blizzard's image server: those show no icon.
+Reads: `ah_names()`, `ah_before(house, at)` (24 h comparison). Verified in headless Chrome 1400/375 px with live snapshots and
+names built by the same code; charts only with injected fake history (one real snapshot at the time). Reviewed by an independent
+agent; its 3 findings fixed (Wowhead limit marked ids unknown forever; "no snapshots" state stuck on «Загружаю…»; a failed name
+lookup failed the hourly run).
+Next: reagent prices for guild recipes and craft profit (recipes have reagent NAMES only: `gcat.r[id].re` = [[name, qty]]).
 
 ## Pending decisions
 
@@ -112,5 +124,6 @@ User's steps: run supabase.sql; insert `ah_secret`; GitHub secrets BLIZZARD_CLIE
   2026-11-22). Node 24 is also there. Old note: served with a tiny node static server on port 8000; screenshots via Chrome headless + DevTools (scripts
   lived in the session scratchpad and may be gone).
 - Editing `supabase.sql` / `index.html` from scripts: NEVER use `String.replace` with text containing `$$` or `$'` (it corrupted the SQL
-  once; caught by review). Use plain splices (`indexOf` + `slice`). Files are CRLF in git; keep line endings.
+  once; caught by review). Use plain splices (`indexOf` + `slice`). Line endings (checked 2026-11-22): git stores LF; the working
+  copy of `supabase.sql` is CRLF, `index.html` / `CHANGELOG.md` / docs are LF. Keep whatever the file already has.
 - Send risky or SQL changes past an independent reviewer agent; report only what was actually run.

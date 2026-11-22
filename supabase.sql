@@ -1606,3 +1606,41 @@ returns jsonb language sql stable security definer set search_path = public as $
 $$;
 revoke execute on function public.ah_latest(int), public.ah_item(int, int) from public;
 grant execute on function public.ah_latest(int), public.ah_item(int, int) to anon, authenticated;
+
+-- 2026-11-22: item names for the auction page. scripts/ah.py adds every item id it sees on our houses that is not here yet,
+-- from Blizzard's bulk search (search/item + search/media, 1000 per request). One row per key, merged:
+-- 'items' = { "<id>": [name (en_US), quality 0-7, class id, subclass id, item level, required level, icon file id, vendor sell price (copper)] }
+-- 'classes' = { "<class id>": name, "<class id>.<subclass id>": name }. Blizzard's Forever catalogue first, then Classic Era, then Wowhead; an id none of them knows is stored as [""].
+create table if not exists public.ah_meta (k text primary key, d jsonb not null default '{}'::jsonb);
+alter table public.ah_meta enable row level security;
+revoke all on public.ah_meta from anon, authenticated;
+
+create or replace function public.ah_names_put(p_secret text, p_items jsonb, p_classes jsonb)
+returns int language plpgsql security definer set search_path = public as $$
+declare sec text; n int;
+begin
+  select v into sec from bnet_config where k = 'ah_secret';
+  if coalesce(sec, '') = '' or length(sec) < 24 or p_secret is distinct from sec then raise exception 'denied'; end if;
+  if jsonb_typeof(p_items) <> 'object' or jsonb_typeof(p_classes) <> 'object'
+     or pg_column_size(p_items) + pg_column_size(p_classes) > 8000000 then raise exception 'bad data'; end if;
+  insert into ah_meta (k, d) values ('items', p_items) on conflict (k) do update set d = ah_meta.d || excluded.d;
+  insert into ah_meta (k, d) values ('classes', p_classes) on conflict (k) do update set d = ah_meta.d || excluded.d;
+  select count(*) into n from ah_meta m, jsonb_object_keys(m.d) where m.k = 'items';
+  return n;
+end $$;
+revoke execute on function public.ah_names_put(text, jsonb, jsonb) from public;
+grant execute on function public.ah_names_put(text, jsonb, jsonb) to anon, authenticated;
+
+create or replace function public.ah_names()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('items', coalesce((select d from ah_meta where k = 'items'), '{}'::jsonb),
+                            'classes', coalesce((select d from ah_meta where k = 'classes'), '{}'::jsonb));
+$$;
+-- The newest snapshot taken at or before p_at (the page compares the latest one with ~24 hours earlier).
+create or replace function public.ah_before(p_house int, p_at timestamptz)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('at', floor(extract(epoch from at) * 1000), 'd', d)
+  from ah_hour where house = p_house and at <= p_at order by at desc limit 1;
+$$;
+revoke execute on function public.ah_names(), public.ah_before(int, timestamptz) from public;
+grant execute on function public.ah_names(), public.ah_before(int, timestamptz) to anon, authenticated;
