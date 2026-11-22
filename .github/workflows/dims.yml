@@ -1,0 +1,24 @@
+# Daily refresh of the dimension tables (docs/DECISIONS.md): item names, prices, icons and descriptions, from Blizzard's API
+# first and Wowhead's WoW Forever data for what Blizzard doesn't have. The hourly auction job only adds items it hasn't seen.
+# Same secrets as ah.yml: BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET, AH_SECRET.
+name: Reference data
+on:
+  schedule:
+    - cron: '10 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dims
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/ah.py --dims
+        env:
+          BLIZZARD_CLIENT_ID: ${{ secrets.BLIZZARD_CLIENT_ID }}
+          BLIZZARD_CLIENT_SECRET: ${{ secrets.BLIZZARD_CLIENT_SECRET }}
+          AH_SECRET: ${{ secrets.AH_SECRET }}

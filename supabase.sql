@@ -1720,3 +1720,78 @@ returns jsonb language sql stable security definer set search_path = public as $
 $$;
 revoke execute on function public.ah_prev_g(int), public.ah_flow24(int), public.ah_spark(int, int[]) from public;
 grant execute on function public.ah_prev_g(int), public.ah_flow24(int), public.ah_spark(int, int[]) to anon, authenticated;
+
+-- 2026-11-22: dimension tables (docs/DECISIONS.md): reference data the page reads from the database instead of calling any API.
+-- dim_item: an item's description as tooltip lines [[text, kind, right?]] (the same format as gear on the character card),
+-- src = 'blizzard' (built here by bnet_item_tip from Blizzard's preview_item) or 'wowhead' (Wowhead's WoW Forever tooltip as
+-- text, for items Blizzard's Forever catalogue doesn't have) or 'none' (neither knows it). Refreshed daily by GitHub Actions
+-- (scripts/ah.py --dims, .github/workflows/dims.yml); the hourly auction job adds items it hasn't seen yet.
+create table if not exists public.dim_item (id int primary key, src text not null, tip jsonb not null default '[]'::jsonb,
+  at timestamptz not null default now());
+alter table public.dim_item enable row level security;
+revoke all on public.dim_item from anon, authenticated;
+
+-- p_bnet: { "<id>": Blizzard's preview_item }, p_other: { "<id>": [src, lines] }. Guarded by the auction job's secret.
+create or replace function public.dim_item_put(p_secret text, p_bnet jsonb default '{}'::jsonb, p_other jsonb default '{}'::jsonb)
+returns int language plpgsql security definer set search_path = public as $$
+declare sec text; n int;
+begin
+  select v into sec from bnet_config where k = 'ah_secret';
+  if coalesce(sec, '') = '' or length(sec) < 24 or p_secret is distinct from sec then raise exception 'denied'; end if;
+  if jsonb_typeof(p_bnet) <> 'object' or jsonb_typeof(p_other) <> 'object'
+     or pg_column_size(p_bnet) + pg_column_size(p_other) > 8000000 then raise exception 'bad data'; end if;
+  insert into dim_item (id, src, tip, at)
+  select e.key::int, 'blizzard', bnet_item_tip(e.value), now() from jsonb_each(p_bnet) e
+  where e.key ~ '^[0-9]{1,9}$' and jsonb_typeof(e.value) = 'object'
+  on conflict (id) do update set src = excluded.src, tip = excluded.tip, at = excluded.at;
+  insert into dim_item (id, src, tip, at)
+  select e.key::int, e.value->>0, coalesce(e.value->1, '[]'::jsonb), now() from jsonb_each(p_other) e
+  where e.key ~ '^[0-9]{1,9}$' and e.value->>0 in ('wowhead', 'none') and jsonb_typeof(coalesce(e.value->1, '[]'::jsonb)) = 'array'
+  on conflict (id) do update set src = excluded.src, tip = excluded.tip, at = excluded.at;
+  select count(*) into n from dim_item;
+  return n;
+end $$;
+revoke execute on function public.dim_item_put(text, jsonb, jsonb) from public;
+grant execute on function public.dim_item_put(text, jsonb, jsonb) to anon, authenticated;
+
+-- Which ids are there (the job only fetches the rest each hour), and one item for the page's hover card.
+create or replace function public.dim_item_ids()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(id), '[]'::jsonb) from dim_item;
+$$;
+create or replace function public.dim_item_get(p_id int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('src', src, 'tip', tip, 'at', floor(extract(epoch from at) * 1000)) from dim_item where id = p_id;
+$$;
+revoke execute on function public.dim_item_ids(), public.dim_item_get(int) from public;
+grant execute on function public.dim_item_ids(), public.dim_item_get(int) to anon, authenticated;
+
+-- 2026-11-22: TEMPORARY watchdog for GitHub's scheduler, which skipped every scheduled run of ah.yml on its first day.
+-- At :50 every hour: if the newest auction snapshot is more than 75 minutes old, ask GitHub to run ah.yml; if the item
+-- descriptions are more than 26 hours old, ask it to run dims.yml. When GitHub's own schedule works, this never fires.
+-- Needs a fine-grained GitHub token (this repository only, Actions: read and write), stored by hand, never committed:
+--   insert into public.bnet_config (k, v) values ('gh_token', '...') on conflict (k) do update set v = excluded.v;
+-- Optional 'gh_repo' (default KirillYoutopia/forever-planner). To retire it: select cron.unschedule('ah-watchdog');
+create or replace function public.ah_watchdog()
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare tok text; repo text; st int; out jsonb := '{}'::jsonb; wf text;
+begin
+  select v into tok from bnet_config where k = 'gh_token';
+  if coalesce(tok, '') = '' then return jsonb_build_object('skipped', 'no gh_token'); end if;
+  repo := coalesce((select v from bnet_config where k = 'gh_repo'), 'KirillYoutopia/forever-planner');
+  if repo !~ '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' then raise exception 'bad gh_repo'; end if;
+  perform http_set_curlopt('CURLOPT_TIMEOUT', '20');
+  for wf in select x from unnest(array[
+      case when coalesce((select max(at) from ah_hour), '-infinity') < now() - interval '75 minutes' then 'ah.yml' end,
+      case when coalesce((select max(at) from dim_item), '-infinity') < now() - interval '26 hours' then 'dims.yml' end]) x
+    where x is not null loop
+    select h.status into st from http(('POST', format('https://api.github.com/repos/%s/actions/workflows/%s/dispatches', repo, wf),
+      array[http_header('Authorization', 'Bearer ' || tok), http_header('Accept', 'application/vnd.github+json'),
+            http_header('User-Agent', 'forever-planner-watchdog')],
+      'application/json', '{"ref":"main"}')::http_request) h;
+    out := out || jsonb_build_object(wf, st);  -- 204 = started
+  end loop;
+  return out;
+end $$;
+revoke execute on function public.ah_watchdog() from public, anon, authenticated;
+select cron.schedule('ah-watchdog', '50 * * * *', 'select public.ah_watchdog()');

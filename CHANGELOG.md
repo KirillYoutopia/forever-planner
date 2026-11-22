@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-22 (auction: item list redesign)
+
+- «Предметы» works like an auction tracker: categories with counts and sorts on the left, quick views (most turnover, selling fast, dropped in the last hour, under 1g, below market, rare and above, new in Forever, below vendor price, running low), filters by rarity, level, price, units gone and listed; columns for the last hour's change, market price (explained), listed, gone in 24 h and sell-through (both estimates), and a 7-day sparkline; 50/100/200 rows.
+- Hovering an item shows its description with the lowest buyout, market price, listed and gone in 24 h. A new tile «Ушло за час» estimates the gold that left the auction in the last hour.
+- Reference data (item names, prices, icons, descriptions) now lives in the database and is refreshed daily by a GitHub Actions job, Blizzard's API first and Wowhead's WoW Forever data (marked) only for what Blizzard lacks; the page no longer asks Wowhead for item descriptions. Needs `supabase.sql` re-run. See `docs/DECISIONS.md`.
+
 ## 2026-11-22 (auction: money format, flow data)
 
 - Auction prices read like in the game: 12g 34s 5c, with gold, silver and copper letters in their colours.

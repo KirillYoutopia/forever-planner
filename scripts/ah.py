@@ -12,6 +12,8 @@ Site (GitHub Actions, hourly): py scripts/ah.py --publish
 Credentials: BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET and AH_SECRET from the environment, or from the --env file.
 """
 import argparse, base64, gzip, json, os, re, sys, time, urllib.error, urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from html.parser import HTMLParser
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
@@ -122,6 +124,117 @@ def catalog(tok, ids):
                     d.get('required_level', 0), icons.get(d.get('media', {}).get('id'), 0), d.get('sell_price', 0),
                     round(d.get('purchase_price', 0) / max(1, d.get('purchase_quantity', 1) or 1))]
     return items, classes
+
+
+WH_UA = {'User-Agent': 'KuteExpats guild site (+https://kirillyoutopia.github.io/forever-planner/)'}
+
+
+class _WhTip(HTMLParser):
+    """Wowhead's tooltip HTML -> lines [[text, kind, right]] like bnet_item_tip: kind g (green), y (gold), m (muted)."""
+    def __init__(self):
+        super().__init__()
+        self.lines, self.cur, self.stack, self.th = [], None, [], 0
+
+    def flush(self):
+        if self.cur and (self.cur[0].strip() or self.cur[2].strip()):
+            self.lines.append([' '.join(self.cur[0].split()), self.cur[1], ' '.join(self.cur[2].split())])
+        self.cur = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ('br', 'tr', 'table', 'div', 'p'):
+            self.flush()
+        if tag == 'br':
+            return
+        if tag == 'th':
+            self.th += 1
+        cls = ' ' + (dict(attrs).get('class') or '') + ' '
+        self.stack.append((tag, 'g' if ' q2 ' in cls else 'y' if ' q ' in cls else 'm' if ' q0 ' in cls else None))
+
+    def handle_endtag(self, tag):
+        if tag == 'th':
+            self.th = max(0, self.th - 1)
+        if tag not in [t for t, _ in self.stack]:  # <br/> and stray closing tags must not empty the colour stack
+            return
+        while self.stack:
+            if self.stack.pop()[0] == tag:
+                break
+        if tag in ('tr', 'table', 'div', 'p'):
+            self.flush()
+
+    def handle_data(self, text):
+        if not text.strip():
+            return
+        if self.cur is None:
+            self.cur = ['', next((k for _, k in reversed(self.stack) if k), ''), '']
+        self.cur[2 if self.th else 0] += text
+
+
+def wh_tip_lines(html):
+    p = _WhTip()
+    p.feed(html or '')
+    p.flush()
+    return [l[:2] + ([l[2]] if l[2] else []) for l in p.lines][:30]
+
+
+def get_json(url, headers, tries=3):
+    """GET -> (status, json or None); 5xx and network errors are retried."""
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as r:
+                return r.status, json.load(r)
+        except urllib.error.HTTPError as e:
+            if (e.code < 500 and e.code != 429) or attempt == tries - 1:
+                return e.code, None
+        except (OSError, ValueError):
+            if attempt == tries - 1:
+                return 0, None
+        time.sleep(2 * (attempt + 1))
+
+
+def item_tip(tok, i):
+    """One item's description: ('bnet', preview_item) from Blizzard's Forever catalogue, else ('wowhead', lines) from Wowhead's
+    WoW Forever tooltip, else ('none', []). None when it couldn't be read (tried again next time)."""
+    try:
+        return _item_tip(tok, i)
+    except (AttributeError, TypeError, KeyError):  # an answer of an unexpected shape: skip it, never fail the run
+        return None
+
+
+def _item_tip(tok, i):
+    st, j = get_json(f'https://{REGION}.api.blizzard.com/data/wow/item/{i}?namespace=static-forever-{REGION}&locale=en_US',
+                     {'Authorization': 'Bearer ' + tok})
+    if st == 200 and isinstance((j or {}).get('preview_item'), dict):
+        return 'bnet', j['preview_item']
+    if st not in (200, 404):
+        return None
+    st, w = get_json(f'https://nether.wowhead.com/tooltip/item/{i}?dataEnv=16&locale=0', WH_UA)
+    if st == 200 and (w or {}).get('tooltip'):
+        return 'wowhead', wh_tip_lines(w['tooltip'])
+    return ('none', []) if st in (200, 404) else None
+
+
+def push_tips(tok, ids, secret, workers=8):
+    """Fetch descriptions for ids (8 at a time) and store them in dim_item in batches. Returns how many were stored."""
+    ids, done, batch = sorted(ids), 0, {'bnet': {}, 'other': {}}
+
+    def send():
+        if batch['bnet'] or batch['other']:
+            rpc('dim_item_put', {'p_secret': secret, 'p_bnet': batch['bnet'], 'p_other': batch['other']})
+        batch['bnet'], batch['other'] = {}, {}
+
+    with ThreadPoolExecutor(workers) as pool:
+        for i, res in zip(ids, pool.map(lambda x: item_tip(tok, x), ids)):
+            if res is None:
+                continue
+            done += 1
+            if res[0] == 'bnet':
+                batch['bnet'][str(i)] = res[1]
+            else:
+                batch['other'][str(i)] = [res[0], res[1]]
+            if len(batch['bnet']) >= 40 or len(batch['other']) >= 500:  # each preview is formatted in SQL: small batches stay under the anon timeout
+                send()
+    send()
+    return done
 
 
 def token(cid, sec):
@@ -252,6 +365,9 @@ def selftest():
     assert totals(its, com2) == {'items': 2, 'lots': 3, 'units': 6, 'max': 7}
     assert totals(its, com2, {'max': 4, 'lots': 3}) == {'items': 2, 'lots': 3, 'units': 6, 'max': 7, 'new': 2, 'gone': 2}
     assert flow(its, com2) == {1: [1], 9: [5]}
+    assert wh_tip_lines('<table><tr><td><b class="q3">Sword</b><br>Binds when picked up<table width="100%"><tr><td>One-Hand</td>'
+                        '<th>Sword</th></tr></table><span class="q2">Equip: +5 Stamina</span><br><span class="q">"Shiny"</span></td></tr></table>') == [
+        ['Sword', ''], ['Binds when picked up', ''], ['One-Hand', '', 'Sword'], ['Equip: +5 Stamina', 'g'], ['"Shiny"', 'y']]
     # before: item 9 had 3 units, item 8 had 2 (now gone); lot 7 (4 units of 9) is new -> 9: 3 + 4 - 5 = 2 gone
     assert flow(its, com2, {'t': {'max': 5}, 'g': {'9': [3], '8': [2], '1': [1]}}) == {1: [1, 0, 0], 9: [5, 4, 2], 8: [0, 0, 2]}
     print('selftest ok')
@@ -264,14 +380,21 @@ def main():
     ap.add_argument('--show', default='2447,765,2449,785,2589,2592,4306,14047,10620,13468',
                     help='item ids to print (default: a few herbs, cloth, ore)')
     ap.add_argument('--publish', action='store_true', help='send the aggregates to Supabase (needs AH_SECRET)')
+    ap.add_argument('--dims', action='store_true', help='daily: refresh the item catalogue and every item description (needs AH_SECRET)')
     ap.add_argument('--selftest', action='store_true')
     a = ap.parse_args()
     if a.selftest:
         return selftest()
-    secret = setting('AH_SECRET', a.env) if a.publish else None
-    if a.publish and not secret:
+    secret = setting('AH_SECRET', a.env) if a.publish or a.dims else None
+    if (a.publish or a.dims) and not secret:
         sys.exit('AH_SECRET is not set')
     tok = token(*creds(a.env))
+    if a.dims:  # dimension tables, once a day: names / prices / icons and descriptions of every item the site knows
+        ids = {int(k) for k in (rpc('ah_names', {}) or {}).get('items', {})} | {int(i) for i in rpc('ah_craft_items', {}) or []}
+        items, classes = catalog(tok, ids)
+        print('names:', len(ids), 'ids ->', rpc('ah_names_put', {'p_secret': secret, 'p_items': items, 'p_classes': classes}), 'in the catalogue')
+        print('descriptions:', push_tips(tok, ids, secret), 'of', len(ids), 'stored')
+        return
     show = [int(x) for x in a.show.split(',') if x]
     seen = set()
     # vendor sell prices from the item catalogue, for the "vendor flip" numbers (field 7)
@@ -356,6 +479,12 @@ def main():
             else:
                 print(f'names: {len(missing)} new ids, {sum(1 for v in items.values() if v[0])} found ->',
                       rpc('ah_names_put', {'p_secret': secret, 'p_items': items, 'p_classes': classes}), 'in the catalogue')
+        try:  # descriptions of items seen for the first time (the daily --dims run refreshes them all)
+            new = seen - {int(i) for i in rpc('dim_item_ids', {}) or []}
+            if new:
+                print('descriptions:', push_tips(tok, sorted(new)[:2000], secret), 'of', len(new), 'new ids stored')
+        except (SystemExit, OSError, ValueError) as e:
+            print(f'descriptions: skipped this run ({e})')
 
 
 if __name__ == '__main__':
