@@ -17,9 +17,14 @@ now fails with an error toast.
 - «Готовность к рейду» on «Рейды» (`renderRaidReady`, `eta60`, `LVL_MIN` from Kivrus's calculator script) and «Вчера» on home
   (`renderYday`, only when the last two finished glevels days are adjacent).
 
+**English UI (2026-11-23)**: the user dropped the EN/RU switch and chose English as the only UI language. All of index.html was
+translated in place (static markup by a dictionary, JS by three agents in sequence, checked: every view at 375 px, no console
+errors, no Cyrillic left except stored data). Kept in Russian on purpose: `BET_CATS` values (stored in `bets.cat`, shown via
+`BET_CAT_EN`); old Hall of Fame titles are shown through `fameTitle()` (regex map `FAME_RU`); players' own text (bets, goals, tasks).
+`plural()` now takes English forms (one / many). CLAUDE.md updated accordingly.
+
 **Open, in the user's order:**
-1. EN/RU interface switch (user chose: switch next to the theme, English default). Large: `t()` + dictionary, step by step
-   (menu and shared bits first, then page by page). CLAUDE.md change is proposed in docs/INSTRUCTION_PROPOSALS.md (needs approval).
+1. (done: English UI, see above)
 2. Menu: proposal 17 → 13 items (merge Обзор+По дням, Дуэли+Ставки, Календарь+Скоро; «Карточка игрока» → «Персонажи»; drop
    «Планирование (старое)»). The user said «пока отложи».
 3. Auction «new / gone» estimate looks wrong: one hour had 856k new and 857k gone units (27% of all units). Likely commodity
