@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-23 (English interface)
+
+- The whole site is now in English (the group plays the English client): menus, pages, dates (22 Nov), numbers (7,040), money (12g 34s). Text the players wrote themselves (bets, goals, tasks) stays as written; older Hall of Fame entries are shown in English.
+- Fixed: «Вчера» (now "Yesterday") showed on every page instead of only on the home page.
+
 ## 2026-11-23 (security rules, faster first load, raid readiness, yesterday)
 
 - Writes are checked more strictly (already live in the database): a player row accepts only known fields, so one bad value can no longer break the page for everyone; a bet's question and options can't change after creation and only its author or an admin can change a result once set; only an admin hides a finished duel; «Рассчитались» is recorded by whoever received the gold. The page also keeps drawing other sections if one fails.

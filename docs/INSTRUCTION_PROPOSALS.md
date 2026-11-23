@@ -2,7 +2,7 @@
 
 Proposed changes to CLAUDE.md files. Not active until approved.
 
-## 2026-11-23: project CLAUDE.md, stricter write rules, lazy collections, English UI (APPROVED 2026-11-23; items 1–5 APPLIED 2026-11-23, item 6 is applied together with the language switch)
+## 2026-11-23: project CLAUDE.md, stricter write rules, lazy collections, English UI (APPROVED 2026-11-23; items 1–5 APPLIED 2026-11-23, item 6 SUPERSEDED: on 2026-11-23 the user chose English as the only UI language instead of a switch, applied directly to CLAUDE.md)
 
 **Reason:** `patch_doc` rules changed (applied live 2026-11-23, approved by the user); `store.js` now loads `gcat` and
 `gtalents` only on demand; the user chose an EN/RU interface switch with English as the default, which contradicts

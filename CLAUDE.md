@@ -1,6 +1,6 @@
 # WoW Forever Planner — project context
 
-You're working on the guild site of a small WoW Forever group (Kute Expats, EU, PvP Horde; 5 core players). The UI text is in Russian, so keep all user-facing text in Russian (game names stay in English). It's a static site on GitHub Pages backed by Supabase; reading needs no login, writing needs a player login (see "Login and permissions"). Before a substantial task read `docs/PHASE_HANDOFF.md` (state, open questions) and `docs/DECISIONS.md` (architecture decisions).
+You're working on the guild site of a small WoW Forever group (Kute Expats, EU, PvP Horde; 5 core players). The UI text is in English (since 2026-11-23, the owner's decision; Russian was dropped, no language switch). Keep all user-facing text in English; game names as in the game. Values stored in the database in Russian (e.g. bet categories) stay as they are and are translated only for display. It's a static site on GitHub Pages backed by Supabase; reading needs no login, writing needs a player login (see "Login and permissions"). Before a substantial task read `docs/PHASE_HANDOFF.md` (state, open questions) and `docs/DECISIONS.md` (architecture decisions).
 
 ## Stack and files
 - `index.html`: the entire app. Vanilla JS and CSS in one file. No framework, no build step.
